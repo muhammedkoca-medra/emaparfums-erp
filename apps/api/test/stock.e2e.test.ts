@@ -214,16 +214,6 @@ describe("stok · otomatik kurallar", () => {
 });
 
 describe("sayım (STK-09)", () => {
-  async function stockedItem(qty: string, cost?: string) {
-    const it0 = await item();
-    const { lotId } = await receive(it0.id, qty);
-    if (cost)
-      await ctx.prisma.standardCost.create({
-        data: { itemId: it0.id, amount: cost, validFrom: new Date("2020-01-01") },
-      });
-    return { it0, lotId };
-  }
-
   it("kör sayım: depocu sistem miktarını görmez; eşik altı fark otomatik düzeltilir", async () => {
     const z = `Q${randomUUID().slice(0, 3)}`;
     const loc = (await ctx.prisma.location.create({ data: { warehouseId: wh, code: `${z}-01` } })).id;
