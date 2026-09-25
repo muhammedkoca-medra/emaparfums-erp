@@ -5,10 +5,12 @@ packages:
 # Kurulum betiği çalıştırmasına izin verilen bağımlılıklar (pnpm varsayılan olarak engeller).
 allowBuilds:
   "@nestjs/core": false
+  "@parcel/watcher": true
   "@prisma/engines": true
   "@scarf/scarf": false
   "@swc/core": true
   esbuild: true
+  msgpackr-extract: true
   prisma: true
   sharp: true
   unrs-resolver: true

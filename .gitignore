@@ -9,3 +9,5 @@ coverage
 packages/db/src/generated
 *.log
 .DS_Store
+*.tsbuildinfo
+next-env.d.ts

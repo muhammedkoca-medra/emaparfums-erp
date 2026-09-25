@@ -18,8 +18,16 @@ const secret = () => randomBytes(32).toString("base64");
 
 /** [anahtar, yerel varsayılan (fonksiyon = gizli, her kurulumda üretilir), .env.example değeri] */
 const REQUIRED = [
-  ["DATABASE_URL", "postgresql://atelier:atelier@localhost:5432/atelier", "postgresql://atelier:atelier@localhost:5432/atelier"],
-  ["DATABASE_URL_TEST", "postgresql://atelier:atelier@localhost:5432/atelier_test", "postgresql://atelier:atelier@localhost:5432/atelier_test"],
+  [
+    "DATABASE_URL",
+    "postgresql://atelier:atelier@localhost:5432/atelier",
+    "postgresql://atelier:atelier@localhost:5432/atelier",
+  ],
+  [
+    "DATABASE_URL_TEST",
+    "postgresql://atelier:atelier@localhost:5432/atelier_test",
+    "postgresql://atelier:atelier@localhost:5432/atelier_test",
+  ],
   ["REDIS_URL", "redis://localhost:6379", "redis://localhost:6379"],
   ["API_PORT", "4000", "4000"],
   ["API_URL", "http://localhost:4000", "http://localhost:4000"],

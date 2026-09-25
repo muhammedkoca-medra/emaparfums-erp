@@ -29,18 +29,18 @@ gantt
 
 **Amaç:** Her modülün üzerine oturacağı iskelet: kimlik, yetki, denetim, olaylar, entegrasyon çerçevesi, tasarım sistemi.
 
-- [ ] **F0-01** Monorepo kurulumu: `apps/web` (Next.js), `apps/api` (NestJS), `apps/worker`; ortak tsconfig, ESLint, Prettier, Vitest.
-- [ ] **F0-02** `packages/db`: `prisma generate`, ilk migration, `AuditLog` için UPDATE/DELETE engelleyen trigger migration'ı.
-- [ ] **F0-03** Tohum verisi (`docs/02-veri-modeli.md#tohum-verisi`).
-- [ ] **F0-04** Kimlik doğrulama: e-posta + parola, iki adımlı doğrulama (TOTP), oturum; cihaz token'ı (mobil için).
-- [ ] **F0-05** `@RequirePermission` guard + `RolePermission` tohumu (`03-moduller/yetki.md` matrisi); izinsiz uç tespit testi.
-- [ ] **F0-06** `AuditInterceptor` (önce/sonra kaydı).
-- [ ] **F0-07** Outbox: servis yardımcısı `emit(tx, event)`, worker'da `outbox-dispatcher`, BullMQ bağlantısı, ölü mektup kuyruğu.
-- [ ] **F0-08** `packages/integrations`: `IntegrationAdapter` kayıt defteri, mock adaptör şablonu, `IntegrationLog` yazıcı, maskeleme yardımcısı.
-- [ ] **F0-09** Alan şifreleme yardımcısı (TCKN/VKN/telefon) + arama hash'i.
-- [ ] **F0-10** Web kabuğu: kenar menü, üst bar, tasarım token'ları, `messages/tr.json`, giriş ekranı, izne göre menü.
-- [ ] **F0-11** CI: lint, typecheck, test, prisma validate; PR şablonu.
-- [ ] **F0-12** ADR-0002 (barındırma ve KVKK), ADR-0004 (e-belge entegratörü), ADR-0005 (kendi site altyapısı) için karar dokümanları hazırlanır, kullanıcı kararı alınır.
+- [x] **F0-01** Monorepo kurulumu: `apps/web` (Next.js), `apps/api` (NestJS), `apps/worker`; ortak tsconfig, ESLint, Prettier, Vitest.
+- [x] **F0-02** `packages/db`: `prisma generate`, ilk migration, `AuditLog` için UPDATE/DELETE engelleyen trigger migration'ı.
+- [x] **F0-03** Tohum verisi (`docs/02-veri-modeli.md#tohum-verisi`).
+- [x] **F0-04** Kimlik doğrulama: e-posta + parola, iki adımlı doğrulama (TOTP), oturum; cihaz token'ı (mobil için).
+- [x] **F0-05** `@RequirePermission` guard + `RolePermission` tohumu (`03-moduller/yetki.md` matrisi); izinsiz uç tespit testi.
+- [x] **F0-06** `AuditInterceptor` (önce/sonra kaydı).
+- [x] **F0-07** Outbox: servis yardımcısı `emit(tx, event)`, worker'da `outbox-dispatcher`, BullMQ bağlantısı, ölü mektup kuyruğu.
+- [x] **F0-08** `packages/integrations`: `IntegrationAdapter` kayıt defteri, mock adaptör şablonu, `IntegrationLog` yazıcı, maskeleme yardımcısı.
+- [x] **F0-09** Alan şifreleme yardımcısı (TCKN/VKN/telefon) + arama hash'i.
+- [x] **F0-10** Web kabuğu: kenar menü, üst bar, tasarım token'ları, `messages/tr.json`, giriş ekranı, izne göre menü.
+- [x] **F0-11** CI: lint, typecheck, test, prisma validate; PR şablonu.
+- [ ] **F0-12** ADR-0002 (barındırma ve KVKK), ADR-0004 (e-belge entegratörü), ADR-0005 (kendi site altyapısı) için karar dokümanları hazırlanır, kullanıcı kararı alınır. · _Dokümanlar hazır (docs/karar-kayitlari), kullanıcı kararı bekleniyor._
 
 **Çıkış kriterleri**
 - `docker compose up && pnpm db:migrate && pnpm db:seed && pnpm dev` temiz bir makinede çalışıyor.

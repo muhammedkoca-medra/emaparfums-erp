@@ -34,11 +34,24 @@ Kısaltmalar: G = görüntüle, O = oluştur, D = düzenle, On = onayla, S = sil
 | admin | GODOnS | – | – | – | – | – | – | – | – |
 | customer_pii | G (maskeli dışa aktarma) | – | – | – | – | G | – | G | – |
 
+**Kodlama notları** (`packages/shared/src/permissions.ts`, tablo ile birebir):
+- **`dashboard`:** Tabloda yok. Kontrol paneli, mali müşavir dışındaki tüm iç rollere G olarak açıktır.
+- **`receiving` (mal kabul):** Tablodaki "Depo · purchasing: G (kabul O)" hücresi ayrı izin koduna ayrıldı. Böylece depo mal kabul girebilir ama satın alma siparişi oluşturamaz. Satın alma ve depo rollerinde GO, diğer ilgili rollerde G.
+- **`social / content`:** Tek satır iki izin koduna bölündü: `social`, `content`.
+- **Tutar limitleri:** Satın alma onayı ≤ ₺50.000 gibi limitler `ApprovalRule` tablosundadır. Tohum kaydı: `purchasing / PurchaseOrder / 50.000 → ADMIN`.
+
+**Erişim sınıfları (API):** Her uç tam olarak bir sınıf taşır:
+- `@Public()`: sağlık kontrolü ve giriş
+- `@Authenticated()`: oturumlu her kullanıcı, ör. `/auth/me`
+- `@RequirePermission(module, action)`
+
+Sınıfı olmayan uç varsayılan olarak reddedilir. `apps/api/test/permissions.e2e.test.ts` tüm uçları tarar.
+
 ## İş kuralları
 - **YTK-01:** Yetki kontrolünün asıl yeri API'dir (`@RequirePermission`); arayüz yalnızca gizler.
 - **YTK-02:** Yetki matrisindeki bir değişiklik, yönetici onayından sonra geçerli olur ve `AuditLog`'a yazılır.
 - **YTK-03:** `AuditLog` yalnızca eklenir. Veritabanı trigger'ı UPDATE ve DELETE işlemlerini engeller; kayıtlar 10 yıl saklanır (süre parametrik ve teyit edilecek).
-- **YTK-04:** İki adımlı doğrulama tüm kullanıcılar için zorunludur. Yeni cihazdan giriş bildirilir. Dış kullanıcılar (mali müşavir) salt okunur ve IP kısıtlıdır (opsiyonel).
+- **YTK-04:** İki adımlı doğrulama (TOTP) tüm kullanıcılar için zorunludur; ilk girişte kurulum ekranı açılır. Web oturumu 8 saattir (`SESSION_TTL_HOURS`). Art arda 5 hatalı parola hesabı 15 dakika kilitler (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`); giriş uçlarında IP başına dakikada 20 istek sınırı vardır. Yeni cihazdan giriş bildirilir. Dış kullanıcılar (mali müşavir) salt okunur ve IP kısıtlıdır (opsiyonel).
 - **YTK-05:** `customer_pii` izni olmayan kullanıcı TCKN/VKN/telefon/e-postayı maskeli görür. Dışa aktarma her zaman loglanır.
 - **YTK-06:** Onay akışı `ApprovalRule` ile tanımlanır: modül, varlık, tutar eşiği ve onaylayan rol.
 - **YTK-07:** Mobil depo cihazları kullanıcıya bağlı cihaz token'ıyla girer; oturum 12 saat sürer.
@@ -50,6 +63,6 @@ Kısaltmalar: G = görüntüle, O = oluştur, D = düzenle, On = onayla, S = sil
 - `GET|POST /admin/approval-rules`, `GET /approvals?mine`, `POST /approvals/:id/decide`
 
 ## Kabul kriterleri
-- [ ] Her API ucunun bir izin kodu var (otomatik test: izinsiz uç listesi boş).
-- [ ] AuditLog'a UPDATE veya DELETE denemesi veritabanında başarısız oluyor.
+- [x] Her API ucunun bir izin kodu var (otomatik test: izinsiz uç listesi boş). · F0-05
+- [x] AuditLog'a UPDATE veya DELETE denemesi veritabanında başarısız oluyor (TRUNCATE da). · F0-02
 - [ ] Maskeli görünüm ve dışa aktarma logu çalışıyor.

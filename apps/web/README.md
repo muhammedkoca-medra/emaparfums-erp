@@ -1,6 +1,6 @@
 # apps/web — Yönetim paneli (Next.js)
 
-Faz 0'da `pnpm create next-app` ile oluşturulacak (App Router, TypeScript, Tailwind, ESLint).
+Next.js (App Router) + Tailwind 4 + next-intl. Tarayıcı API'ye `/api/*` rewrite'ı üzerinden gider; oturum çerezi web alan adında kalır.
 
 - Rotalar: `app/(app)/<modül>/` — modül adları `docs/03-moduller/` dosya adlarıyla aynı.
 - Düzen: sol menü (prototipteki "Kenar menü") + üst bar. Menü grupları `docs/06-tasarim-sistemi.md`.

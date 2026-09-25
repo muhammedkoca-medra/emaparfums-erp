@@ -1,4 +1,10 @@
-import { type CallHandler, type ExecutionContext, Inject, Injectable, type NestInterceptor } from "@nestjs/common";
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Inject,
+  Injectable,
+  type NestInterceptor,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { writeAudit } from "@atelier/db";
 import { type Logger } from "pino";
@@ -55,9 +61,9 @@ export class AuditInterceptor implements NestInterceptor {
   private async load(options: AuditOptions, id: string): Promise<unknown> {
     if (options.load) return options.load(this.prisma, id);
     const delegateName = options.entity[0]!.toLowerCase() + options.entity.slice(1);
-    const delegate = (this.prisma as unknown as Record<string, { findUnique?: (a: unknown) => Promise<unknown> }>)[
-      delegateName
-    ];
+    const delegate = (
+      this.prisma as unknown as Record<string, { findUnique?: (a: unknown) => Promise<unknown> }>
+    )[delegateName];
     if (!delegate?.findUnique) throw new Error(`Denetim: bilinmeyen varlık ${options.entity}`);
     return delegate.findUnique({ where: { id } });
   }

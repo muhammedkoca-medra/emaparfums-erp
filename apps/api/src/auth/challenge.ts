@@ -12,7 +12,11 @@ export interface ChallengePayload {
 
 const sign = (secret: string, data: string) => createHmac("sha256", secret).update(data).digest("base64url");
 
-export function issueChallenge(secret: string, payload: Omit<ChallengePayload, "exp">, ttlMs = 5 * 60_000): string {
+export function issueChallenge(
+  secret: string,
+  payload: Omit<ChallengePayload, "exp">,
+  ttlMs = 5 * 60_000,
+): string {
   const data = Buffer.from(JSON.stringify({ ...payload, exp: Date.now() + ttlMs })).toString("base64url");
   return `${data}.${sign(secret, `challenge:${data}`)}`;
 }

@@ -23,7 +23,8 @@ export class SessionService {
     userAgent: string | null;
   }): Promise<{ token: string; sessionId: string; expiresAt: Date }> {
     const token = randomBytes(32).toString("base64url");
-    const hours = input.kind === "DEVICE" ? this.config.DEVICE_SESSION_TTL_HOURS : this.config.SESSION_TTL_HOURS;
+    const hours =
+      input.kind === "DEVICE" ? this.config.DEVICE_SESSION_TTL_HOURS : this.config.SESSION_TTL_HOURS;
     const expiresAt = new Date(Date.now() + hours * 3_600_000);
     const session = await this.prisma.session.create({
       data: {
@@ -54,7 +55,8 @@ export class SessionService {
         user: { select: { isActive: true } },
       },
     });
-    if (!session || session.revokedAt || session.expiresAt <= new Date() || !session.user.isActive) return null;
+    if (!session || session.revokedAt || session.expiresAt <= new Date() || !session.user.isActive)
+      return null;
     // Son görülme zamanını en fazla 5 dakikada bir yaz (her istekte yazma yükü olmasın).
     if (Date.now() - session.lastSeenAt.getTime() > 5 * 60_000) {
       await this.prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } });

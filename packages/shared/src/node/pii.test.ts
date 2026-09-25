@@ -38,7 +38,9 @@ describe("pii", () => {
   it("arama hash'i normalleştirir", () => {
     expect(searchHash(ring, "phone", "0532 123 45 12")).toBe(searchHash(ring, "phone", "+90 532 123 4512"));
     expect(searchHash(ring, "phone", "5321234512")).toBe(searchHash(ring, "phone", "05321234512"));
-    expect(searchHash(ring, "email", " Ayse@Example.com")).toBe(searchHash(ring, "email", "ayse@example.com"));
+    expect(searchHash(ring, "email", " Ayse@Example.com")).toBe(
+      searchHash(ring, "email", "ayse@example.com"),
+    );
     expect(searchHash(ring, "email", "x@y.z")).not.toBe(searchHash(ring, "phone", "x@y.z"));
   });
 

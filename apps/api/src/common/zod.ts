@@ -24,6 +24,7 @@ export const ApiZodBody = (schema: z.ZodType) =>
 /** OpenAPI belgesine zod nesnesinin alanlarını sorgu parametresi olarak ekler. */
 export function ApiZodQuery(schema: z.ZodObject): MethodDecorator {
   return (target, key, descriptor) => {
-    for (const name of Object.keys(schema.shape)) ApiQuery({ name, required: false })(target, key, descriptor);
+    for (const name of Object.keys(schema.shape))
+      ApiQuery({ name, required: false })(target, key, descriptor);
   };
 }

@@ -1,4 +1,13 @@
-import { Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  ConflictException,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { type Db } from "@atelier/db";
 import {
@@ -61,7 +70,10 @@ export class AdminController {
   async createUser(@Body(new ZodPipe(createUserSchema)) body: CreateUserRequest) {
     const exists = await this.prisma.user.findUnique({ where: { email: body.email }, select: { id: true } });
     if (exists) throw new ConflictException({ message: "Bu e-posta ile kayıtlı bir kullanıcı var" });
-    const roles = await this.prisma.role.findMany({ where: { code: { in: body.roleCodes } }, select: { id: true } });
+    const roles = await this.prisma.role.findMany({
+      where: { code: { in: body.roleCodes } },
+      select: { id: true },
+    });
     const user = await this.prisma.user.create({
       data: {
         email: body.email,
@@ -83,7 +95,10 @@ export class AdminController {
   async setRoles(@Param("id") id: string, @Body(new ZodPipe(setUserRolesSchema)) body: SetUserRolesRequest) {
     const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
     if (!user) throw new NotFoundException({ message: "Kullanıcı bulunamadı" });
-    const roles = await this.prisma.role.findMany({ where: { code: { in: body.roleCodes } }, select: { id: true } });
+    const roles = await this.prisma.role.findMany({
+      where: { code: { in: body.roleCodes } },
+      select: { id: true },
+    });
     await this.prisma.$transaction([
       this.prisma.userRole.deleteMany({ where: { userId: id } }),
       this.prisma.userRole.createMany({ data: roles.map((r) => ({ userId: id, roleId: r.id })) }),
@@ -110,7 +125,10 @@ export class AdminController {
         id: true,
         code: true,
         name: true,
-        permissions: { select: { module: true, action: true }, orderBy: [{ module: "asc" }, { action: "asc" }] },
+        permissions: {
+          select: { module: true, action: true },
+          orderBy: [{ module: "asc" }, { action: "asc" }],
+        },
       },
     });
     if (!role) throw new NotFoundException({ message: "Rol bulunamadı" });

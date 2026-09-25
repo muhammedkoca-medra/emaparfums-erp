@@ -1,0 +1,30 @@
+{
+  "name": "@atelier/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "node --enable-source-maps dist/main.js",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atelier/db": "workspace:*",
+    "@atelier/integrations": "workspace:*",
+    "@atelier/shared": "workspace:*",
+    "bullmq": "^5.60.0",
+    "dotenv": "^16.4.0",
+    "pino": "^9.0.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

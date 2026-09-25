@@ -36,7 +36,11 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
     entry.count++;
-    if (entry.count > rule.max) throw new HttpException({ message: "Çok fazla deneme yapıldı, lütfen biraz bekleyin" }, HttpStatus.TOO_MANY_REQUESTS);
+    if (entry.count > rule.max)
+      throw new HttpException(
+        { message: "Çok fazla deneme yapıldı, lütfen biraz bekleyin" },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     return true;
   }
 

@@ -32,7 +32,8 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException();
 
     const session = await this.sessions.resolve(token);
-    if (!session) throw new UnauthorizedException({ message: "Oturumunuzun süresi doldu, lütfen tekrar giriş yapın" });
+    if (!session)
+      throw new UnauthorizedException({ message: "Oturumunuzun süresi doldu, lütfen tekrar giriş yapın" });
     req.auth = session;
     return true;
   }

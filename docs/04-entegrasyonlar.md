@@ -40,8 +40,9 @@ Her entegrasyon `packages/integrations/src/<kod>/` altında `IntegrationAdapter`
 | 26 | `EMBEDDINGS` | AI | P3 | 5 | Metin gömme vektörü (koku araması) | Sağlayıcı ADR ile | Karar bekliyor |
 
 ## Ortak gereksinimler
-- **Kimlik bilgileri:** Gizli anahtar kasasında (yerelde `.env`) tutulur. Veritabanında yalnızca `credentialsRef` durur.
-- **Loglama:** Her çağrı `IntegrationLog`'a yazılır; kişisel veri ve anahtarlar maskelenir.
+- **Kimlik bilgileri:** Gizli anahtar kasasında (yerelde `.env`) tutulur. Veritabanında yalnızca `credentialsRef` durur. Yerel biçim: `credentialsRef = "env:<KOD>"` → `.env` içinde `INTEGRATION_<KOD>_<ALAN>` (ör. `INTEGRATION_TRENDYOL_API_KEY`). Çözümleyici: `packages/integrations/src/credentials.ts`.
+- **Sahte (mock) mod:** Zorunlu anahtarlardan biri yoksa `IntegrationRegistry.resolve` sahte adaptörü döndürür; gerçek çağrı yapılmaz. Şablon: `packages/integrations/src/_template/`.
+- **Loglama:** Her çağrı `invoke()` ile sarılır ve `IntegrationLog`'a yazılır; kişisel veri ve anahtarlar `maskDeep` ile maskelenir.
 - **Hata sınıflandırması:**
   - Geçici hatalar (zaman aşımı, 429, 5xx) üstel geri çekilmeyle en fazla 6 kez denenir, sonra ölü mektup kuyruğuna gider.
   - Kalıcı hata (veri hatası) ilgili kaydı hatalı durumuna düşürür ve görev açar.

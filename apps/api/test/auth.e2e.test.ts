@@ -16,7 +16,10 @@ describe("kimlik doğrulama (F0-04)", () => {
   it("ilk girişte TOTP kurulumu zorunlu, kurulumdan sonra oturum açılır", async () => {
     const user = await createUser(ctx, ["SALES"], { twoFactor: false });
     const agent = request.agent(ctx.app.getHttpServer());
-    const login = await agent.post("/auth/login").send({ email: user.email, password: user.password }).expect(200);
+    const login = await agent
+      .post("/auth/login")
+      .send({ email: user.email, password: user.password })
+      .expect(200);
     expect(login.body.status).toBe("MFA_ENROLL");
     expect(login.body.otpauthUrl).toMatch(/^otpauth:\/\/totp\/Atelier/);
 
@@ -38,20 +41,35 @@ describe("kimlik doğrulama (F0-04)", () => {
     const row = await ctx.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.twoFactorOn).toBe(true);
     expect(row.totpSecretEnc).not.toContain(login.body.secret);
-    const audit = await ctx.prisma.auditLog.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
+    const audit = await ctx.prisma.auditLog.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+    });
     expect(audit.map((a) => a.action)).toEqual(["auth.mfa_enrolled", "auth.login"]);
   });
 
   it("2FA kurulu kullanıcıdan kod istenir", async () => {
     const user = await createUser(ctx, ["SALES"]);
-    const res = await ctx.http().post("/auth/login").send({ email: user.email, password: user.password }).expect(200);
+    const res = await ctx
+      .http()
+      .post("/auth/login")
+      .send({ email: user.email, password: user.password })
+      .expect(200);
     expect(res.body).toEqual({ status: "MFA_REQUIRED", challenge: expect.any(String) });
   });
 
   it("hatalı parola ve bilinmeyen kullanıcı aynı mesajı alır", async () => {
     const user = await createUser(ctx, ["SALES"]);
-    const a = await ctx.http().post("/auth/login").send({ email: user.email, password: "yanlis-parola" }).expect(401);
-    const b = await ctx.http().post("/auth/login").send({ email: "yok@atelier.test", password: "x" }).expect(401);
+    const a = await ctx
+      .http()
+      .post("/auth/login")
+      .send({ email: user.email, password: "yanlis-parola" })
+      .expect(401);
+    const b = await ctx
+      .http()
+      .post("/auth/login")
+      .send({ email: "yok@atelier.test", password: "x" })
+      .expect(401);
     expect(a.body.message).toBe("E-posta veya parola hatalı");
     expect(b.body.message).toBe(a.body.message);
   });
@@ -69,7 +87,8 @@ describe("kimlik doğrulama (F0-04)", () => {
   it("hatalı ve tekrar kullanılan TOTP kodu reddedilir", async () => {
     const user = await createUser(ctx, ["SALES"]);
     const login = async () =>
-      (await ctx.http().post("/auth/login").send({ email: user.email, password: user.password })).body.challenge as string;
+      (await ctx.http().post("/auth/login").send({ email: user.email, password: user.password })).body
+        .challenge as string;
 
     const verify = async (code: string) => {
       const challenge = await login();
@@ -88,7 +107,11 @@ describe("kimlik doğrulama (F0-04)", () => {
     const user = await createUser(ctx, ["SALES"]);
     const res = await ctx.http().post("/auth/login").send({ email: user.email, password: user.password });
     const tampered = `${res.body.challenge}x`;
-    await ctx.http().post("/auth/mfa/verify").send({ client: "web", challenge: tampered, code: totp(user.totpSecret) }).expect(401);
+    await ctx
+      .http()
+      .post("/auth/mfa/verify")
+      .send({ client: "web", challenge: tampered, code: totp(user.totpSecret) })
+      .expect(401);
   });
 
   it("mobil cihaz token'ı: Bearer ile çalışır, 12 saat geçerli (YTK-07)", async () => {
@@ -97,7 +120,12 @@ describe("kimlik doğrulama (F0-04)", () => {
     const res = await ctx
       .http()
       .post("/auth/mfa/verify")
-      .send({ client: "device", challenge: login.body.challenge, code: totp(user.totpSecret), deviceName: "El terminali 1" })
+      .send({
+        client: "device",
+        challenge: login.body.challenge,
+        code: totp(user.totpSecret),
+        deviceName: "El terminali 1",
+      })
       .expect(200);
     expect(res.headers["set-cookie"]).toBeUndefined();
     const hours = (new Date(res.body.expiresAt).getTime() - Date.now()) / 3_600_000;
@@ -121,7 +149,10 @@ describe("kimlik doğrulama (F0-04)", () => {
   it("süresi dolmuş oturum reddedilir", async () => {
     const user = await createUser(ctx, ["SALES"]);
     const agent = await loginAgent(ctx, user);
-    await ctx.prisma.session.updateMany({ where: { userId: user.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await ctx.prisma.session.updateMany({
+      where: { userId: user.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
     await agent.get("/auth/me").expect(401);
   });
 
@@ -136,6 +167,8 @@ describe("kimlik doğrulama (F0-04)", () => {
   it("geçersiz gövde 400 ve alan bazlı hata döner", async () => {
     const res = await ctx.http().post("/auth/login").send({ email: "eposta-degil" }).expect(400);
     expect(res.body.message).toBe("Gönderilen veri geçersiz");
-    expect(res.body.issues.map((i: { path: string }) => i.path)).toEqual(expect.arrayContaining(["email", "password"]));
+    expect(res.body.issues.map((i: { path: string }) => i.path)).toEqual(
+      expect.arrayContaining(["email", "password"]),
+    );
   });
 });

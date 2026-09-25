@@ -32,7 +32,13 @@ export interface IntegrationContext {
   /** Gizli anahtar kasasından çözülmüş kimlik bilgileri — asla loglanmaz. */
   credentials: Record<string, string>;
   settings: Record<string, unknown>;
-  log: (entry: { operation: string; status: "OK" | "ERROR" | "RETRY"; request?: unknown; response?: unknown; durationMs?: number }) => Promise<void>;
+  log: (entry: {
+    operation: string;
+    status: "OK" | "ERROR" | "RETRY";
+    request?: unknown;
+    response?: unknown;
+    durationMs?: number;
+  }) => Promise<void>;
 }
 
 export interface IntegrationAdapter {
@@ -67,7 +73,10 @@ export interface PaymentCapabilities {
 }
 
 export interface CargoCapabilities {
-  createShipment(ctx: IntegrationContext, req: unknown): Promise<{ trackingNo: string; labelPdf: Uint8Array }>;
+  createShipment(
+    ctx: IntegrationContext,
+    req: unknown,
+  ): Promise<{ trackingNo: string; labelPdf: Uint8Array }>;
   track(ctx: IntegrationContext, trackingNo: string): Promise<{ status: string; events: unknown[] }>;
   cancel(ctx: IntegrationContext, trackingNo: string): Promise<void>;
 }

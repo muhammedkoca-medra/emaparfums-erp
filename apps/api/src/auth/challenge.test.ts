@@ -15,9 +15,9 @@ describe("challenge", () => {
   it("içeriği değiştirileni reddeder", () => {
     const token = issueChallenge(SECRET, { uid: "u1", purpose: "mfa" });
     const [, mac] = token.split(".");
-    const forged = Buffer.from(JSON.stringify({ uid: "admin", purpose: "mfa", exp: Date.now() + 60_000 })).toString(
-      "base64url",
-    );
+    const forged = Buffer.from(
+      JSON.stringify({ uid: "admin", purpose: "mfa", exp: Date.now() + 60_000 }),
+    ).toString("base64url");
     expect(readChallenge(SECRET, `${forged}.${mac}`)).toBeNull();
   });
   it("süresi dolanı reddeder", () => {

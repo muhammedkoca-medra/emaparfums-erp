@@ -32,7 +32,10 @@ export class AuthController {
   @HttpCode(200)
   @RateLimit(20, 60_000)
   @ApiZodBody(loginRequestSchema)
-  login(@Body(new ZodPipe(loginRequestSchema)) body: LoginRequest, @Req() req: AuthedRequest): Promise<LoginResponse> {
+  login(
+    @Body(new ZodPipe(loginRequestSchema)) body: LoginRequest,
+    @Req() req: AuthedRequest,
+  ): Promise<LoginResponse> {
     return this.auth.login(body.email, body.password, clientInfo(req));
   }
 
@@ -75,7 +78,10 @@ export class AuthController {
   @Get("me")
   @Authenticated()
   async me(@CurrentUser() auth: AuthContext): Promise<MeResponse> {
-    const [user, perms] = await Promise.all([this.auth.me(auth.userId), this.permissions.forUser(auth.userId)]);
+    const [user, perms] = await Promise.all([
+      this.auth.me(auth.userId),
+      this.permissions.forUser(auth.userId),
+    ]);
     return { ...user, permissions: [...perms].sort() };
   }
 }

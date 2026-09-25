@@ -44,7 +44,11 @@ export function resetRateLimit(ctx: TestContext) {
 async function seedRoles(prisma: Db) {
   const matrix = defaultRolePermissions();
   for (const code of ROLE_CODES) {
-    const role = await prisma.role.upsert({ where: { code }, update: {}, create: { code, name: ROLE_NAMES[code] } });
+    const role = await prisma.role.upsert({
+      where: { code },
+      update: {},
+      create: { code, name: ROLE_NAMES[code] },
+    });
     await prisma.rolePermission.createMany({
       data: matrix[code].map((p) => ({ roleId: role.id, module: p.module, action: p.action })),
       skipDuplicates: true,
@@ -87,7 +91,10 @@ export async function createUser(
 /** Tam giriş akışı (parola + TOTP); oturum çerezini taşıyan bir supertest ajanı döner. */
 export async function loginAgent(ctx: TestContext, user: TestUser) {
   const agent = request.agent(ctx.app.getHttpServer());
-  const login = await agent.post("/auth/login").send({ email: user.email, password: user.password }).expect(200);
+  const login = await agent
+    .post("/auth/login")
+    .send({ email: user.email, password: user.password })
+    .expect(200);
   await agent
     .post("/auth/mfa/verify")
     .send({ client: "web", challenge: login.body.challenge, code: totp(user.totpSecret) })

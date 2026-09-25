@@ -28,7 +28,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
     const lines = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
-    throw new Error(`Ortam yapılandırması geçersiz (pnpm setup):\n${lines}`);
+    throw new Error(`Ortam yapılandırması geçersiz (pnpm bootstrap):\n${lines}`);
   }
   return parsed.data;
 }

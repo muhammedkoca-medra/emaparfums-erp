@@ -39,10 +39,17 @@ async function roles() {
     }
   }
   // Satın alma onayı: ₺50.000 üstü yönetici onayı (yetki.md matrisi, "On ≤ ₺50.000").
-  const rule = await prisma.approvalRule.findFirst({ where: { module: "purchasing", entity: "PurchaseOrder" } });
+  const rule = await prisma.approvalRule.findFirst({
+    where: { module: "purchasing", entity: "PurchaseOrder" },
+  });
   if (!rule) {
     await prisma.approvalRule.create({
-      data: { module: "purchasing", entity: "PurchaseOrder", minAmount: D("50000"), approverRoleId: ids.ADMIN! },
+      data: {
+        module: "purchasing",
+        entity: "PurchaseOrder",
+        minAmount: D("50000"),
+        approverRoleId: ids.ADMIN!,
+      },
     });
   }
   return ids;
@@ -51,7 +58,7 @@ async function roles() {
 async function adminUser(adminRoleId: string) {
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@atelier.local").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
-  if (!password) throw new Error("SEED_ADMIN_PASSWORD tanımlı değil (pnpm setup)");
+  if (!password) throw new Error("SEED_ADMIN_PASSWORD tanımlı değil (pnpm bootstrap)");
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return;
   const user = await prisma.user.create({
@@ -70,7 +77,11 @@ async function adminUser(adminRoleId: string) {
 
 async function warehouses() {
   const W = [
-    { code: "ANA", name: "Ana depo", locs: [["A1-03"], ["B4-02"], ["B6-03"], ["C1-01"], ["D2-01"], ["TANK-01"]] },
+    {
+      code: "ANA",
+      name: "Ana depo",
+      locs: [["A1-03"], ["B4-02"], ["B6-03"], ["C1-01"], ["D2-01"], ["TANK-01"]],
+    },
     {
       code: "SOGUK",
       name: "Soğuk oda (12–15°C)",
@@ -83,7 +94,11 @@ async function warehouses() {
   ] as const;
   let seq = 1;
   for (const w of W) {
-    const wh = await prisma.warehouse.upsert({ where: { code: w.code }, update: {}, create: { code: w.code, name: w.name } });
+    const wh = await prisma.warehouse.upsert({
+      where: { code: w.code },
+      update: {},
+      create: { code: w.code, name: w.name },
+    });
     for (const [code, tMin, tMax] of w.locs as readonly (readonly [string, number?, number?])[]) {
       await prisma.location.upsert({
         where: { warehouseId_code: { warehouseId: wh.id, code } },
@@ -104,13 +119,61 @@ type ItemSeed = Omit<Prisma.ItemCreateInput, "minStock"> & { minStock?: number }
 
 const ITEMS: ItemSeed[] = [
   // Hammaddeler
-  { code: "HM-0001", name: "Etil alkol 96° denatüre", type: "RAW_MATERIAL", uom: "L", minStock: 600, isHazardous: true, storageNote: "Tank sahası · alev kaynağından uzak (UN1170)" },
+  {
+    code: "HM-0001",
+    name: "Etil alkol 96° denatüre",
+    type: "RAW_MATERIAL",
+    uom: "L",
+    minStock: 600,
+    isHazardous: true,
+    storageNote: "Tank sahası · alev kaynağından uzak (UN1170)",
+  },
   { code: "HM-0005", name: "Distile su", type: "RAW_MATERIAL", uom: "L" },
-  { code: "HM-0104", name: "Bergamot esansı (FCF)", type: "RAW_MATERIAL", uom: "KG", minStock: 8, shelfLifeDays: 730, storageNote: "12–15°C, ışıktan uzak" },
-  { code: "HM-0112", name: "Noir Ambré konsantre", type: "RAW_MATERIAL", uom: "KG", minStock: 20, shelfLifeDays: 730, storageNote: "12–15°C, ışıktan uzak" },
-  { code: "HM-0120", name: "Gül absolü", type: "RAW_MATERIAL", uom: "KG", minStock: 2, shelfLifeDays: 1095, storageNote: "12–15°C, ışıktan uzak" },
-  { code: "HM-0125", name: "Vanilya ekstresi", type: "RAW_MATERIAL", uom: "KG", minStock: 3, shelfLifeDays: 730, storageNote: "12–15°C" },
-  { code: "HM-0130", name: "Oud aroma baz", type: "RAW_MATERIAL", uom: "KG", minStock: 5, shelfLifeDays: 1095, storageNote: "12–15°C, ışıktan uzak" },
+  {
+    code: "HM-0104",
+    name: "Bergamot esansı (FCF)",
+    type: "RAW_MATERIAL",
+    uom: "KG",
+    minStock: 8,
+    shelfLifeDays: 730,
+    storageNote: "12–15°C, ışıktan uzak",
+  },
+  {
+    code: "HM-0112",
+    name: "Noir Ambré konsantre",
+    type: "RAW_MATERIAL",
+    uom: "KG",
+    minStock: 20,
+    shelfLifeDays: 730,
+    storageNote: "12–15°C, ışıktan uzak",
+  },
+  {
+    code: "HM-0120",
+    name: "Gül absolü",
+    type: "RAW_MATERIAL",
+    uom: "KG",
+    minStock: 2,
+    shelfLifeDays: 1095,
+    storageNote: "12–15°C, ışıktan uzak",
+  },
+  {
+    code: "HM-0125",
+    name: "Vanilya ekstresi",
+    type: "RAW_MATERIAL",
+    uom: "KG",
+    minStock: 3,
+    shelfLifeDays: 730,
+    storageNote: "12–15°C",
+  },
+  {
+    code: "HM-0130",
+    name: "Oud aroma baz",
+    type: "RAW_MATERIAL",
+    uom: "KG",
+    minStock: 5,
+    shelfLifeDays: 1095,
+    storageNote: "12–15°C, ışıktan uzak",
+  },
   { code: "HM-0140", name: "UV filtre / stabilizör", type: "RAW_MATERIAL", uom: "KG", minStock: 1 },
   // Ambalajlar
   { code: "AM-0505", name: "Cam şişe 30 ml (flakon)", type: "PACKAGING", uom: "PCS", minStock: 1000 },
@@ -122,13 +185,62 @@ const ITEMS: ItemSeed[] = [
   { code: "AM-0550", name: "Etiket", type: "PACKAGING", uom: "PCS", minStock: 2000 },
   { code: "AM-0560", name: "Selofan", type: "PACKAGING", uom: "PCS" },
   // Mamuller
-  { code: "MM-1003", name: "Noir Ambré EDP 50 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 300, shelfLifeDays: 1095 },
-  { code: "MM-1004", name: "Noir Ambré EDP 100 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 150, shelfLifeDays: 1095 },
-  { code: "MM-1007", name: "Oud Mystique EDP 100 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 150, shelfLifeDays: 1095 },
-  { code: "MM-1011", name: "Velvet Iris EDP 100 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 150, shelfLifeDays: 1095 },
-  { code: "MM-1015", name: "Citrus Néroli EDT 50 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 200, shelfLifeDays: 730 },
-  { code: "MM-1018", name: "Musc Blanc EDP 30 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 200, shelfLifeDays: 1095 },
-  { code: "MM-1020", name: "Keşif seti 5 × 10 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: 400, shelfLifeDays: 730 },
+  {
+    code: "MM-1003",
+    name: "Noir Ambré EDP 50 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 300,
+    shelfLifeDays: 1095,
+  },
+  {
+    code: "MM-1004",
+    name: "Noir Ambré EDP 100 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 150,
+    shelfLifeDays: 1095,
+  },
+  {
+    code: "MM-1007",
+    name: "Oud Mystique EDP 100 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 150,
+    shelfLifeDays: 1095,
+  },
+  {
+    code: "MM-1011",
+    name: "Velvet Iris EDP 100 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 150,
+    shelfLifeDays: 1095,
+  },
+  {
+    code: "MM-1015",
+    name: "Citrus Néroli EDT 50 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 200,
+    shelfLifeDays: 730,
+  },
+  {
+    code: "MM-1018",
+    name: "Musc Blanc EDP 30 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 200,
+    shelfLifeDays: 1095,
+  },
+  {
+    code: "MM-1020",
+    name: "Keşif seti 5 × 10 ml",
+    type: "FINISHED_GOOD",
+    uom: "PCS",
+    minStock: 400,
+    shelfLifeDays: 730,
+  },
 ];
 
 async function items() {
@@ -151,7 +263,13 @@ interface ProductSeed {
   name: string;
   concentration: "EDP" | "EDT";
   volumeMl: number;
-  formula?: { code: string; name: string; concentrationPct: number; lines: [string, number][]; allergens?: [string, number][] };
+  formula?: {
+    code: string;
+    name: string;
+    concentrationPct: number;
+    lines: [string, number][];
+    allergens?: [string, number][];
+  };
   notes: [Tier, string, string][]; // [kat, nota, aile]
   accords: Record<"amber" | "woody" | "spicy" | "floral" | "fresh" | "sweet", number>;
 }
@@ -338,7 +456,9 @@ async function products(itemIds: Record<string, string>) {
     let formulaId: string | undefined;
     if (p.formula) {
       const f = p.formula;
-      let formula = await prisma.formula.findUnique({ where: { code_version: { code: f.code, version: 1 } } });
+      let formula = await prisma.formula.findUnique({
+        where: { code_version: { code: f.code, version: 1 } },
+      });
       if (!formula) {
         formula = await prisma.formula.create({
           data: {
@@ -457,7 +577,12 @@ async function commerce() {
     integ[code] = row.id;
   }
 
-  const channels: [string, string, "WEBSITE" | "MARKETPLACE" | "B2B" | "STORE" | "EXPORT" | "SUBSCRIPTION", string?][] = [
+  const channels: [
+    string,
+    string,
+    "WEBSITE" | "MARKETPLACE" | "B2B" | "STORE" | "EXPORT" | "SUBSCRIPTION",
+    string?,
+  ][] = [
     ["WEB", "Kendi web sitesi", "WEBSITE", "WEBSITE"],
     ["TRENDYOL", "Trendyol", "MARKETPLACE", "TRENDYOL"],
     ["HEPSIBURADA", "Hepsiburada", "MARKETPLACE", "HEPSIBURADA"],
@@ -486,7 +611,11 @@ async function commerce() {
     ["HEPSIJET", "HepsiJET", "HEPSIJET"],
   ];
   for (const [code, name, integration] of carriers) {
-    await prisma.carrier.upsert({ where: { code }, update: {}, create: { code, name, integrationId: integ[integration] } });
+    await prisma.carrier.upsert({
+      where: { code },
+      update: {},
+      create: { code, name, integrationId: integ[integration] },
+    });
   }
 
   const providers: [string, string, string?][] = [
@@ -524,7 +653,13 @@ async function taxRules() {
 async function loyalty() {
   // Prototip "Sadakat & abonelik" ekranındaki seviyeler. Oranlar örnektir, işletme onayıyla kesinleşir.
   const tiers = [
-    { code: "DISCOVERY", name: "Keşif", minPoints: 0, earnPct: "0.05", perks: ["Her alışverişte %5 puan", "Doğum gününde numune"] },
+    {
+      code: "DISCOVERY",
+      name: "Keşif",
+      minPoints: 0,
+      earnPct: "0.05",
+      perks: ["Her alışverişte %5 puan", "Doğum gününde numune"],
+    },
     {
       code: "COLLECTOR",
       name: "Koleksiyoner",
@@ -546,7 +681,14 @@ async function loyalty() {
     where: { code: "DISCOVERY_BOX_MONTHLY" },
     update: {},
     // Fiyat işletme tarafından belirlenecek; 0 yer tutucudur, abonelik satışı açılmadan girilmeli.
-    create: { code: "DISCOVERY_BOX_MONTHLY", name: "Aylık keşif kutusu", price: "0", intervalMonths: 1, samplesPerBox: 3, sampleMl: "2" },
+    create: {
+      code: "DISCOVERY_BOX_MONTHLY",
+      name: "Aylık keşif kutusu",
+      price: "0",
+      intervalMonths: 1,
+      samplesPerBox: 3,
+      sampleMl: "2",
+    },
   });
 }
 

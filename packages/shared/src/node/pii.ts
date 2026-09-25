@@ -17,7 +17,10 @@ export interface PiiKeyring {
 
 export function parseKeyring(encKeys: string, activeKeyId: string, hashKey: string): PiiKeyring {
   const keys = new Map<string, Buffer>();
-  for (const part of encKeys.split(",").map((s) => s.trim()).filter(Boolean)) {
+  for (const part of encKeys
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const sep = part.indexOf(":");
     if (sep < 1) throw new Error("PII_ENC_KEYS biçimi: <kimlik>:<base64 anahtar>");
     const id = part.slice(0, sep);
@@ -35,7 +38,7 @@ export function parseKeyring(encKeys: string, activeKeyId: string, hashKey: stri
 export function keyringFromEnv(env: NodeJS.ProcessEnv = process.env): PiiKeyring {
   const { PII_ENC_KEYS, PII_ENC_ACTIVE_KEY, PII_HASH_KEY } = env;
   if (!PII_ENC_KEYS || !PII_ENC_ACTIVE_KEY || !PII_HASH_KEY) {
-    throw new Error("PII_ENC_KEYS, PII_ENC_ACTIVE_KEY ve PII_HASH_KEY tanımlı olmalı (pnpm setup)");
+    throw new Error("PII_ENC_KEYS, PII_ENC_ACTIVE_KEY ve PII_HASH_KEY tanımlı olmalı (pnpm bootstrap)");
   }
   return parseKeyring(PII_ENC_KEYS, PII_ENC_ACTIVE_KEY, PII_HASH_KEY);
 }
@@ -84,5 +87,7 @@ export function normalizePii(kind: PiiKind, value: string): string {
 }
 
 export function searchHash(ring: PiiKeyring, kind: PiiKind, value: string): string {
-  return createHmac("sha256", ring.hashKey).update(`${kind}:${normalizePii(kind, value)}`).digest("hex");
+  return createHmac("sha256", ring.hashKey)
+    .update(`${kind}:${normalizePii(kind, value)}`)
+    .digest("hex");
 }

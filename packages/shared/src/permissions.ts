@@ -195,7 +195,10 @@ export const permissionKey = (module: PermissionModule, action: PermissionAction
   `${module}:${action}`;
 
 /** Varsayılan matris: rol → izin anahtarları. */
-export function defaultRolePermissions(): Record<RoleCode, { module: PermissionModule; action: PermissionAction }[]> {
+export function defaultRolePermissions(): Record<
+  RoleCode,
+  { module: PermissionModule; action: PermissionAction }[]
+> {
   const out = {} as Record<RoleCode, { module: PermissionModule; action: PermissionAction }[]>;
   for (const role of ROLE_CODES) {
     out[role] = Object.entries(MATRIX[role]).flatMap(([module, spec]) =>

@@ -84,7 +84,10 @@ export class AuthService {
 
     // İki adımlı doğrulama zorunlu (YTK-04). Kurulu değilse kurulum başlatılır.
     if (user.twoFactorOn && user.totpSecretEnc) {
-      return { status: "MFA_REQUIRED", challenge: issueChallenge(this.config.AUTH_SECRET, { uid: user.id, purpose: "mfa" }) };
+      return {
+        status: "MFA_REQUIRED",
+        challenge: issueChallenge(this.config.AUTH_SECRET, { uid: user.id, purpose: "mfa" }),
+      };
     }
     const secret = generateTotpSecret();
     await this.prisma.user.update({
@@ -108,7 +111,8 @@ export class AuthService {
     client: Client;
   }) {
     const payload = readChallenge(this.config.AUTH_SECRET, input.challenge);
-    if (!payload) throw new UnauthorizedException({ message: "Doğrulama süresi doldu, lütfen tekrar giriş yapın" });
+    if (!payload)
+      throw new UnauthorizedException({ message: "Doğrulama süresi doldu, lütfen tekrar giriş yapın" });
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.uid } });
     if (!user || !user.isActive || !user.totpSecretEnc) throw new UnauthorizedException({ message: INVALID });
@@ -167,7 +171,13 @@ export class AuthService {
 
   async logout(sessionId: string, userId: string, client: Client) {
     await this.sessions.revoke(sessionId);
-    await writeAudit(this.prisma, { userId, action: "auth.logout", entity: "Session", entityId: sessionId, ...client });
+    await writeAudit(this.prisma, {
+      userId,
+      action: "auth.logout",
+      entity: "Session",
+      entityId: sessionId,
+      ...client,
+    });
   }
 
   async me(userId: string) {

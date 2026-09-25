@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atelier
+          POSTGRES_PASSWORD: atelier
+          POSTGRES_DB: atelier
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U atelier -d atelier"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TURBO_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: pnpm
+        run: corepack enable && pnpm --version
+      - name: Bağımlılıklar
+        run: pnpm install --frozen-lockfile
+      - name: Ortam (.env, gizli anahtarlar CI için rastgele üretilir)
+        run: pnpm bootstrap
+      - name: Prisma şema doğrulaması
+        run: pnpm db:validate
+      - name: Lint
+        run: pnpm lint
+      - name: Tip kontrolü
+        run: pnpm typecheck
+      - name: Testler (birim + API e2e + worker)
+        run: pnpm test
+      - name: Derleme
+        run: pnpm build
