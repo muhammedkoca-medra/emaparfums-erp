@@ -35,7 +35,7 @@ const REQUIRED = [
   ["COOKIE_SECURE", "false", "false"],
   ["SESSION_TTL_HOURS", "8", "8"],
   ["DEVICE_SESSION_TTL_HOURS", "12", "12"],
-  ["TOTP_ISSUER", "emaparfums", "emaparfums"],
+  ["TOTP_ISSUER", "EMA Parfums", "EMA Parfums"],
   // Yerelde iki adımlı doğrulama kapalı; ağa çıkarken true yapılır (üretimde zorunlu).
   ["MFA_REQUIRED", "false", "false"],
   ["AUTH_SECRET", secret, ""],

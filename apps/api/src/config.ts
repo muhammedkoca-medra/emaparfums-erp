@@ -13,7 +13,7 @@ const schema = z
       .transform((v) => v === "true"),
     SESSION_TTL_HOURS: z.coerce.number().positive().default(8),
     DEVICE_SESSION_TTL_HOURS: z.coerce.number().positive().default(12),
-    TOTP_ISSUER: z.string().default("emaparfums"),
+    TOTP_ISSUER: z.string().default("EMA Parfums"),
     AUTH_SECRET: z.string().min(32, "AUTH_SECRET en az 32 karakter olmalı"),
     PII_ENC_KEYS: z.string().min(1),
     PII_ENC_ACTIVE_KEY: z.string().min(1),

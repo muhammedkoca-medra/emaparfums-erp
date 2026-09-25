@@ -7,7 +7,7 @@ Kutucuklar görev bitince işaretlenir: `- [x]`.
 ```mermaid
 gantt
   dateFormat  YYYY-MM-DD
-  title emaparfums · tahmini plan
+  title EMA Parfums · tahmini plan
   section Temel
   Faz 0 Temel altyapı          :f0, 2026-10-05, 3w
   section Çekirdek

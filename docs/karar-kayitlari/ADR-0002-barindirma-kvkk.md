@@ -6,7 +6,7 @@
 
 ## Bağlam
 
-- emaparfums müşteri kişisel verisi tutar: ad, adres, telefon, e-posta, TCKN/VKN. Ayrıca fatura, formül ve maliyet gibi ticari gizli veriler de tutar (`07-guvenlik-kvkk.md`).
+- EMA Parfums müşteri kişisel verisi tutar: ad, adres, telefon, e-posta, TCKN/VKN. Ayrıca fatura, formül ve maliyet gibi ticari gizli veriler de tutar (`07-guvenlik-kvkk.md`).
 - KVKK'ya göre kişisel verinin yurt dışına aktarımı ayrı hukuki şartlara bağlıdır. Sunucunun ve yedeğin bulunduğu ülke bu değerlendirmenin merkezindedir.
 - Teknik ihtiyaçlar:
   - PostgreSQL 16, Redis ve S3 uyumlu dosya deposu

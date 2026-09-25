@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { Icon, Logo } from "@/components/Icon";
+import { BrandLogo } from "@/components/BrandLogo";
+import { Icon } from "@/components/Icon";
 import { LogoutButton } from "@/components/LogoutButton";
 import { visibleNav } from "@/lib/modules";
 
@@ -56,15 +57,16 @@ export function Sidebar({ me }: { me: MeResponse }) {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-3 px-2">
-          <Logo />
-          <div className="flex flex-col">
-            <span className="font-display text-[22px] font-semibold tracking-[0.01em] text-on-ink">
-              {t("app.name")}
-            </span>
-            <span className="text-[11px] tracking-[0.04em] text-on-ink-muted">{t("app.tagline")}</span>
-          </div>
-        </div>
+        <Link
+          href="/"
+          onClick={() => setOpen(false)}
+          className="flex flex-col items-center gap-1.5 rounded-lg px-2 pt-1 pb-0.5 text-gold no-underline hover:text-gold"
+        >
+          <BrandLogo variant="compact" height={78} title={t("app.name")} />
+          <span className="text-[10.5px] tracking-[0.08em] text-on-ink-muted uppercase">
+            {t("app.tagline")}
+          </span>
+        </Link>
 
         <label className="flex h-10 items-center gap-2 rounded-[10px] border border-ink-line bg-ink-2 px-2.5">
           <svg

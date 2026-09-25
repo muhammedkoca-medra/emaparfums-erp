@@ -40,7 +40,7 @@ test("oturum yoksa giriş ekranına yönlendirir", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/giris$/);
   await expect(page.getByRole("heading", { name: "Giriş yap" })).toBeVisible();
-  await expect(page).toHaveTitle("emaparfums · Parfüm İşletim Sistemi");
+  await expect(page).toHaveTitle("EMA Parfums · Parfüm İşletim Sistemi");
 });
 
 test("hatalı parolada Türkçe hata mesajı", async ({ page }) => {

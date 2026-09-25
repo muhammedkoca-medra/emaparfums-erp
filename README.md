@@ -1,4 +1,4 @@
-# emaparfums ERP
+# EMA Parfums ERP
 
 Parfüm üreticisi için üretimden müşteriye uçtan uca işletim sistemi.
 

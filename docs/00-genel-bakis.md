@@ -1,6 +1,6 @@
 # 00 · Genel bakış
 
-**emaparfums**, parfüm üreten bir işletmenin formülden müşteriye kadar tüm süreçlerini tek platformda yönetmesi için tasarlanmış bir işletim sistemidir.
+**EMA Parfums**, parfüm üreten bir işletmenin formülden müşteriye kadar tüm süreçlerini tek platformda yönetmesi için tasarlanmış bir işletim sistemidir.
 
 ## Hedefler
 
@@ -46,6 +46,6 @@ Yetki matrisi `03-moduller/yetki.md` dosyasında.
 
 ## Kapsam dışı (şimdilik)
 
-- **Çift kayıtlı genel muhasebe:** Mevcut muhasebe yazılımı kullanılmaya devam eder, emaparfums kayıtları oraya aktarır.
+- **Çift kayıtlı genel muhasebe:** Mevcut muhasebe yazılımı kullanılmaya devam eder, EMA Parfums kayıtları oraya aktarır.
 - **Bordro ve İK.**
 - **Mağaza kasası (ÖKC):** Yalnızca entegrasyon olarak ele alınır.

@@ -6,7 +6,7 @@
 
 ## Bağlam
 
-- emaparfums satışta e-Arşiv ve e-Fatura keser, alışta gelen e-Faturayı çeker (3'lü eşleştirme, F2-16).
+- EMA Parfums satışta e-Arşiv ve e-Fatura keser, alışta gelen e-Faturayı çeker (3'lü eşleştirme, F2-16).
 - İleride e-İrsaliye ve e-İhracat belgeleri de gerekir (`03-moduller/fatura.md`).
 - Bu işlemler bir GİB özel entegratörü üzerinden yapılır.
 - Adaptör katmanı sayesinde entegratör değişse yalnızca `packages/integrations/src/einvoice/` değişir (ADR-0001, `01-mimari.md` §İlkeler 3).
