@@ -4,7 +4,7 @@
  * kayıtlar benzersiz kodlarıyla bulunur, varsa atlanır.
  *
  * DİKKAT
- *  - Stok bakiyesi/lot TOHUMLANMAZ: stok yalnızca StockMovement ile değişir (F1-03 recordMovement).
+ *  - Stok yalnızca recordMovement / reserveFefo ile girilir (kural 2); bakiyeye doğrudan yazılmaz.
  *  - TaxRule oranları "teyit bekliyor" notuyla girilir (docs/04-entegrasyonlar.md#dogrulanacaklar).
  *  - Formül yüzdeleri, alerjen oranları, akor skorları ve sadakat/abonelik değerleri ÖRNEKTİR;
  *    gerçek değerler Ar-Ge ve işletme tarafından girilir.
@@ -13,7 +13,7 @@ import path from "node:path";
 import { hash } from "@node-rs/argon2";
 import { defaultRolePermissions, ROLE_CODES, ROLE_NAMES } from "@atelier/shared";
 import { config } from "dotenv";
-import { createPrismaClient, type Prisma } from "../src/index.js";
+import { createLot, createPrismaClient, type Prisma, recordMovement, reserveFefo } from "../src/index.js";
 
 config({ path: path.resolve(import.meta.dirname, "../../../.env"), quiet: true });
 
@@ -81,7 +81,7 @@ async function warehouses() {
     {
       code: "ANA",
       name: "Ana depo",
-      locs: [["A1-03"], ["B4-02"], ["B6-03"], ["C1-01"], ["D2-01"], ["TANK-01"]],
+      locs: [["A1-03"], ["B4-02"], ["B6-03"], ["C1-01"], ["D2-01"], ["TANK-01"], ["TANK-T3"]],
     },
     {
       code: "SOGUK",
@@ -242,6 +242,33 @@ const ITEMS: ItemSeed[] = [
     minStock: 400,
     shelfLifeDays: 730,
   },
+  // Yarı mamul
+  {
+    code: "YM-2609",
+    name: "Oud Mystique (maserasyonda)",
+    type: "SEMI_FINISHED",
+    uom: "L",
+    storageNote: "Tank T3 · maserasyon",
+  },
+];
+
+/**
+ * Prototipteki "Stok takip" tablosu (docs/06 prototip ekranı 03).
+ * [kalem, lot, SKT, depo, lokasyon, eldeki, rezerve]
+ * Stok yalnızca recordMovement (RECEIPT) ve reserveFefo ile girilir (kural 2).
+ * Birim maliyet girilmez: maliyet Faz 4'te (StandardCost / lot maliyeti) gelir.
+ */
+const STOCK: [string, string, string | null, string, string, number, number][] = [
+  ["HM-0112", "L-2608-A", "2028-08-15", "SOGUK", "A2-01", 42.5, 10],
+  ["HM-0104", "L-2607-C", "2028-07-10", "SOGUK", "A1-01", 6.2, 4],
+  ["HM-0001", "L-2609-B", null, "ANA", "TANK-01", 1840, 420],
+  ["AM-0510", "L-2605-D", null, "ANA", "B4-02", 1120, 1000],
+  ["AM-0522", "L-2604-A", null, "ANA", "B6-03", 680, 600],
+  ["AM-0540", "L-2606-B", null, "ANA", "C1-01", 3400, 1000],
+  ["YM-2609", "P-2609", null, "ANA", "TANK-T3", 84, 84],
+  ["MM-1003", "L-2602-A", "2029-02-28", "ETICARET", "E1-04", 214, 96],
+  ["MM-1011", "L-2511-C", "2026-12-10", "ANA", "D2-01", 462, 38],
+  ["MM-1020", "L-2603-A", "2028-03-31", "ETICARET", "E1-05", 1305, 140],
 ];
 
 async function items() {
@@ -693,6 +720,43 @@ async function loyalty() {
   });
 }
 
+async function stock(itemIds: Record<string, string>) {
+  for (const [code, lotNo, expiry, whCode, locCode, onHand, reserved] of STOCK) {
+    const itemId = itemIds[code]!;
+    // Kalemin hareketi varsa dokunma (tekrar çalıştırılabilir)
+    if ((await prisma.stockMovement.count({ where: { itemId } })) > 0) continue;
+    const loc = await prisma.location.findFirstOrThrow({
+      where: { code: locCode, warehouse: { code: whCode } },
+    });
+    await prisma.$transaction(async (tx) => {
+      const lot = await createLot(tx, {
+        itemId,
+        lotNo,
+        expiryDate: expiry ? new Date(`${expiry}T00:00:00Z`) : null,
+        qcStatus: "RELEASED",
+      });
+      await recordMovement(tx, {
+        type: "RECEIPT",
+        itemId,
+        lotId: lot.id,
+        qty: D(onHand),
+        toLocationId: loc.id,
+        refType: "Seed",
+        refId: "prototype-stock",
+      });
+      if (reserved > 0) {
+        await reserveFefo(tx, {
+          itemId,
+          qty: D(reserved),
+          refType: "Manual",
+          refId: "seed",
+          note: "Tohum: prototip rezervasyonu",
+        });
+      }
+    });
+  }
+}
+
 async function main() {
   console.log("Tohum verisi yükleniyor…");
   const roleIds = await roles();
@@ -702,6 +766,8 @@ async function main() {
   console.log("  ✓ depolar ve lokasyonlar");
   const itemIds = await items();
   console.log("  ✓ kalemler");
+  await stock(itemIds);
+  console.log("  ✓ stok (lotlar, hareketler, rezervasyonlar)");
   await products(itemIds);
   console.log("  ✓ ürünler, formüller, notalar, akorlar, reçete");
   await commerce();

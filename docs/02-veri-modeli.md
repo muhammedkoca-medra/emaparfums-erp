@@ -59,6 +59,13 @@ erDiagram
   - Lot takibi gerektirmeyen kalemler (ör. selofan) için kalem başına tek bir "GENEL" lot açılır.
   - Bu sayede geri çağırma zinciri (hammadde lotu → parti → mamul lotu → sipariş satırı → müşteri) kopmaz.
 - **Hareket defteri.** `StockMovement` yalnızca eklenir (append-only). `StockBalance` bu hareketlerden türetilmiş bir önbellektir ve yalnızca `packages/db/src/stock.ts` tarafından güncellenir. Gece bir tutarlılık işi, hareket toplamlarıyla bakiyeleri karşılaştırır.
+- **Rezervasyon.**
+  - `StockReservation` yalnızca satış sipariş satırına değil, her türlü iç kullanıma bağlanabilir: `refType`/`refId` (ör. `SalesOrderLine`, `ProductionBatch`, `Manual`). `orderLineId` isteğe bağlıdır; satış rezervasyonunda doldurulur.
+  - Rezervasyon `StockBalance.qtyReserved` alanını artırır. Serbest bırakma (`releasedAt`) ve rezervasyonun sevkiyatla tüketilmesi bu alanı azaltır. Hepsi `packages/db/src/stock.ts` içinde, aynı transaction'da yapılır.
+- **Min stok bildirimi.** `Item.belowMinNotifiedAt`, `stock.below_min` olayının aynı kalem için 24 saatte en fazla bir kez yayınlanmasını sağlar (STK-05).
+- **Sayım onayı.** `CycleCount` onay bilgisini tutar: `varianceValue`, `needsApproval`, `submittedAt`, `approvedById`, `approvedAt`. Farkın değeri eşiği aşarsa ya da farkı olan bir kalemin maliyeti bilinmiyorsa onay gerekir (STK-09). Onaylanınca farklar `ADJUSTMENT` hareketi olarak yazılır; reddedilen sayım yeniden sayıma açılır (`OPEN`).
+- **Parametreler.** `SystemSetting` (anahtar → JSON değer) iş kurallarının ayarlanabilir değerlerini tutar: SKT uyarı günü, kanal stok tamponu, sayım onay eşiği vb. Varsayılanlar `packages/shared/src/settings.ts` içindedir. Değişiklik `AuditLog` yazar. Bu tabloya gizli anahtar veya kimlik bilgisi (kural 8) ve vergi oranı (`TaxRule`) yazılmaz.
+- **Onay talebi içeriği.** `ApprovalRequest.payload`, onaylanınca uygulanacak değişikliği tutar (ör. yetki matrisi hücresi, YTK-02).
 - **Vergi anlık görüntüsü.** Sipariş ve fatura satırları, işlem anındaki `otvRate`/`kdvRate` değerlerini kopyalar. `TaxRule` sonradan değişse de eski belge değişmez.
 - **Brüt fiyat.** Kanal fiyat listeleri varsayılan olarak KDV dahil tutulur (`pricesIncludeTax`). Vergi ayrıştırması `packages/shared/src/tax.ts` ile yapılır.
 - **Para birimi.** Yabancı para birimli belgelerde `currency` ve `fxRate` saklanır, raporlama TRY karşılığıyla yapılır. Kur kaynağı `docs/04` içinde tanımlı.
