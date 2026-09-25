@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import path from "node:path";
 import { createPrismaClient } from "@atelier/db";
 import { maskDeep } from "@atelier/shared";
@@ -41,6 +42,19 @@ const dispatcher = startDispatcher(prisma, queues.events, log, {
   pollMs: config.OUTBOX_POLL_MS,
 });
 
+// İsteğe bağlı sağlık kontrolü: Redis bağlantısı ve olay işleyicinin çalıştığını söyler.
+const health = config.WORKER_HEALTH_PORT
+  ? createServer((req, res) => {
+      if (req.url !== "/health") {
+        res.writeHead(404).end();
+        return;
+      }
+      const ok = worker.isRunning();
+      res.writeHead(ok ? 200 : 503, { "content-type": "application/json" });
+      res.end(JSON.stringify({ status: ok ? "ok" : "down" }));
+    }).listen(config.WORKER_HEALTH_PORT)
+  : undefined;
+
 log.info({ pollMs: config.OUTBOX_POLL_MS }, "worker hazır · outbox-dispatcher ve olay işleyici çalışıyor");
 
 let closing = false;
@@ -48,6 +62,7 @@ async function shutdown(signal: string) {
   if (closing) return;
   closing = true;
   log.info({ signal }, "worker kapanıyor");
+  health?.close();
   await dispatcher.stop();
   await worker.close();
   await Promise.all([queues.events.close(), queues.dlq.close()]);

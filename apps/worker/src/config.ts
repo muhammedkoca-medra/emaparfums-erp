@@ -15,6 +15,8 @@ const schema = z.object({
   EVENT_JOB_BACKOFF_MS: z.coerce.number().int().nonnegative().default(1000),
   /** Kuyruk adı öneki (testler kendi önekini kullanır). */
   QUEUE_PREFIX: z.string().default("atelier"),
+  /** Verilirse GET /health yanıtlayan küçük bir HTTP sunucusu açılır (izleme, e2e testleri). */
+  WORKER_HEALTH_PORT: z.coerce.number().int().positive().optional(),
 });
 
 export type WorkerConfig = z.infer<typeof schema>;

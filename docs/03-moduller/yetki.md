@@ -58,7 +58,9 @@ Sınıfı olmayan uç varsayılan olarak reddedilir. `apps/api/test/permissions.
 - **YTK-07:** Mobil depo cihazları kullanıcıya bağlı cihaz token'ıyla girer; oturum 12 saat sürer.
 
 ## API uçları
-- `GET|POST /admin/users`, `POST /admin/users/:id/roles`
+- `GET|POST /admin/users`, `POST /admin/users/:id/roles`, `POST /admin/users/:id/status` (devre dışı bırakma, oturumları kapatır)
+- `POST /auth/password` (kendi parolası; diğer oturumlar kapanır)
+- **Kendini kilitleme koruması:** Yönetici kendi hesabını devre dışı bırakamaz, kendi ADMIN rolünü kaldıramaz.
 - `GET /admin/roles/:id/permissions`, `POST /admin/permission-changes` (onaylı)
 - `GET /admin/audit?entity&user&from&to`
 - `GET|POST /admin/approval-rules`, `GET /approvals?mine`, `POST /approvals/:id/decide`

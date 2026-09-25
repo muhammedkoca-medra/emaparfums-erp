@@ -43,7 +43,8 @@
   "user": {
     "logout": "Çıkış yap",
     "allModules": "Tüm modüller",
-    "external": "Dış kullanıcı · salt okunur"
+    "external": "Dış kullanıcı · salt okunur",
+    "account": "Hesabım"
   },
   "login": {
     "title": "Giriş yap",
@@ -132,7 +133,53 @@
       "auth_mfa_failed": "Hatalı doğrulama kodu",
       "user_create": "Kullanıcı oluşturuldu",
       "user_roles_change": "Kullanıcı rolleri değişti",
-      "user_email_change": "Kullanıcı e-postası değişti"
-    }
+      "user_email_change": "Kullanıcı e-postası değişti",
+      "auth_password_change": "Parola değiştirildi",
+      "user_status_change": "Kullanıcı durumu değişti"
+    },
+    "addUser": "Kullanıcı ekle",
+    "addUserTitle": "Yeni kullanıcı",
+    "fullName": "Ad soyad",
+    "email": "E-posta",
+    "password": "Geçici parola",
+    "passwordHint": "En az 12 karakter. Kullanıcı ilk girişten sonra Hesabım ekranından değiştirebilir.",
+    "roles": "Roller",
+    "external": "Dış kullanıcı (ör. mali müşavir)",
+    "create": "Kullanıcıyı oluştur",
+    "creating": "Oluşturuluyor…",
+    "cancel": "Vazgeç",
+    "editRoles": "Rolleri düzenle",
+    "saveRoles": "Rolleri kaydet",
+    "deactivate": "Devre dışı bırak",
+    "activate": "Etkinleştir",
+    "inactive": "Devre dışı",
+    "active": "Etkin",
+    "colStatus": "Durum",
+    "colActions": "İşlemler",
+    "confirmDeactivate": "{name} devre dışı bırakılsın mı? Açık oturumları kapanır.",
+    "noRole": "En az bir rol seçin",
+    "genericError": "İşlem yapılamadı. Lütfen tekrar deneyin."
+  },
+  "account": {
+    "title": "Hesabım",
+    "subtitle": "Profil bilgileri ve parola",
+    "profile": "Profil",
+    "name": "Ad soyad",
+    "email": "E-posta",
+    "roles": "Roller",
+    "passwordTitle": "Parola değiştir",
+    "passwordHint": "En az 12 karakter. Parola değişince diğer cihazlardaki oturumlarınız kapanır.",
+    "currentPassword": "Mevcut parola",
+    "newPassword": "Yeni parola",
+    "confirmPassword": "Yeni parola (tekrar)",
+    "mismatch": "Yeni parolalar birbiriyle aynı değil",
+    "save": "Parolayı değiştir",
+    "saving": "Kaydediliyor…",
+    "saved": "Parolanız değiştirildi."
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "body": "Aradığınız sayfa yok ya da taşınmış olabilir.",
+    "home": "Kontrol paneline dön"
   }
 }

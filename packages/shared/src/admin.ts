@@ -29,3 +29,6 @@ export const auditQuerySchema = z.object({
   cursor: z.string().max(60).optional(),
 });
 export type AuditQuery = z.infer<typeof auditQuerySchema>;
+
+export const setUserStatusSchema = z.object({ isActive: z.boolean() });
+export type SetUserStatusRequest = z.infer<typeof setUserStatusSchema>;

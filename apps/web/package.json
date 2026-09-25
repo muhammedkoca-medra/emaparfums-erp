@@ -7,9 +7,10 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "eslint src",
+    "lint": "eslint src e2e",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "tsx e2e/prepare.ts && playwright test"
   },
   "dependencies": {
     "@atelier/shared": "workspace:*",
@@ -31,6 +32,10 @@
     "eslint-plugin-react-hooks": "^7.0.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "@playwright/test": "^1.55.0",
+    "tsx": "^4.19.0",
+    "@atelier/db": "workspace:*",
+    "@node-rs/argon2": "^2.0.0"
   }
 }

@@ -49,7 +49,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts", "**/*.spec.ts", "**/test/**/*.ts", "**/prisma/seed.ts", "scripts/**"],
+    files: [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/test/**/*.ts",
+      "**/e2e/**/*.ts",
+      "**/prisma/seed.ts",
+      "scripts/**",
+    ],
     rules: { "no-console": "off" },
   },
   prettier,

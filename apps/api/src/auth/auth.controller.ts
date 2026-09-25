@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import {
+  type ChangePasswordRequest,
+  changePasswordSchema,
   type DeviceTokenResponse,
   type LoginRequest,
   loginRequestSchema,
@@ -84,6 +86,26 @@ export class AuthController {
     await this.auth.logout(auth.sessionId, auth.userId, clientInfo(req));
     res.clearCookie(SESSION_COOKIE, this.sessions.cookieOptions());
     return { ok: true };
+  }
+
+  /** Kendi parolasını değiştirme; mevcut oturum açık kalır, diğerleri kapanır. */
+  @Post("password")
+  @Authenticated()
+  @HttpCode(200)
+  @RateLimit(10, 60_000)
+  @ApiZodBody(changePasswordSchema)
+  changePassword(
+    @CurrentUser() auth: AuthContext,
+    @Body(new ZodPipe(changePasswordSchema)) body: ChangePasswordRequest,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.auth.changePassword({
+      userId: auth.userId,
+      sessionId: auth.sessionId,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      client: clientInfo(req),
+    });
   }
 
   @Get("me")

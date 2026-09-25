@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { hash, verify } from "@node-rs/argon2";
 import { writeAudit } from "@atelier/db";
 import { type LoginResponse } from "@atelier/shared";
@@ -192,6 +199,40 @@ export class AuthService {
       ...client,
     });
     return session;
+  }
+
+  /** Kendi parolasını değiştirme. Diğer tüm oturumlar kapatılır, işlem kaydı yazılır. */
+  async changePassword(input: {
+    userId: string;
+    sessionId: string;
+    currentPassword: string;
+    newPassword: string;
+    client: Client;
+  }) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: input.userId } });
+    const ok = user.passwordHash
+      ? await verify(user.passwordHash, input.currentPassword).catch(() => false)
+      : false;
+    if (!ok) throw new BadRequestException({ message: "Mevcut parola hatalı" });
+
+    const passwordHash = await hashPassword(input.newPassword);
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+      const r = await tx.session.updateMany({
+        where: { userId: user.id, revokedAt: null, id: { not: input.sessionId } },
+        data: { revokedAt: new Date() },
+      });
+      await writeAudit(tx, {
+        userId: user.id,
+        action: "auth.password_change",
+        entity: "User",
+        entityId: user.id,
+        after: { otherSessionsRevoked: r.count },
+        ...input.client,
+      });
+      return r.count;
+    });
+    return { otherSessionsRevoked: revoked };
   }
 
   async logout(sessionId: string, userId: string, client: Client) {

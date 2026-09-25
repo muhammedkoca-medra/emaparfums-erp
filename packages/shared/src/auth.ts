@@ -61,3 +61,14 @@ export interface MeResponse {
   roles: { code: string; name: string }[];
   permissions: string[];
 }
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(256),
+    newPassword: passwordSchema,
+  })
+  .refine((v) => v.currentPassword !== v.newPassword, {
+    message: "Yeni parola eskisiyle aynı olamaz",
+    path: ["newPassword"],
+  });
+export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;

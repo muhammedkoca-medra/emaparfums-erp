@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   Post,
@@ -17,7 +19,10 @@ import {
   createUserSchema,
   type SetUserRolesRequest,
   setUserRolesSchema,
+  type SetUserStatusRequest,
+  setUserStatusSchema,
 } from "@atelier/shared";
+import { type AuthContext, CurrentUser } from "../auth/auth-context.js";
 import { Audited } from "../audit/audited.decorator.js";
 import { hashPassword } from "../auth/auth.service.js";
 import { ApiZodBody, ApiZodQuery, ZodPipe } from "../common/zod.js";
@@ -92,9 +97,17 @@ export class AdminController {
   @RequirePermission("admin", "EDIT")
   @Audited({ action: "user.roles.change", entity: "User", idParam: "id", load: loadUserWithRoles })
   @ApiZodBody(setUserRolesSchema)
-  async setRoles(@Param("id") id: string, @Body(new ZodPipe(setUserRolesSchema)) body: SetUserRolesRequest) {
+  async setRoles(
+    @Param("id") id: string,
+    @Body(new ZodPipe(setUserRolesSchema)) body: SetUserRolesRequest,
+    @CurrentUser() auth: AuthContext,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
     if (!user) throw new NotFoundException({ message: "Kullanıcı bulunamadı" });
+    // Kendini kilitleme koruması: yönetici kendi yönetici rolünü kaldıramaz.
+    if (id === auth.userId && !body.roleCodes.includes("ADMIN")) {
+      throw new BadRequestException({ message: "Kendi yönetici rolünüzü kaldıramazsınız" });
+    }
     const roles = await this.prisma.role.findMany({
       where: { code: { in: body.roleCodes } },
       select: { id: true },
@@ -104,6 +117,42 @@ export class AdminController {
       this.prisma.userRole.createMany({ data: roles.map((r) => ({ userId: id, roleId: r.id })) }),
     ]);
     return { id, roleCodes: body.roleCodes };
+  }
+
+  /** Kullanıcıyı devre dışı bırakma / yeniden etkinleştirme. Devre dışı kalanın oturumları kapanır. */
+  @Post("users/:id/status")
+  @RequirePermission("admin", "EDIT")
+  @HttpCode(200)
+  @Audited({ action: "user.status.change", entity: "User", idParam: "id", load: loadUserWithRoles })
+  @ApiZodBody(setUserStatusSchema)
+  async setStatus(
+    @Param("id") id: string,
+    @Body(new ZodPipe(setUserStatusSchema)) body: SetUserStatusRequest,
+    @CurrentUser() auth: AuthContext,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!user) throw new NotFoundException({ message: "Kullanıcı bulunamadı" });
+    if (id === auth.userId && !body.isActive) {
+      throw new BadRequestException({ message: "Kendi hesabınızı devre dışı bırakamazsınız" });
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        // Yeniden etkinleştirmede hatalı giriş sayacı ve kilit sıfırlanır.
+        data: body.isActive
+          ? { isActive: true, failedLoginCount: 0, lockedUntil: null }
+          : { isActive: false },
+      }),
+      ...(body.isActive
+        ? []
+        : [
+            this.prisma.session.updateMany({
+              where: { userId: id, revokedAt: null },
+              data: { revokedAt: new Date() },
+            }),
+          ]),
+    ]);
+    return { id, isActive: body.isActive };
   }
 
   @Get("roles")

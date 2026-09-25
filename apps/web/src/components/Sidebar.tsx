@@ -121,10 +121,15 @@ export function Sidebar({ me }: { me: MeResponse }) {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-[13px] font-bold text-ink">
             {initials}
           </div>
-          <div className="flex min-w-0 flex-1 flex-col">
+          <Link
+            href="/hesap"
+            onClick={() => setOpen(false)}
+            title={t("user.account")}
+            className="flex min-w-0 flex-1 flex-col rounded-lg no-underline hover:bg-ink-2"
+          >
             <span className="truncate text-[13px] font-semibold text-on-ink">{me.fullName}</span>
             <span className="truncate text-[11.5px] text-on-ink-muted">{roleLine}</span>
-          </div>
+          </Link>
           <LogoutButton />
         </div>
       </aside>

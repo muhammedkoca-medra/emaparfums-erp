@@ -38,6 +38,8 @@ export async function createApp(config: AppConfig, logger: Logger): Promise<Nest
     await prisma.$disconnect();
   };
 
+  // API belgeleri canlıda herkese açık olmasın (docs/07 §Sınırlar).
+  if (config.NODE_ENV === "production") return app;
   const doc = SwaggerModule.createDocument(
     app,
     new DocumentBuilder()
