@@ -1,0 +1,1609 @@
+// =============================================================================
+// Atelier ERP — Veri modeli (PostgreSQL + Prisma)
+// -----------------------------------------------------------------------------
+// Kurallar
+//  - Kod tanımlayıcıları İngilizce, açıklamalar Türkçe.
+//  - Para: Decimal(18,2). Miktar: Decimal(18,4). Oran (%): Decimal(7,4).
+//  - Tüm ana tablolarda createdAt/updatedAt. Silme yerine status/archivedAt.
+//  - Stok bakiyesi ASLA doğrudan güncellenmez; StockMovement yazılır,
+//    StockBalance aynı transaction içinde güncellenir (bkz. docs/02-veri-modeli.md).
+//  - Vergi oranları sabit kodlanmaz; TaxRule tablosundan okunur ve satıra
+//    kopyalanır (fatura anındaki oran korunur).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// 1. KİMLİK, YETKİ, DENETİM
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  fullName      String
+  passwordHash  String?
+  twoFactorOn   Boolean    @default(false)
+  isExternal    Boolean    @default(false) // örn. mali müşavir
+  isActive      Boolean    @default(true)
+  lastLoginAt   DateTime?
+  roles         UserRole[]
+  auditLogs     AuditLog[]
+  deviceTasks   DeviceTask[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  code        String           @unique // ADMIN, PRODUCTION, QUALITY, WAREHOUSE, PURCHASING, SALES, MARKETING, ACCOUNTING, ACCOUNTANT_EXT
+  name        String
+  permissions RolePermission[]
+  users       UserRole[]
+  approvalRules ApprovalRule[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  APPROVE
+  DELETE
+}
+
+model RolePermission {
+  id      String           @id @default(cuid())
+  roleId  String
+  module  String           // "purchasing", "stock", "invoicing" ... (docs/03-moduller)
+  action  PermissionAction
+  role    Role             @relation(fields: [roleId], references: [id])
+
+  @@unique([roleId, module, action])
+}
+
+model ApprovalRule {
+  id         String   @id @default(cuid())
+  module     String   // "purchasing"
+  entity     String   // "PurchaseOrder"
+  minAmount  Decimal  @db.Decimal(18, 2)
+  approverRoleId String
+  approverRole Role   @relation(fields: [approverRoleId], references: [id])
+  isActive   Boolean  @default(true)
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ApprovalRequest {
+  id          String         @id @default(cuid())
+  entity      String
+  entityId    String
+  requestedById String
+  decidedById String?
+  status      ApprovalStatus @default(PENDING)
+  note        String?
+  createdAt   DateTime       @default(now())
+  decidedAt   DateTime?
+
+  @@index([entity, entityId])
+}
+
+// Değiştirilemez işlem kaydı. Sadece INSERT; UPDATE/DELETE veritabanı
+// seviyesinde engellenir (migration'da trigger).
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // "formula.update", "price.change", "lot.quarantine"
+  entity     String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// -----------------------------------------------------------------------------
+// 2. ÜRÜN, KALEM, FORMÜL, KOKU
+// -----------------------------------------------------------------------------
+
+enum ItemType {
+  RAW_MATERIAL   // esans, alkol, su, fiksatör
+  PACKAGING      // şişe, pompa, kapak, kutu, etiket
+  SEMI_FINISHED  // maserasyondaki karışım
+  FINISHED_GOOD  // satılabilir mamul
+  SAMPLE         // numune (2 ml vb.)
+}
+
+enum Uom {
+  KG
+  G
+  L
+  ML
+  PCS
+}
+
+// Stokta tutulan her şey bir Item'dır. Satılabilir mamulün ticari bilgisi Product'tadır.
+model Item {
+  id             String         @id @default(cuid())
+  code           String         @unique // HM-0104, AM-0510, MM-1003
+  name           String
+  type           ItemType
+  uom            Uom
+  minStock       Decimal?       @db.Decimal(18, 4)
+  reorderQty     Decimal?       @db.Decimal(18, 4)
+  shelfLifeDays  Int?
+  storageNote    String?        // "12–15°C, ışıktan uzak"
+  isHazardous    Boolean        @default(false) // alkol içerikli: UN1266
+  product        Product?
+  lots           Lot[]
+  balances       StockBalance[]
+  movements      StockMovement[]
+  supplierItems  SupplierItem[]
+  formulaLines   FormulaLine[]
+  bomLines       BomLine[]
+  poLines        PurchaseOrderLine[]
+  standardCosts  StandardCost[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum Concentration {
+  EXTRAIT
+  EDP
+  EDT
+  EDC
+  COLOGNE
+  OTHER
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  SALES_LOCKED // örn. ÜTS bildirimi eksik
+  DISCONTINUED
+}
+
+model Product {
+  id             String          @id @default(cuid())
+  itemId         String          @unique
+  item           Item            @relation(fields: [itemId], references: [id])
+  sku            String          @unique
+  barcode        String?         @unique // GTIN/EAN-13
+  name           String
+  concentration  Concentration
+  volumeMl       Int
+  gtip           String          // 3303.00...
+  taxCategory    String          // TaxRule.category ile eşleşir: "PERFUME", "COLOGNE"
+  status         ProductStatus   @default(DRAFT)
+  launchDate     DateTime?
+  formulaId      String?
+  formula        Formula?        @relation(fields: [formulaId], references: [id])
+  contents       ProductContent[]
+  media          ProductMedia[]
+  notes          ProductNote[]
+  accords        ProductAccord[]
+  listings       ChannelListing[]
+  prices         PriceListItem[]
+  orderLines     SalesOrderLine[]
+  batches        ProductionBatch[]
+  boms           BillOfMaterials[]
+  compliance     ComplianceDocument[]
+  recommendations Recommendation[]
+  embedding      Float[]         // koku benzerliği için vektör (ileride pgvector)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// Kanala özel içerik (başlık, açıklama, madde işaretleri). İçerik Stüdyosu yazar.
+model ProductContent {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  channelId   String?      // null = varsayılan
+  channel     SalesChannel? @relation(fields: [channelId], references: [id])
+  locale      String       @default("tr-TR")
+  title       String
+  bullets     String[]
+  description String
+  seoKeywords String[]
+  aiGenerated Boolean      @default(false)
+  approvedById String?
+  approvedAt  DateTime?
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([productId, channelId, locale])
+}
+
+enum MediaRole {
+  MAIN_WHITE_BG
+  LIFESTYLE
+  NOTES_CARD
+  PACKSHOT
+  VIDEO
+}
+
+model ProductMedia {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id])
+  role      MediaRole
+  url       String
+  width     Int?
+  height    Int?
+  sortOrder Int       @default(0)
+  assetId   String?
+  asset     ContentAsset? @relation(fields: [assetId], references: [id])
+}
+
+enum FormulaStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+model Formula {
+  id              String          @id @default(cuid())
+  code            String          // F-NA-03
+  version         Int             @default(1)
+  name            String
+  concentrationPct Decimal        @db.Decimal(7, 4) // %20
+  ifraAmendment   Int?            // 51
+  ifraCategory    String?         // "4"
+  status          FormulaStatus   @default(DRAFT)
+  lines           FormulaLine[]
+  allergens       FormulaAllergen[]
+  products        Product[]
+  boms            BillOfMaterials[]
+  batches         ProductionBatch[]
+  approvedById    String?
+  approvedAt      DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@unique([code, version])
+}
+
+model FormulaLine {
+  id         String   @id @default(cuid())
+  formulaId  String
+  formula    Formula  @relation(fields: [formulaId], references: [id])
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id])
+  percentage Decimal  @db.Decimal(7, 4) // konsantre içindeki pay
+}
+
+model FormulaAllergen {
+  id         String  @id @default(cuid())
+  formulaId  String
+  formula    Formula @relation(fields: [formulaId], references: [id])
+  name       String  // Linalool, Limonene...
+  pctInFinal Decimal @db.Decimal(9, 6)
+  mustLabel  Boolean // eşik üstü ise etikette beyan
+}
+
+model BillOfMaterials {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id])
+  formulaId  String
+  formula    Formula   @relation(fields: [formulaId], references: [id])
+  batchSize  Int       // 1000 adet için
+  isActive   Boolean   @default(true)
+  lines      BomLine[]
+}
+
+model BomLine {
+  id         String          @id @default(cuid())
+  bomId      String
+  bom        BillOfMaterials @relation(fields: [bomId], references: [id])
+  itemId     String
+  item       Item            @relation(fields: [itemId], references: [id])
+  qty        Decimal         @db.Decimal(18, 4)
+  uom        Uom
+  scrapPct   Decimal         @default(0) @db.Decimal(7, 4)
+}
+
+enum NoteTier {
+  TOP
+  HEART
+  BASE
+}
+
+model ScentNote {
+  id       String        @id @default(cuid())
+  name     String        @unique // Bergamot, Gül absolü, Oud
+  family   String        // citrus, floral, woody, amber, spicy, gourmand, musky, fresh
+  products ProductNote[]
+}
+
+model ProductNote {
+  productId String
+  noteId    String
+  tier      NoteTier
+  product   Product   @relation(fields: [productId], references: [id])
+  note      ScentNote @relation(fields: [noteId], references: [id])
+
+  @@id([productId, noteId])
+}
+
+model ProductAccord {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  accord    String  // amber, woody, floral, spicy, fresh, sweet
+  score     Int     // 0–100
+  source    String  @default("model") // model | panel
+
+  @@unique([productId, accord])
+}
+
+// -----------------------------------------------------------------------------
+// 3. DEPO, LOT, STOK
+// -----------------------------------------------------------------------------
+
+model Warehouse {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  name      String     // Ana depo, Soğuk oda, E-ticaret deposu
+  locations Location[]
+}
+
+model Location {
+  id           String         @id @default(cuid())
+  warehouseId  String
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+  code         String         // B4-02
+  tempMinC     Decimal?       @db.Decimal(5, 2)
+  tempMaxC     Decimal?       @db.Decimal(5, 2)
+  pickSequence Int?           // toplama rotası sırası
+  balances     StockBalance[]
+
+  @@unique([warehouseId, code])
+}
+
+enum QcStatus {
+  QUARANTINE
+  RELEASED
+  REJECTED
+}
+
+model Lot {
+  id              String          @id @default(cuid())
+  itemId          String
+  item            Item            @relation(fields: [itemId], references: [id])
+  lotNo           String          // L-2602-A
+  supplierLotNo   String?
+  batchId         String?         // üretimden geldiyse
+  batch           ProductionBatch? @relation(fields: [batchId], references: [id])
+  receiptLineId   String?
+  mfgDate         DateTime?
+  expiryDate      DateTime?
+  qcStatus        QcStatus        @default(QUARANTINE)
+  balances        StockBalance[]
+  movements       StockMovement[]
+  inspections     QcInspection[]
+  consumptions    BatchConsumption[]
+  reservations    StockReservation[]
+  createdAt       DateTime        @default(now())
+
+  @@unique([itemId, lotNo])
+  @@index([expiryDate])
+}
+
+model StockBalance {
+  id          String   @id @default(cuid())
+  itemId      String
+  lotId       String
+  locationId  String
+  qtyOnHand   Decimal  @db.Decimal(18, 4)
+  qtyReserved Decimal  @default(0) @db.Decimal(18, 4)
+  item        Item     @relation(fields: [itemId], references: [id])
+  lot         Lot      @relation(fields: [lotId], references: [id])
+  location    Location @relation(fields: [locationId], references: [id])
+  updatedAt   DateTime @updatedAt
+
+  @@unique([itemId, lotId, locationId])
+}
+
+enum MovementType {
+  RECEIPT
+  ISSUE
+  TRANSFER
+  ADJUSTMENT
+  PRODUCTION_CONSUME
+  PRODUCTION_OUTPUT
+  SALE
+  RETURN
+  SCRAP
+}
+
+model StockMovement {
+  id             String       @id @default(cuid())
+  type           MovementType
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id])
+  lotId          String
+  lot            Lot          @relation(fields: [lotId], references: [id])
+  fromLocationId String?
+  toLocationId   String?
+  qty            Decimal      @db.Decimal(18, 4)
+  unitCost       Decimal?     @db.Decimal(18, 4)
+  refType        String?      // SalesOrder, GoodsReceipt, ProductionBatch, CycleCount
+  refId          String?
+  userId         String?
+  deviceId       String?      // mobil depo cihazı
+  createdAt      DateTime     @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([refType, refId])
+}
+
+model StockReservation {
+  id          String          @id @default(cuid())
+  orderLineId String
+  orderLine   SalesOrderLine  @relation(fields: [orderLineId], references: [id])
+  lotId       String
+  lot         Lot             @relation(fields: [lotId], references: [id])
+  locationId  String
+  qty         Decimal         @db.Decimal(18, 4)
+  releasedAt  DateTime?
+  createdAt   DateTime        @default(now())
+}
+
+enum CountStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+}
+
+model CycleCount {
+  id          String          @id @default(cuid())
+  warehouseId String
+  zone        String?         // A1
+  isBlind     Boolean         @default(true)
+  status      CountStatus     @default(OPEN)
+  lines       CycleCountLine[]
+  createdAt   DateTime        @default(now())
+}
+
+model CycleCountLine {
+  id          String     @id @default(cuid())
+  countId     String
+  count       CycleCount @relation(fields: [countId], references: [id])
+  itemId      String
+  lotId       String
+  locationId  String
+  systemQty   Decimal    @db.Decimal(18, 4) // mobilde gösterilmez (kör sayım)
+  countedQty  Decimal?   @db.Decimal(18, 4)
+  fromScale   Boolean    @default(false)
+  countedById String?
+  countedAt   DateTime?
+}
+
+// Mobil depo görevleri (kabul, toplama, sayım, transfer)
+enum DeviceTaskType {
+  RECEIVE
+  PICK
+  COUNT
+  TRANSFER
+}
+
+enum DeviceTaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model DeviceTask {
+  id         String           @id @default(cuid())
+  type       DeviceTaskType
+  status     DeviceTaskStatus @default(OPEN)
+  priority   Int              @default(0)
+  assigneeId String?
+  assignee   User?            @relation(fields: [assigneeId], references: [id])
+  refType    String           // PurchaseOrder, PickWave, CycleCount
+  refId      String
+  dueAt      DateTime?
+  createdAt  DateTime         @default(now())
+}
+
+model PickWave {
+  id        String         @id @default(cuid())
+  code      String         @unique // W-0925-3
+  cutoffAt  DateTime       // kargo kesim saati
+  status    DeviceTaskStatus @default(OPEN)
+  lines     PickWaveLine[]
+  createdAt DateTime       @default(now())
+}
+
+model PickWaveLine {
+  id          String   @id @default(cuid())
+  waveId      String
+  wave        PickWave @relation(fields: [waveId], references: [id])
+  orderLineId String
+  lotId       String   // FEFO ile seçilmiş lot
+  locationId  String
+  qty         Decimal  @db.Decimal(18, 4)
+  toteNo      String?  // sepet
+  pickedQty   Decimal? @db.Decimal(18, 4)
+  pickedAt    DateTime?
+  sequence    Int
+}
+
+// -----------------------------------------------------------------------------
+// 4. SATIN ALMA
+// -----------------------------------------------------------------------------
+
+model Supplier {
+  id           String          @id @default(cuid())
+  name         String
+  taxNo        String?
+  taxOffice    String?
+  country      String          @default("TR")
+  currency     String          @default("TRY")
+  email        String?
+  phone        String?
+  isEInvoice   Boolean         @default(false)
+  items        SupplierItem[]
+  orders       PurchaseOrder[]
+  invoices     Invoice[]
+  createdAt    DateTime        @default(now())
+}
+
+model SupplierItem {
+  id           String   @id @default(cuid())
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  itemId       String
+  item         Item     @relation(fields: [itemId], references: [id])
+  price        Decimal  @db.Decimal(18, 4)
+  currency     String
+  moq          Decimal? @db.Decimal(18, 4)
+  leadTimeDays Int
+  isPreferred  Boolean  @default(false)
+
+  @@unique([supplierId, itemId])
+}
+
+enum RequisitionSource {
+  MRP
+  MANUAL
+}
+
+enum PoStatus {
+  REQUESTED
+  PENDING_APPROVAL
+  ORDERED
+  IN_TRANSIT
+  RECEIVING
+  CLOSED
+  CANCELLED
+}
+
+model PurchaseRequisition {
+  id         String            @id @default(cuid())
+  itemId     String
+  qty        Decimal           @db.Decimal(18, 4)
+  neededBy   DateTime
+  source     RequisitionSource
+  reason     String?           // "P-2611 Noir Ambré 1.200 ad"
+  suggestedSupplierId String?
+  purchaseOrderId String?
+  createdAt  DateTime          @default(now())
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  number      String              @unique // SA-0917
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  status      PoStatus            @default(REQUESTED)
+  currency    String              @default("TRY")
+  fxRate      Decimal?            @db.Decimal(18, 6)
+  total       Decimal             @db.Decimal(18, 2)
+  expectedAt  DateTime?
+  lines       PurchaseOrderLine[]
+  receipts    GoodsReceipt[]
+  invoices    Invoice[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model PurchaseOrderLine {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  itemId      String
+  item        Item          @relation(fields: [itemId], references: [id])
+  qty         Decimal       @db.Decimal(18, 4)
+  unitPrice   Decimal       @db.Decimal(18, 4)
+  kdvRate     Decimal       @db.Decimal(7, 4)
+  receivedQty Decimal       @default(0) @db.Decimal(18, 4)
+}
+
+model GoodsReceipt {
+  id          String             @id @default(cuid())
+  number      String             @unique
+  orderId     String
+  order       PurchaseOrder      @relation(fields: [orderId], references: [id])
+  receivedById String?
+  lines       GoodsReceiptLine[]
+  invoices    Invoice[]
+  createdAt   DateTime           @default(now())
+}
+
+model GoodsReceiptLine {
+  id          String       @id @default(cuid())
+  receiptId   String
+  receipt     GoodsReceipt @relation(fields: [receiptId], references: [id])
+  poLineId    String
+  lotId       String
+  qty         Decimal      @db.Decimal(18, 4)
+  damagedQty  Decimal      @default(0) @db.Decimal(18, 4)
+  sampleTaken Boolean      @default(false)
+  photoUrls   String[]
+}
+
+// -----------------------------------------------------------------------------
+// 5. ÜRETİM
+// -----------------------------------------------------------------------------
+
+enum BatchStage {
+  FORMULA_APPROVAL
+  WEIGHING_MIXING
+  MACERATION
+  CHILL_FILTER
+  FILLING
+  LABEL_PACK
+  QUALITY_CONTROL
+  RELEASED
+  CANCELLED
+}
+
+model Resource {
+  id    String         @id @default(cuid())
+  code  String         @unique // T1, T2, DOLUM-1, PAKET
+  name  String
+  kind  String         // TANK, FILLING_LINE, PACK_LINE
+  capacityPerHour Decimal? @db.Decimal(18, 4)
+  slots ScheduleSlot[]
+}
+
+model ProductionBatch {
+  id              String             @id @default(cuid())
+  number          String             @unique // P-2609
+  productId       String
+  product         Product            @relation(fields: [productId], references: [id])
+  formulaId       String
+  formula         Formula            @relation(fields: [formulaId], references: [id])
+  plannedQty      Int
+  producedQty     Int                @default(0)
+  stage           BatchStage         @default(FORMULA_APPROVAL)
+  macerationStart DateTime?
+  macerationDays  Int?
+  dueAt           DateTime?
+  ownerId         String?
+  stageLogs       ProductionStageLog[]
+  consumptions    BatchConsumption[]
+  outputLots      Lot[]
+  slots           ScheduleSlot[]
+  costs           BatchCost[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model ProductionStageLog {
+  id        String          @id @default(cuid())
+  batchId   String
+  batch     ProductionBatch @relation(fields: [batchId], references: [id])
+  stage     BatchStage
+  startedAt DateTime
+  endedAt   DateTime?
+  userId    String?
+  note      String?
+}
+
+model BatchConsumption {
+  id       String          @id @default(cuid())
+  batchId  String
+  batch    ProductionBatch @relation(fields: [batchId], references: [id])
+  lotId    String
+  lot      Lot             @relation(fields: [lotId], references: [id])
+  qty      Decimal         @db.Decimal(18, 4)
+  unitCost Decimal         @db.Decimal(18, 4)
+}
+
+model ScheduleSlot {
+  id         String          @id @default(cuid())
+  resourceId String
+  resource   Resource        @relation(fields: [resourceId], references: [id])
+  batchId    String
+  batch      ProductionBatch @relation(fields: [batchId], references: [id])
+  startAt    DateTime
+  endAt      DateTime
+  isTentative Boolean        @default(false)
+}
+
+// -----------------------------------------------------------------------------
+// 6. KALİTE & MEVZUAT
+// -----------------------------------------------------------------------------
+
+model QcTest {
+  id          String     @id @default(cuid())
+  code        String     @unique // APPEARANCE, ODOR_PANEL, DENSITY, LEAK, FILL_VOLUME, COA, IFRA_CERT
+  name        String
+  appliesTo   ItemType[]
+  spec        Json?      // { min, max, unit }
+  results     QcResult[]
+}
+
+enum InspectionStatus {
+  PENDING
+  TESTING
+  PASSED
+  FAILED
+}
+
+model QcInspection {
+  id          String           @id @default(cuid())
+  lotId       String
+  lot         Lot              @relation(fields: [lotId], references: [id])
+  status      InspectionStatus @default(PENDING)
+  aqlLevel    String?          // 1,0
+  sampleSize  Int?
+  releasedById String?
+  releasedAt  DateTime?
+  results     QcResult[]
+  createdAt   DateTime         @default(now())
+}
+
+model QcResult {
+  id           String       @id @default(cuid())
+  inspectionId String
+  inspection   QcInspection @relation(fields: [inspectionId], references: [id])
+  testId       String
+  test         QcTest       @relation(fields: [testId], references: [id])
+  value        String?
+  passed       Boolean
+  testedById   String?
+  testedAt     DateTime     @default(now())
+}
+
+enum NcStatus {
+  OPEN
+  INVESTIGATING
+  ACTION
+  CLOSED
+}
+
+// Uygunsuzluk / DÖF (düzeltici önleyici faaliyet)
+model NonConformance {
+  id          String   @id @default(cuid())
+  number      String   @unique
+  lotId       String?
+  description String
+  rootCause   String?
+  action      String?
+  status      NcStatus @default(OPEN)
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  closedAt    DateTime?
+}
+
+enum ComplianceDocType {
+  PIF                 // ürün bilgi dosyası
+  SAFETY_ASSESSMENT   // güvenlik değerlendirmesi
+  IFRA_CERTIFICATE
+  UTS_NOTIFICATION    // TİTCK ÜTS bildirimi
+  SDS                 // güvenlik bilgi formu
+  STABILITY_REPORT
+  LABEL_APPROVAL
+}
+
+enum ComplianceStatus {
+  MISSING
+  IN_PROGRESS
+  VALID
+  EXPIRED
+}
+
+model ComplianceDocument {
+  id          String            @id @default(cuid())
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id])
+  type        ComplianceDocType
+  status      ComplianceStatus  @default(MISSING)
+  externalRef String?           // ÜTS bildirim no
+  fileUrl     String?
+  validUntil  DateTime?
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([productId, type])
+}
+
+model Recall {
+  id          String   @id @default(cuid())
+  lotIds      String[]
+  reason      String
+  isSimulation Boolean @default(false)
+  affectedCustomers Int?
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 7. MALİYET
+// -----------------------------------------------------------------------------
+
+model StandardCost {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id])
+  amount    Decimal  @db.Decimal(18, 4)
+  validFrom DateTime
+  validTo   DateTime?
+}
+
+enum CostComponent {
+  ESSENCE
+  ALCOHOL_WATER
+  BOTTLE
+  PUMP_CAP
+  BOX_LABEL
+  DIRECT_LABOR
+  OVERHEAD
+  SCRAP
+}
+
+model BatchCost {
+  id        String          @id @default(cuid())
+  batchId   String
+  batch     ProductionBatch @relation(fields: [batchId], references: [id])
+  component CostComponent
+  standard  Decimal         @db.Decimal(18, 4) // birim
+  actual    Decimal         @db.Decimal(18, 4) // birim
+
+  @@unique([batchId, component])
+}
+
+// -----------------------------------------------------------------------------
+// 8. MÜŞTERİ, SATIŞ, KANAL
+// -----------------------------------------------------------------------------
+
+enum CustomerType {
+  INDIVIDUAL
+  CORPORATE
+}
+
+model Customer {
+  id            String          @id @default(cuid())
+  type          CustomerType
+  fullName      String
+  email         String?
+  phone         String?
+  taxNo         String?         // VKN/TCKN — şifreli saklanır (docs/07-guvenlik-kvkk.md)
+  taxOffice     String?
+  isEInvoiceUser Boolean        @default(false) // GİB e-Fatura mükellefi mi
+  kvkkConsentAt DateTime?
+  marketingConsentAt DateTime?
+  addresses     Address[]
+  orders        SalesOrder[]
+  invoices      Invoice[]
+  loyalty       LoyaltyAccount?
+  subscriptions Subscription[]
+  quizResults   ScentQuizResult[]
+  opportunities Opportunity[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  label      String?
+  line1      String
+  district   String
+  city       String
+  postalCode String?
+  country    String   @default("TR")
+  isVerified Boolean  @default(false)
+}
+
+enum ChannelType {
+  WEBSITE
+  MARKETPLACE
+  B2B
+  STORE
+  EXPORT
+  SUBSCRIPTION
+}
+
+model SalesChannel {
+  id            String           @id @default(cuid())
+  code          String           @unique // WEB, TRENDYOL, HEPSIBURADA, AMAZON_TR, N11, CICEKSEPETI, B2B, STORE
+  name          String
+  type          ChannelType
+  integrationId String?
+  integration   Integration?     @relation(fields: [integrationId], references: [id])
+  orders        SalesOrder[]
+  listings      ChannelListing[]
+  contents      ProductContent[]
+  priceLists    PriceList[]
+  settlements   Settlement[]
+}
+
+model PriceList {
+  id        String          @id @default(cuid())
+  channelId String
+  channel   SalesChannel    @relation(fields: [channelId], references: [id])
+  currency  String          @default("TRY")
+  pricesIncludeTax Boolean  @default(true)
+  items     PriceListItem[]
+}
+
+model PriceListItem {
+  id          String    @id @default(cuid())
+  priceListId String
+  priceList   PriceList @relation(fields: [priceListId], references: [id])
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  price       Decimal   @db.Decimal(18, 2)
+  validFrom   DateTime  @default(now())
+
+  @@unique([priceListId, productId, validFrom])
+}
+
+enum OrderStatus {
+  NEW
+  PAYMENT_PENDING
+  CONFIRMED
+  IN_PRODUCTION   // B2B
+  PICKING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  RETURNED
+}
+
+model SalesOrder {
+  id              String           @id @default(cuid())
+  number          String           @unique // TY-48213, WB-10442
+  channelId       String
+  channel         SalesChannel     @relation(fields: [channelId], references: [id])
+  externalOrderNo String?
+  customerId      String
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  shippingAddressId String?
+  status          OrderStatus      @default(NEW)
+  currency        String           @default("TRY")
+  fxRate          Decimal?         @db.Decimal(18, 6)
+  netTotal        Decimal          @db.Decimal(18, 2) // ÖTV ve KDV hariç
+  otvTotal        Decimal          @db.Decimal(18, 2)
+  kdvTotal        Decimal          @db.Decimal(18, 2)
+  grandTotal      Decimal          @db.Decimal(18, 2)
+  paymentTermsDays Int?
+  lines           SalesOrderLine[]
+  payments        Payment[]
+  invoices        Invoice[]
+  shipments       Shipment[]
+  returns         ReturnRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([channelId, externalOrderNo])
+  @@index([status])
+}
+
+model SalesOrderLine {
+  id           String            @id @default(cuid())
+  orderId      String
+  order        SalesOrder        @relation(fields: [orderId], references: [id])
+  productId    String
+  product      Product           @relation(fields: [productId], references: [id])
+  qty          Int
+  unitPriceGross Decimal         @db.Decimal(18, 2) // kanaldaki KDV dahil fiyat
+  discount     Decimal           @default(0) @db.Decimal(18, 2)
+  otvRate      Decimal           @db.Decimal(7, 4)  // TaxRule'dan kopyalanır
+  kdvRate      Decimal           @db.Decimal(7, 4)
+  netAmount    Decimal           @db.Decimal(18, 2)
+  otvAmount    Decimal           @db.Decimal(18, 2)
+  kdvAmount    Decimal           @db.Decimal(18, 2)
+  reservations StockReservation[]
+}
+
+enum OpportunityStage {
+  QUOTE
+  SAMPLE
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Opportunity {
+  id         String           @id @default(cuid())
+  customerId String
+  customer   Customer         @relation(fields: [customerId], references: [id])
+  title      String
+  amount     Decimal          @db.Decimal(18, 2)
+  stage      OpportunityStage @default(QUOTE)
+  expectedCloseAt DateTime?
+  createdAt  DateTime         @default(now())
+}
+
+enum ListingStatus {
+  NOT_LISTED
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+model ChannelListing {
+  id           String        @id @default(cuid())
+  productId    String
+  product      Product       @relation(fields: [productId], references: [id])
+  channelId    String
+  channel      SalesChannel  @relation(fields: [channelId], references: [id])
+  externalId   String?
+  status       ListingStatus @default(NOT_LISTED)
+  priceSynced  Boolean       @default(false)
+  stockSynced  Boolean       @default(false)
+  contentScore Int?
+  issues       Json?         // [{ code, message }]
+  lastSyncAt   DateTime?
+
+  @@unique([productId, channelId])
+}
+
+// -----------------------------------------------------------------------------
+// 9. ÖDEME, HAKEDİŞ, BANKA
+// -----------------------------------------------------------------------------
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model PaymentProvider {
+  id        String    @id @default(cuid())
+  code      String    @unique // IYZICO, PAYTR, STRIPE, BANK_POS, TRANSFER, COD, MARKETPLACE
+  name      String
+  integrationId String?
+  commissionPct Decimal? @db.Decimal(7, 4) // sözleşmeden girilir
+  isActive  Boolean   @default(true)
+  payments  Payment[]
+}
+
+model Payment {
+  id           String          @id @default(cuid())
+  orderId      String?
+  order        SalesOrder?     @relation(fields: [orderId], references: [id])
+  providerId   String
+  provider     PaymentProvider @relation(fields: [providerId], references: [id])
+  amount       Decimal         @db.Decimal(18, 2)
+  currency     String          @default("TRY")
+  installments Int             @default(1)
+  cardBrand    String?
+  status       PaymentStatus   @default(PENDING)
+  externalTxId String?
+  commission   Decimal?        @db.Decimal(18, 2)
+  failureCode  String?
+  retryOfId    String?
+  createdAt    DateTime        @default(now())
+
+  @@index([externalTxId])
+}
+
+model Settlement {
+  id           String           @id @default(cuid())
+  channelId    String
+  channel      SalesChannel     @relation(fields: [channelId], references: [id])
+  periodStart  DateTime
+  periodEnd    DateTime
+  expected     Decimal          @db.Decimal(18, 2)
+  received     Decimal?         @db.Decimal(18, 2)
+  status       String           @default("OPEN") // OPEN, MATCHED, DIFF
+  lines        SettlementLine[]
+}
+
+model SettlementLine {
+  id           String     @id @default(cuid())
+  settlementId String
+  settlement   Settlement @relation(fields: [settlementId], references: [id])
+  kind         String     // SALE, COMMISSION, RETURN, SHIPPING, PENALTY
+  orderNo      String?
+  amount       Decimal    @db.Decimal(18, 2)
+  matched      Boolean    @default(false)
+}
+
+model BankTransaction {
+  id          String   @id @default(cuid())
+  bankCode    String
+  iban        String
+  valueDate   DateTime
+  amount      Decimal  @db.Decimal(18, 2)
+  description String
+  matchedType String?  // Payment, Settlement, Invoice
+  matchedId   String?
+  createdAt   DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 10. FATURA, İRSALİYE, VERGİ
+// -----------------------------------------------------------------------------
+
+enum InvoiceDirection {
+  SALES
+  PURCHASE
+}
+
+enum InvoiceType {
+  E_ARSIV
+  E_FATURA
+  E_IHRACAT
+  RETURN      // iade faturası
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  AWAITING_RESPONSE // ticari e-Fatura kabul/red
+  ACCEPTED
+  REJECTED
+  ERROR
+  CANCELLED
+  POSTED            // muhasebeye aktarıldı
+}
+
+enum MatchStatus {
+  NOT_APPLICABLE
+  PENDING
+  MATCHED
+  MISMATCH
+}
+
+model Invoice {
+  id           String           @id @default(cuid())
+  direction    InvoiceDirection
+  type         InvoiceType
+  number       String?          @unique // ATL2026000184 (entegratör verir)
+  ettn         String?          @unique // UUID
+  status       InvoiceStatus    @default(DRAFT)
+  issueDate    DateTime
+  dueDate      DateTime?
+  orderId      String?
+  order        SalesOrder?      @relation(fields: [orderId], references: [id])
+  customerId   String?
+  customer     Customer?        @relation(fields: [customerId], references: [id])
+  supplierId   String?
+  supplier     Supplier?        @relation(fields: [supplierId], references: [id])
+  purchaseOrderId String?
+  purchaseOrder PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  goodsReceiptId String?
+  goodsReceipt GoodsReceipt?    @relation(fields: [goodsReceiptId], references: [id])
+  matchStatus  MatchStatus      @default(NOT_APPLICABLE)
+  currency     String           @default("TRY")
+  fxRate       Decimal?         @db.Decimal(18, 6)
+  netTotal     Decimal          @db.Decimal(18, 2)
+  otvTotal     Decimal          @db.Decimal(18, 2)
+  kdvBase      Decimal          @db.Decimal(18, 2)
+  kdvTotal     Decimal          @db.Decimal(18, 2)
+  grandTotal   Decimal          @db.Decimal(18, 2)
+  exemptionCode String?         // ihracat istisna kodu
+  pdfUrl       String?
+  errorMessage String?
+  lines        InvoiceLine[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([status])
+  @@index([issueDate])
+}
+
+model InvoiceLine {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  productId  String?
+  itemId     String?
+  lotNo      String?
+  description String
+  qty        Decimal  @db.Decimal(18, 4)
+  unitPrice  Decimal  @db.Decimal(18, 4) // vergisiz
+  netAmount  Decimal  @db.Decimal(18, 2)
+  otvRate    Decimal  @db.Decimal(7, 4)
+  otvAmount  Decimal  @db.Decimal(18, 2)
+  kdvRate    Decimal  @db.Decimal(7, 4)
+  kdvAmount  Decimal  @db.Decimal(18, 2)
+}
+
+model DispatchNote {
+  id         String   @id @default(cuid())
+  number     String?  @unique
+  ettn       String?  @unique
+  orderId    String?
+  shipmentId String?
+  status     InvoiceStatus @default(DRAFT)
+  issueDate  DateTime
+  lines      Json     // [{ productId, lotNo, qty }]
+  createdAt  DateTime @default(now())
+}
+
+// Vergi oranı parametresi. Değişiklik mali müşavir onayıyla yayına alınır.
+model TaxRule {
+  id          String   @id @default(cuid())
+  category    String   // PERFUME, COLOGNE, SAMPLE, EXPORT, RAW_ALCOHOL
+  gtipPrefix  String?
+  kdvRate     Decimal  @db.Decimal(7, 4)
+  otvRate     Decimal  @db.Decimal(7, 4)
+  otvList     String?  // "IV"
+  note        String?
+  validFrom   DateTime
+  validTo     DateTime?
+  approvedById String?
+  approvedAt  DateTime?
+
+  @@index([category, validFrom])
+}
+
+model TaxCalendarEvent {
+  id       String   @id @default(cuid())
+  title    String   // "KDV beyanı · Eylül"
+  dueDate  DateTime
+  period   String   // 2026-09
+  status   String   @default("OPEN")
+}
+
+// -----------------------------------------------------------------------------
+// 11. KARGO & İADE
+// -----------------------------------------------------------------------------
+
+model Carrier {
+  id            String     @id @default(cuid())
+  code          String     @unique // YURTICI, ARAS, MNG, PTT, TRENDYOL_EXPRESS, HEPSIJET
+  name          String
+  integrationId String?
+  shipments     Shipment[]
+}
+
+enum ShipmentStatus {
+  CREATED
+  LABEL_PRINTED
+  HANDED_OVER
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELAYED
+  RETURNED
+  LOST
+}
+
+model Shipment {
+  id               String          @id @default(cuid())
+  orderId          String
+  order            SalesOrder      @relation(fields: [orderId], references: [id])
+  carrierId        String
+  carrier          Carrier         @relation(fields: [carrierId], references: [id])
+  trackingNo       String?
+  status           ShipmentStatus  @default(CREATED)
+  desi             Decimal?        @db.Decimal(8, 2)
+  cost             Decimal?        @db.Decimal(18, 2)
+  isDangerousGoods Boolean         @default(false) // UN1266 hava gönderisi
+  estimatedAt      DateTime?
+  deliveredAt      DateTime?
+  events           ShipmentEvent[]
+  createdAt        DateTime        @default(now())
+
+  @@index([trackingNo])
+}
+
+model ShipmentEvent {
+  id         String         @id @default(cuid())
+  shipmentId String
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id])
+  status     ShipmentStatus
+  location   String?
+  message    String?
+  occurredAt DateTime
+  notifiedCustomer Boolean  @default(false)
+}
+
+enum ReturnStatus {
+  REQUESTED
+  IN_TRANSIT
+  INSPECTING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+model ReturnRequest {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     SalesOrder   @relation(fields: [orderId], references: [id])
+  reason    String
+  status    ReturnStatus @default(REQUESTED)
+  photoUrls String[]
+  lines     Json         // [{ orderLineId, qty }]
+  createdAt DateTime     @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 12. SADAKAT & ABONELİK
+// -----------------------------------------------------------------------------
+
+model LoyaltyTier {
+  id         String           @id @default(cuid())
+  code       String           @unique // DISCOVERY, COLLECTOR, ATELIER
+  name       String
+  minPoints  Int
+  earnPct    Decimal          @db.Decimal(7, 4)
+  perks      String[]
+  accounts   LoyaltyAccount[]
+}
+
+model LoyaltyAccount {
+  id           String               @id @default(cuid())
+  customerId   String               @unique
+  customer     Customer             @relation(fields: [customerId], references: [id])
+  tierId       String
+  tier         LoyaltyTier          @relation(fields: [tierId], references: [id])
+  points       Int                  @default(0)
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id        String         @id @default(cuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+  points    Int            // + kazanım / − harcama
+  reason    String         // ORDER, REFILL, BIRTHDAY, REDEEM, EXPIRE
+  refId     String?
+  createdAt DateTime       @default(now())
+}
+
+model SubscriptionPlan {
+  id            String         @id @default(cuid())
+  code          String         @unique // DISCOVERY_BOX_MONTHLY
+  name          String
+  price         Decimal        @db.Decimal(18, 2)
+  intervalMonths Int           @default(1)
+  samplesPerBox Int            @default(3)
+  sampleMl      Decimal        @db.Decimal(6, 2)
+  subscriptions Subscription[]
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+}
+
+model Subscription {
+  id              String             @id @default(cuid())
+  customerId      String
+  customer        Customer           @relation(fields: [customerId], references: [id])
+  planId          String
+  plan            SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status          SubscriptionStatus @default(ACTIVE)
+  paymentToken    String?            // sağlayıcıdaki kayıtlı kart referansı (kart verisi ASLA tutulmaz)
+  nextBillingAt   DateTime
+  churnRisk       Decimal?           @db.Decimal(5, 4)
+  boxes           SubscriptionBox[]
+  createdAt       DateTime           @default(now())
+}
+
+model SubscriptionBox {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  period         String       // 2026-10
+  productIds     String[]
+  orderId        String?
+  rating         Int?
+  openedAt       DateTime?
+}
+
+model RefillReturn {
+  id         String   @id @default(cuid())
+  customerId String
+  productId  String
+  bottleQcOk Boolean?
+  pointsGiven Int     @default(0)
+  createdAt  DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 13. KOKU AI
+// -----------------------------------------------------------------------------
+
+model ScentQuizResult {
+  id         String           @id @default(cuid())
+  customerId String?
+  customer   Customer?        @relation(fields: [customerId], references: [id])
+  channel    String           // WEB, STORE_TABLET, WHATSAPP, QR
+  answers    Json
+  profile    Json             // { likes: [], dislikes: [], occasion, season, longevity }
+  recommendations Recommendation[]
+  createdAt  DateTime         @default(now())
+}
+
+model Recommendation {
+  id        String          @id @default(cuid())
+  quizId    String
+  quiz      ScentQuizResult @relation(fields: [quizId], references: [id])
+  productId String
+  product   Product         @relation(fields: [productId], references: [id])
+  score     Decimal         @db.Decimal(5, 4)
+  reason    String
+  rank      Int
+}
+
+model ScentSearchLog {
+  id          String   @id @default(cuid())
+  query       String
+  resultCount Int
+  topScore    Decimal? @db.Decimal(5, 4)
+  createdAt   DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 14. PAZARLAMA & İÇERİK
+// -----------------------------------------------------------------------------
+
+model SocialAccount {
+  id            String       @id @default(cuid())
+  platform      String       // INSTAGRAM, TIKTOK, FACEBOOK, YOUTUBE, PINTEREST, WHATSAPP
+  handle        String
+  integrationId String?
+  posts         SocialPost[]
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+model SocialPost {
+  id          String        @id @default(cuid())
+  accountId   String
+  account     SocialAccount @relation(fields: [accountId], references: [id])
+  status      PostStatus    @default(DRAFT)
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  caption     String
+  assetIds    String[]
+  productIds  String[]
+  utmCampaign String?
+  externalId  String?
+  metrics     Json?         // { reach, engagement, clicks, attributedRevenue }
+  briefId     String?
+  brief       ContentBrief? @relation(fields: [briefId], references: [id])
+  createdAt   DateTime      @default(now())
+}
+
+model ContentBrief {
+  id         String         @id @default(cuid())
+  productId  String?
+  kind       String         // SOCIAL_POST, PRODUCT_DESCRIPTION, PRODUCT_IMAGE, REELS_SCRIPT
+  channels   String[]
+  tone       String
+  audience   String?
+  keywords   String[]
+  assets     ContentAsset[]
+  posts      SocialPost[]
+  createdAt  DateTime       @default(now())
+}
+
+model ContentAsset {
+  id          String        @id @default(cuid())
+  briefId     String?
+  brief       ContentBrief? @relation(fields: [briefId], references: [id])
+  kind        String        // TEXT, IMAGE, VIDEO
+  body        String?
+  url         String?
+  aspectRatio String?
+  brandScore  Int?
+  compliance  Json?         // [{ rule, ok, note }]
+  aiGenerated Boolean       @default(true)
+  approvedAt  DateTime?
+  productMedia ProductMedia[]
+  createdAt   DateTime      @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 15. ENTEGRASYON & OLAY ALTYAPISI
+// -----------------------------------------------------------------------------
+
+enum IntegrationStatus {
+  DISABLED
+  ACTIVE
+  ERROR
+}
+
+model Integration {
+  id            String            @id @default(cuid())
+  code          String            @unique // docs/04-entegrasyonlar.md kodları
+  kind          String            // MARKETPLACE, PAYMENT, EINVOICE, CARGO, SOCIAL, BANK, ACCOUNTING, REGULATORY
+  status        IntegrationStatus @default(DISABLED)
+  credentialsRef String?          // gizli anahtar kasası referansı; anahtarın kendisi DB'de tutulmaz
+  settings      Json?
+  lastSyncAt    DateTime?
+  channels      SalesChannel[]
+  logs          IntegrationLog[]
+}
+
+model IntegrationLog {
+  id            String      @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id])
+  direction     String      // IN, OUT
+  operation     String      // orders.pull, stock.push, invoice.send
+  status        String      // OK, ERROR, RETRY
+  request       Json?
+  response      Json?
+  durationMs    Int?
+  createdAt     DateTime    @default(now())
+
+  @@index([integrationId, createdAt])
+}
+
+// Transactional outbox: iş kaydıyla aynı transaction içinde yazılır,
+// worker okuyup kuyruğa (BullMQ) aktarır. Olay adları docs/02-veri-modeli.md'de.
+enum OutboxStatus {
+  PENDING
+  DISPATCHED
+  FAILED
+}
+
+model OutboxEvent {
+  id          String       @id @default(cuid())
+  type        String       // order.confirmed, stock.below_min, lot.released ...
+  aggregate   String
+  aggregateId String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  dispatchedAt DateTime?
+
+  @@index([status, createdAt])
+}
