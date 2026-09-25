@@ -1,4 +1,5 @@
 // Tek ESLint yapılandırması: tüm paket ve uygulamalar bunu kullanır.
+import path from "node:path";
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import prettier from "eslint-config-prettier";
@@ -40,7 +41,7 @@ export default tseslint.config(
     files: ["apps/web/**/*.{ts,tsx}"],
     plugins: { "@next/next": nextPlugin, "react-hooks": reactHooks },
     languageOptions: { globals: { ...globals.browser } },
-    settings: { next: { rootDir: "apps/web" } },
+    settings: { next: { rootDir: path.join(import.meta.dirname, "apps/web") } },
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
