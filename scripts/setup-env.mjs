@@ -42,7 +42,7 @@ const REQUIRED = [
   ["PII_ENC_KEYS", () => `k1:${secret()}`, ""],
   ["PII_ENC_ACTIVE_KEY", "k1", "k1"],
   ["PII_HASH_KEY", secret, ""],
-  ["SEED_ADMIN_EMAIL", "admin@atelier.local", "admin@atelier.local"],
+  ["SEED_ADMIN_EMAIL", "admin@emaparfums.local", "admin@emaparfums.local"],
   ["SEED_ADMIN_PASSWORD", () => randomBytes(9).toString("base64url"), ""],
 ];
 

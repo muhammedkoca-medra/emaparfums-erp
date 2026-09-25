@@ -131,7 +131,8 @@
       "auth_mfa_enrolled": "İki adımlı doğrulama kuruldu",
       "auth_mfa_failed": "Hatalı doğrulama kodu",
       "user_create": "Kullanıcı oluşturuldu",
-      "user_roles_change": "Kullanıcı rolleri değişti"
+      "user_roles_change": "Kullanıcı rolleri değişti",
+      "user_email_change": "Kullanıcı e-postası değişti"
     }
   }
 }

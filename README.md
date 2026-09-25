@@ -49,7 +49,7 @@ pnpm dev                # api :4000, web :3000, worker
 - **Web paneli:** http://localhost:3000
 - **API belgeleri (OpenAPI):** http://localhost:4000/docs
 - **İlk giriş:**
-  - E-posta `admin@atelier.local`.
+  - E-posta `admin@emaparfums.local`.
   - Parola `.env` dosyasındaki `SEED_ADMIN_PASSWORD` değeridir.
   - Yerelde iki adımlı doğrulama kapalıdır (`MFA_REQUIRED=false`); ağa çıkarken açılır. Açıkken ilk girişte karekod kurulumu gelir; doğrulama uygulaması kodu internet olmadan üretir.
 - **Olay hattı testi:** Kontrol panelindeki "Olay hattını test et" düğmesi outbox'a `system.ping` yazar. Worker olayı alıp loglar.

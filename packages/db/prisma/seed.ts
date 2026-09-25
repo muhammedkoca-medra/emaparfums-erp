@@ -56,11 +56,12 @@ async function roles() {
 }
 
 async function adminUser(adminRoleId: string) {
-  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@atelier.local").toLowerCase();
+  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@emaparfums.local").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!password) throw new Error("SEED_ADMIN_PASSWORD tanımlı değil (pnpm bootstrap)");
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return;
+  // Yönetici yalnızca hiç yönetici yoksa oluşturulur (e-postası sonradan değiştirilmiş olabilir).
+  const anyAdmin = await prisma.userRole.findFirst({ where: { roleId: adminRoleId } });
+  if (anyAdmin) return;
   const user = await prisma.user.create({
     data: {
       email,
