@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { alert, loginAdmin, nav, screenshot } from "./helpers";
 
 /**
@@ -7,7 +7,7 @@ import { alert, loginAdmin, nav, screenshot } from "./helpers";
  */
 test.describe.configure({ mode: "serial" });
 
-const row = (page: import("@playwright/test").Page, text: string) =>
+const row = (page: Page, text: string) =>
   page.getByRole("table", { name: "Stok kalemleri" }).getByRole("row").filter({ hasText: text });
 
 test("stok listesi prototip tablosunu gerçek veriyle üretir", async ({ page }) => {
