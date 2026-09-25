@@ -1,4 +1,4 @@
-# Atelier ERP
+# emaparfums ERP
 
 Parfüm üreticisi için üretimden müşteriye uçtan uca işletim sistemi.
 
@@ -51,7 +51,7 @@ pnpm dev                # api :4000, web :3000, worker
 - **İlk giriş:**
   - E-posta `admin@atelier.local`.
   - Parola `.env` dosyasındaki `SEED_ADMIN_PASSWORD` değeridir.
-  - İlk girişte iki adımlı doğrulama kurulumu açılır. Karekodu Google Authenticator, Microsoft Authenticator veya 1Password gibi bir uygulamayla okutun.
+  - Yerelde iki adımlı doğrulama kapalıdır (`MFA_REQUIRED=false`); ağa çıkarken açılır. Açıkken ilk girişte karekod kurulumu gelir; doğrulama uygulaması kodu internet olmadan üretir.
 - **Olay hattı testi:** Kontrol panelindeki "Olay hattını test et" düğmesi outbox'a `system.ping` yazar. Worker olayı alıp loglar.
 - **Kontroller:** `pnpm lint && pnpm typecheck && pnpm test`. API ve worker testleri ayrı test veritabanlarını (`atelier_test`, `atelier_test_worker`) her çalıştırmada sıfırdan kurar.
 

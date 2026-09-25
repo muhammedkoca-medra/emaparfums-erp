@@ -1,4 +1,4 @@
-# CLAUDE.md — Atelier ERP
+# CLAUDE.md — emaparfums ERP
 
 Bu dosya Claude Code'un bu depoda nasıl çalışacağını tanımlar. Her oturumun başında okunur.
 

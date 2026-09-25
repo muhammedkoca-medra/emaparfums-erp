@@ -41,7 +41,7 @@ export async function createApp(config: AppConfig, logger: Logger): Promise<Nest
   const doc = SwaggerModule.createDocument(
     app,
     new DocumentBuilder()
-      .setTitle("Atelier ERP API")
+      .setTitle("emaparfums ERP API")
       .setDescription("Parfüm üreticisi için işletim sistemi — REST API")
       .setVersion("0.1.0")
       .addCookieAuth("atelier_session")

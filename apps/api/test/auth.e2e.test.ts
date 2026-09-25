@@ -21,7 +21,7 @@ describe("kimlik doğrulama (F0-04)", () => {
       .send({ email: user.email, password: user.password })
       .expect(200);
     expect(login.body.status).toBe("MFA_ENROLL");
-    expect(login.body.otpauthUrl).toMatch(/^otpauth:\/\/totp\/Atelier/);
+    expect(login.body.otpauthUrl.startsWith(`otpauth://totp/${ctx.config.TOTP_ISSUER}`)).toBe(true);
 
     // Kurulum tamamlanmadan korumalı uca erişilemez
     await agent.get("/auth/me").expect(401);

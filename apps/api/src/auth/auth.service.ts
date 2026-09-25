@@ -31,6 +31,12 @@ interface Client {
   userAgent: string | null;
 }
 
+export interface OpenedSession {
+  token: string;
+  sessionId: string;
+  expiresAt: Date;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -40,8 +46,16 @@ export class AuthService {
     @Inject(PII_KEYRING) private readonly keyring: PiiKeyring,
   ) {}
 
-  /** 1. adım: e-posta + parola. Başarılıysa ikinci adım (TOTP) ya da TOTP kurulumu istenir. */
-  async login(email: string, password: string, client: Client): Promise<LoginResponse> {
+  /**
+   * 1. adım: e-posta + parola. Başarılıysa ikinci adım (TOTP) ya da TOTP kurulumu istenir.
+   * MFA_REQUIRED=false ise (yalnızca yerel geliştirme) oturum doğrudan açılır.
+   */
+  async login(
+    email: string,
+    password: string,
+    client: Client,
+    target: { kind: "WEB" | "DEVICE"; deviceName?: string } = { kind: "WEB" },
+  ): Promise<Exclude<LoginResponse, { status: "OK" }> | { status: "SESSION"; session: OpenedSession }> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive || !user.passwordHash) {
       await verify(await DUMMY_HASH, password).catch(() => false);
@@ -80,6 +94,14 @@ export class AuthService {
 
     if (user.failedLoginCount > 0) {
       await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
+    }
+
+    if (!this.config.MFA_REQUIRED) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      return {
+        status: "SESSION",
+        session: await this.openSession(user.id, target.kind, target.deviceName, client),
+      };
     }
 
     // İki adımlı doğrulama zorunlu (YTK-04). Kurulu değilse kurulum başlatılır.
@@ -139,32 +161,35 @@ export class AuthService {
     });
     if (updated.count === 0) throw new UnauthorizedException({ message: "Doğrulama kodu hatalı" });
 
-    const session = await this.sessions.create({
-      userId: user.id,
-      kind: input.kind,
-      deviceName: input.deviceName,
-      ...input.client,
-    });
-    await this.prisma.$transaction(async (tx) => {
-      if (enrolling) {
-        await writeAudit(tx, {
-          userId: user.id,
-          action: "auth.mfa_enrolled",
-          entity: "User",
-          entityId: user.id,
-          before: { twoFactorOn: false },
-          after: { twoFactorOn: true },
-          ...input.client,
-        });
-      }
-      await writeAudit(tx, {
+    if (enrolling) {
+      await writeAudit(this.prisma, {
         userId: user.id,
-        action: input.kind === "DEVICE" ? "auth.device_login" : "auth.login",
-        entity: "Session",
-        entityId: session.sessionId,
-        after: { kind: input.kind, deviceName: input.deviceName ?? null },
+        action: "auth.mfa_enrolled",
+        entity: "User",
+        entityId: user.id,
+        before: { twoFactorOn: false },
+        after: { twoFactorOn: true },
         ...input.client,
       });
+    }
+    return this.openSession(user.id, input.kind, input.deviceName, input.client);
+  }
+
+  /** Oturumu açar ve giriş kaydını yazar. */
+  private async openSession(
+    userId: string,
+    kind: "WEB" | "DEVICE",
+    deviceName: string | undefined,
+    client: Client,
+  ): Promise<OpenedSession> {
+    const session = await this.sessions.create({ userId, kind, deviceName, ...client });
+    await writeAudit(this.prisma, {
+      userId,
+      action: kind === "DEVICE" ? "auth.device_login" : "auth.login",
+      entity: "Session",
+      entityId: session.sessionId,
+      after: { kind, deviceName: deviceName ?? null, mfa: this.config.MFA_REQUIRED },
+      ...client,
     });
     return session;
   }

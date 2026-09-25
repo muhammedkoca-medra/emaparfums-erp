@@ -7,16 +7,16 @@
 ## Bağlam
 
 - Kendi web sitesi satış kanallarından biridir (`WEB`).
-- Siparişlerin Atelier'e düşmesi, stok ve fiyatın siteye itilmesi, ürün içeriğinin (İçerik stüdyosu) senkronu gerekir.
+- Siparişlerin emaparfums sistemine düşmesi, stok ve fiyatın siteye itilmesi, ürün içeriğinin (İçerik stüdyosu) senkronu gerekir.
 - İleride koku testi, sadakat puanı ve abonelik de sitede çalışacak.
 - Pilot (Faz 2 sonu) "kendi sitede veya bir pazaryerinde" gerçek siparişle yapılabilir. Karar pilot kanalını da belirler.
 
 ## Seçenekler
 
-| | A · Hazır e-ticaret altyapısı (Shopify, ikas, WooCommerce vb.) | B · Atelier API'siyle özel site (Next.js) |
+| | A · Hazır e-ticaret altyapısı (Shopify, ikas, WooCommerce vb.) | B · emaparfums API'siyle özel site (Next.js) |
 |---|---|---|
 | Canlıya çıkış süresi | Kısa | Uzun (vitrin, sepet, ödeme, üyelik, SEO baştan yazılır) |
-| Entegrasyon | Altyapının API'si ve webhook'ları ile adaptör (`WEBSITE`) | Doğrudan Atelier API'si, adaptör gerekmez |
+| Entegrasyon | Altyapının API'si ve webhook'ları ile adaptör (`WEBSITE`) | Doğrudan emaparfums API'si, adaptör gerekmez |
 | Ödeme | Altyapının kendi ödeme modülü ya da iyzico/PayTR eklentisi | `IYZICO` / `PAYTR` adaptörleri (F2-03, F2-04) |
 | Koku testi, sadakat, abonelik | Gömülü bileşen + API (altyapının esnekliğine bağlı) | Tam kontrol |
 | Aylık maliyet | Abonelik + işlem komisyonu (teklifle teyit) | Barındırma + geliştirme emeği |

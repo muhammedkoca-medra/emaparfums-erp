@@ -35,7 +35,9 @@ const REQUIRED = [
   ["COOKIE_SECURE", "false", "false"],
   ["SESSION_TTL_HOURS", "8", "8"],
   ["DEVICE_SESSION_TTL_HOURS", "12", "12"],
-  ["TOTP_ISSUER", "Atelier", "Atelier"],
+  ["TOTP_ISSUER", "emaparfums", "emaparfums"],
+  // Yerelde iki adımlı doğrulama kapalı; ağa çıkarken true yapılır (üretimde zorunlu).
+  ["MFA_REQUIRED", "false", "false"],
   ["AUTH_SECRET", secret, ""],
   ["PII_ENC_KEYS", () => `k1:${secret()}`, ""],
   ["PII_ENC_ACTIVE_KEY", "k1", "k1"],

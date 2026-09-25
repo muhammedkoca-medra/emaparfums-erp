@@ -27,7 +27,7 @@
 ## Sonuçlar
 
 - Barındırma kararı (Türkiye'de veri merkezi veya bulut bölgesi) KVKK açısından ayrıca verilecek: ADR-0002.
-- Muhasebe ayrı bir yazılımda kalacak; Atelier yevmiye verisini aktaracak, çift kayıtlı muhasebe yapmayacak: ADR-0003.
+- Muhasebe ayrı bir yazılımda kalacak; emaparfums yevmiye verisini aktaracak, çift kayıtlı muhasebe yapmayacak: ADR-0003.
 
 ## Değişiklikler
 

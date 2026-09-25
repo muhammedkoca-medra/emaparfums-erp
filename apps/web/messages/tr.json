@@ -1,8 +1,8 @@
 {
   "app": {
-    "name": "Atelier",
+    "name": "emaparfums",
     "tagline": "Parfüm İşletim Sistemi",
-    "title": "Atelier · Parfüm İşletim Sistemi"
+    "title": "emaparfums · Parfüm İşletim Sistemi"
   },
   "nav": {
     "groups": {
@@ -47,7 +47,7 @@
   },
   "login": {
     "title": "Giriş yap",
-    "subtitle": "Atelier hesabınızla oturum açın",
+    "subtitle": "emaparfums hesabınızla oturum açın",
     "email": "E-posta",
     "password": "Parola",
     "submit": "Devam et",

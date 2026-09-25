@@ -11,6 +11,7 @@
 | **Genel** | Ürün adı, fiyat listesi | — |
 
 ## Kontrol listesi (her faz sonunda)
+- [ ] Ağa (canlıya) çıkmadan önce `MFA_REQUIRED=true`; tüm kullanıcılar iki adımlı doğrulamayı kurdu.
 - [ ] İzinsiz uç yok (otomatik test).
 - [ ] Loglarda ve hata mesajlarında maskelenmemiş kişisel veri yok (log örneklem taraması).
 - [ ] Kart verisi hiçbir tabloda veya logda yok (desen taraması).

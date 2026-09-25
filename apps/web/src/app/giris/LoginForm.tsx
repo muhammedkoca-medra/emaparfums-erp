@@ -44,6 +44,12 @@ export function LoginForm() {
         email: form.get("email"),
         password: form.get("password"),
       });
+      if (res.status === "OK") {
+        // İki adımlı doğrulama kapalı (yerel geliştirme): oturum açıldı
+        router.replace("/");
+        router.refresh();
+        return;
+      }
       setStep(
         res.status === "MFA_ENROLL" ? { kind: "enroll", ...res } : { kind: "mfa", challenge: res.challenge },
       );

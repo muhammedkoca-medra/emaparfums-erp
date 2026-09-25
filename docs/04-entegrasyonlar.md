@@ -17,7 +17,7 @@ Her entegrasyon `packages/integrations/src/<kod>/` altında `IntegrationAdapter`
 | 3 | `PAYTR` | Ödeme | P1 | 2 | 3D ödeme, iade, ödeme linki, webhook | Yedek sağlayıcı ve ödeme linki | Planlandı |
 | 4 | `TRENDYOL` | Pazaryeri | P1 | 2 | Sipariş çek, stok/fiyat it, ilan aç/güncelle, fatura yükle, hakediş, iade | Kategori ve özellik eşlemesi gerekir | Planlandı |
 | 5 | `HEPSIBURADA` | Pazaryeri | P1 | 2 | Aynı işlemler | | Planlandı |
-| 6 | `WEBSITE` | Kendi e-ticaret sitesi | P1 | 2 | Sipariş webhook, stok/fiyat/içerik senkronu, koku testi gömme | **Karar gerekli:** mevcut altyapı (Shopify/ikas/WooCommerce) mı, Atelier API'siyle özel site mi? ADR-0005 | Karar bekliyor |
+| 6 | `WEBSITE` | Kendi e-ticaret sitesi | P1 | 2 | Sipariş webhook, stok/fiyat/içerik senkronu, koku testi gömme | **Karar gerekli:** mevcut altyapı (Shopify/ikas/WooCommerce) mı, emaparfums API'siyle özel site mi? ADR-0005 | Karar bekliyor |
 | 7 | `CARGO_YURTICI` | Kargo | P1 | 2 | Gönderi oluştur, etiket, takip, iptal | | Planlandı |
 | 8 | `CARGO_ARAS` | Kargo | P1 | 2 | Aynı | | Planlandı |
 | 9 | `FX_TCMB` | Döviz kuru | P1 | 2 | Günlük kur çek | TCMB günlük kur yayını; hafta sonu ve tatilde son iş günü kuru | Planlandı |

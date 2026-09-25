@@ -52,6 +52,7 @@ Sınıfı olmayan uç varsayılan olarak reddedilir. `apps/api/test/permissions.
 - **YTK-02:** Yetki matrisindeki bir değişiklik, yönetici onayından sonra geçerli olur ve `AuditLog`'a yazılır.
 - **YTK-03:** `AuditLog` yalnızca eklenir. Veritabanı trigger'ı UPDATE ve DELETE işlemlerini engeller; kayıtlar 10 yıl saklanır (süre parametrik ve teyit edilecek).
 - **YTK-04:** İki adımlı doğrulama (TOTP) tüm kullanıcılar için zorunludur; ilk girişte kurulum ekranı açılır. Web oturumu 8 saattir (`SESSION_TTL_HOURS`). Art arda 5 hatalı parola hesabı 15 dakika kilitler (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`); giriş uçlarında IP başına dakikada 20 istek sınırı vardır. Yeni cihazdan giriş bildirilir. Dış kullanıcılar (mali müşavir) salt okunur ve IP kısıtlıdır (opsiyonel).
+- **YTK-04a · Yerel geliştirme istisnası:** `MFA_REQUIRED=false` iken giriş yalnızca e-posta + parolayla yapılır (ağa çıkmadan önceki yerel çalışma için). Üretimde (`NODE_ENV=production`) bu ayar kapatılamaz; API açılmayı reddeder. Giriş kaydında `mfa: false` işaretlenir.
 - **YTK-05:** `customer_pii` izni olmayan kullanıcı TCKN/VKN/telefon/e-postayı maskeli görür. Dışa aktarma her zaman loglanır.
 - **YTK-06:** Onay akışı `ApprovalRule` ile tanımlanır: modül, varlık, tutar eşiği ve onaylayan rol.
 - **YTK-07:** Mobil depo cihazları kullanıcıya bağlı cihaz token'ıyla girer; oturum 12 saat sürer.

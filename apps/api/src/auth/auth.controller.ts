@@ -32,11 +32,22 @@ export class AuthController {
   @HttpCode(200)
   @RateLimit(20, 60_000)
   @ApiZodBody(loginRequestSchema)
-  login(
+  async login(
     @Body(new ZodPipe(loginRequestSchema)) body: LoginRequest,
     @Req() req: AuthedRequest,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponse> {
-    return this.auth.login(body.email, body.password, clientInfo(req));
+    const device = body.client === "device";
+    const result = await this.auth.login(body.email, body.password, clientInfo(req), {
+      kind: device ? "DEVICE" : "WEB",
+      deviceName: body.deviceName,
+    });
+    if (result.status !== "SESSION") return result;
+    // İki adımlı doğrulama kapalı (yerel geliştirme): oturum bu adımda açıldı.
+    const { session } = result;
+    if (device) return { status: "OK", token: session.token, expiresAt: session.expiresAt.toISOString() };
+    res.cookie(SESSION_COOKIE, session.token, this.sessions.cookieOptions(session.expiresAt));
+    return { status: "OK" };
   }
 
   /** Web: oturum çerezi yazılır. Cihaz: token gövdede döner (Authorization: Bearer). */

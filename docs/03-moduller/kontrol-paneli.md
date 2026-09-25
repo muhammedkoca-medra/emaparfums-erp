@@ -8,7 +8,7 @@
 ## Ekranlar
 - **KPI kartları:** Bugünkü ciro, açık sipariş, üretimdeki parti, kritik stok.
 - **Canlı entegrasyon akışı:** Son olaylar ve tetiklediği zincir. `OutboxEvent` ve olay işleyici sonuçlarından okunur.
-- **Atelier AI önerileri:** Talep tahmini, satın alma fırsatı, en iyi yayın saati. Her öneri bir eylem düğmesiyle gelir.
+- **emaparfums AI önerileri:** Talep tahmini, satın alma fırsatı, en iyi yayın saati. Her öneri bir eylem düğmesiyle gelir.
 - **Özet kartlar:** Üretim hattı, kanal bazında bugünkü satış, yayın takvimi.
 - **Sistem haritası:** Modüller, veri çekirdeği, dış entegrasyonlar ve durumları, bir siparişin 8 adımlık yolculuğu.
 - **Genel arama (⌘K):** Sipariş, lot, müşteri, ürün, belge numarası; komutlar ("yeni parti", "stok girişi").

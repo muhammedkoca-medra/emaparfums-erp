@@ -20,7 +20,7 @@ export interface TestContext {
   http: () => ReturnType<typeof request>;
 }
 
-export async function setupTestApp(): Promise<TestContext> {
+export async function setupTestApp(overrides: Record<string, string> = {}): Promise<TestContext> {
   loadEnv({ path: path.resolve(import.meta.dirname, "../../../.env"), quiet: true });
   const config = loadConfig({
     ...process.env,
@@ -28,6 +28,9 @@ export async function setupTestApp(): Promise<TestContext> {
     DATABASE_URL: process.env.DATABASE_URL_TEST,
     COOKIE_SECURE: "false",
     LOG_LEVEL: "silent",
+    // Testler varsayılan olarak üretimdeki gibi iki adımlı doğrulamayla koşar.
+    MFA_REQUIRED: "true",
+    ...overrides,
   });
   const app = await createApp(config, pino({ level: "silent" }));
   await app.init();
