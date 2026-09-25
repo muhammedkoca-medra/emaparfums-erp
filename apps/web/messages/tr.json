@@ -327,7 +327,9 @@
       "reserveHint": "FEFO: son kullanma tarihi en yakın serbest lottan ayrılır.",
       "warehouse": "Depo (isteğe bağlı)",
       "anyWarehouse": "Tüm depolar",
-      "genericError": "İşlem yapılamadı."
+      "genericError": "İşlem yapılamadı.",
+      "newLot": "Yeni lot",
+      "existingLot": "Mevcut lot"
     },
     "receiptTitle": "Stok girişi",
     "receiptSubtitle": "Açılış stoğu veya elle mal kabul",

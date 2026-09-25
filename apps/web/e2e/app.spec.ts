@@ -108,8 +108,8 @@ test("depo kullanıcısı yalnızca yetkili modülleri görür", async ({ page }
   await expect(nav(page).getByRole("link", { name: "Faturalandırma" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Olay hattını test et" })).toHaveCount(0);
 
-  await page.goto("/stok");
-  await expect(page.getByRole("heading", { name: "Bu modül Faz 1 kapsamında geliştirilecek" })).toBeVisible();
+  await page.goto("/kargo");
+  await expect(page.getByRole("heading", { name: "Bu modül Faz 2 kapsamında geliştirilecek" })).toBeVisible();
 
   // Menüde olmayan sayfaya doğrudan gidince yetki uyarısı (asıl kontrol API'de)
   await page.goto("/yetki");
