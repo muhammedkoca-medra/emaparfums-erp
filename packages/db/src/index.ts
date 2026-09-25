@@ -5,3 +5,4 @@ export { writeAudit, type AuditEntry } from "./audit.js";
 export { integrationLogSink } from "./integration-log.js";
 export * from "./stock.js";
 export { getSetting, setSetting } from "./settings.js";
+export { resolveTaxRule, taxRuleState, type TaxRuleState } from "./tax-rules.js";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { passwordSchema } from "./auth.js";
-import { ROLE_CODES } from "./permissions.js";
+import { PERMISSION_ACTIONS, PERMISSION_MODULES, ROLE_CODES } from "./permissions.js";
 
 /** Yetki & kayıtlar modülü (docs/03-moduller/yetki.md) istek şemaları. */
 
@@ -32,3 +32,18 @@ export type AuditQuery = z.infer<typeof auditQuerySchema>;
 
 export const setUserStatusSchema = z.object({ isActive: z.boolean() });
 export type SetUserStatusRequest = z.infer<typeof setUserStatusSchema>;
+
+export const permissionChangeSchema = z.object({
+  roleId: z.string().min(1),
+  module: z.enum(PERMISSION_MODULES),
+  action: z.enum(PERMISSION_ACTIONS),
+  grant: z.boolean(),
+  note: z.string().trim().max(300).optional(),
+});
+export type PermissionChangeRequest = z.infer<typeof permissionChangeSchema>;
+
+export const approvalDecisionSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  note: z.string().trim().max(300).optional(),
+});
+export type ApprovalDecisionRequest = z.infer<typeof approvalDecisionSchema>;

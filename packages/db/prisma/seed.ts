@@ -13,7 +13,14 @@ import path from "node:path";
 import { hash } from "@node-rs/argon2";
 import { defaultRolePermissions, ROLE_CODES, ROLE_NAMES } from "@atelier/shared";
 import { config } from "dotenv";
-import { createLot, createPrismaClient, type Prisma, recordMovement, reserveFefo } from "../src/index.js";
+import {
+  createLot,
+  createPrismaClient,
+  type Prisma,
+  recordMovement,
+  reserveFefo,
+  writeAudit,
+} from "../src/index.js";
 
 config({ path: path.resolve(import.meta.dirname, "../../../.env"), quiet: true });
 
@@ -674,7 +681,22 @@ async function taxRules() {
   ];
   for (const r of rules) {
     const exists = await prisma.taxRule.findFirst({ where: { category: r.category, validFrom } });
-    if (!exists) await prisma.taxRule.create({ data: { ...r, note, validFrom } });
+    if (!exists) await prisma.taxRule.create({ data: { ...r, note, validFrom, approvedAt: validFrom } });
+  }
+  // Tohum kuralları sistem tarafından yayına alınır (hesap için yayında kural gerekir). Yasal teyit
+  // ayrı bir konudur ve note alanında "teyit bekliyor" olarak durur.
+  const pending = await prisma.taxRule.findMany({ where: { note, approvedAt: null } });
+  for (const p of pending) {
+    await prisma.$transaction(async (tx) => {
+      await tx.taxRule.update({ where: { id: p.id }, data: { approvedAt: validFrom } });
+      await writeAudit(tx, {
+        action: "tax_rule.approve",
+        entity: "TaxRule",
+        entityId: p.id,
+        before: { approvedAt: null },
+        after: { approvedAt: validFrom, by: "tohum verisi" },
+      });
+    });
   }
 }
 
