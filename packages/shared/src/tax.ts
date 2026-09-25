@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 
 /**
  * Vergi hesabının TEK kaynağı. Oranlar TaxRule tablosundan gelir, burada sabit oran yoktur.

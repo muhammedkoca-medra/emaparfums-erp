@@ -28,3 +28,8 @@
 
 - Barındırma kararı (Türkiye'de veri merkezi veya bulut bölgesi) KVKK açısından ayrıca verilecek: ADR-0002.
 - Muhasebe ayrı bir yazılımda kalacak; Atelier yevmiye verisini aktaracak, çift kayıtlı muhasebe yapmayacak: ADR-0003.
+
+## Değişiklikler
+
+- **25 Eylül 2026 · Yerel dosya deposu:** `minio/minio` imajı Docker Hub'dan kaldırıldığı için yerel geliştirmede S3 uyumlu depo olarak SeaweedFS (`chrislusf/seaweedfs`, port 8333) kullanılıyor. Uygulama yalnızca S3 API'sine bağlı olduğundan kod etkilenmez; üretim deposu ADR-0002 (barındırma) ile seçilecek.
+- **25 Eylül 2026 · Sürümler (Faz 0 kurulumu):** TypeScript 5.9, Prisma 7.10, Vitest 3.2 korundu (daha yeni ana sürümlere geçiş ayrı ADR ile). Next.js, NestJS ve diğer bağımlılıklar kurulum anındaki güncel kararlı sürümle başlatıldı; kesin sürümler `pnpm-lock.yaml` içinde.

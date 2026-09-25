@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromGross, fromNet, lineFromGrossUnit, sumBreakdowns } from "./tax";
+import { fromGross, fromNet, lineFromGrossUnit, sumBreakdowns } from "./tax.js";
 
 // Testlerdeki oranlar ÖRNEKTİR; gerçek oranlar TaxRule tablosundan gelir.
 const PERFUME = { otvRate: "0.20", kdvRate: "0.20" };

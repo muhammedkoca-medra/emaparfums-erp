@@ -6,7 +6,7 @@ Kaynak: `packages/db/prisma/schema.prisma`. Bu doküman şemanın neden böyle o
 
 | # | Alan | Başlıca tablolar |
 |---|---|---|
-| 1 | Kimlik, yetki, denetim | User, Role, UserRole, RolePermission, ApprovalRule, ApprovalRequest, AuditLog |
+| 1 | Kimlik, yetki, denetim | User, Session, Role, UserRole, RolePermission, ApprovalRule, ApprovalRequest, AuditLog |
 | 2 | Ürün, formül, koku | Item, Product, ProductContent, ProductMedia, Formula, FormulaLine, FormulaAllergen, BillOfMaterials, BomLine, ScentNote, ProductNote, ProductAccord |
 | 3 | Depo, lot, stok | Warehouse, Location, Lot, StockBalance, StockMovement, StockReservation, CycleCount(+Line), DeviceTask, PickWave(+Line) |
 | 4 | Satın alma | Supplier, SupplierItem, PurchaseRequisition, PurchaseOrder(+Line), GoodsReceipt(+Line) |
@@ -63,6 +63,9 @@ erDiagram
 - **Brüt fiyat.** Kanal fiyat listeleri varsayılan olarak KDV dahil tutulur (`pricesIncludeTax`). Vergi ayrıştırması `packages/shared/src/tax.ts` ile yapılır.
 - **Para birimi.** Yabancı para birimli belgelerde `currency` ve `fxRate` saklanır, raporlama TRY karşılığıyla yapılır. Kur kaynağı `docs/04` içinde tanımlı.
 - **Formül sürümü.** `Formula` alanında `(code, version)` benzersizdir. Onaylı bir formül düzenlenmez, yeni sürümü açılır. Parti, üretildiği sürüme bağlanır.
+- **Oturum.** Web ve mobil cihaz oturumları `Session` tablosunda tutulur (`kind`: WEB, DEVICE). İstemciye rastgele bir token verilir; veritabanında yalnızca SHA-256 hash'i (`tokenHash`) saklanır. Süreler parametriktir: web 8 saat, cihaz 12 saat (`SESSION_TTL_HOURS`, `DEVICE_SESSION_TTL_HOURS`). Çıkış ve iptal `revokedAt` ile yapılır, kayıt silinmez.
+- **İki adımlı doğrulama.** `User.totpSecretEnc` TOTP sırrını alan şifrelemesiyle (AES-256-GCM, `packages/shared/src/node/pii.ts`) saklar. `totpLastCounter` aynı kodun ikinci kez kullanılmasını engeller. `failedLoginCount` ve `lockedUntil` kaba kuvvet denemelerinde hesabı geçici olarak kilitler.
+- **Denetim kaydı.** `AuditLog` tablosunda UPDATE, DELETE ve TRUNCATE, `audit_log_append_only` migration'ındaki trigger ile veritabanı seviyesinde engellenir.
 - **Kişisel veri.** `Customer.taxNo`, `phone` ve `email` uygulama katmanında şifrelenir; arama için ayrı hash sütunu eklenir (Faz 1). Sınıflandırma `07-guvenlik-kvkk.md` dosyasında.
 - **Silme yok.** Kritik tablolarda (fatura, hareket, denetim, lot) kayıt silinmez; durum alanı değişir. Cascade silme kullanılmaz.
 - **Benzerlik vektörü.** `Product.embedding` şimdilik `Float[]` olarak tutuluyor. Katalog 1.000 ürünü geçerse pgvector'e taşınacak (ADR yazılır).
@@ -115,6 +118,7 @@ Modüller arası tüm tetiklemeler bu tablodaki olaylarla yapılır. Tipler `pac
 | `post.published` | sosyal medya | kontrol paneli, satış (UTM atıfı) |
 | `subscription.renewed` | sadakat | ödeme (tahsilat), üretim (numune dolumu), kargo |
 | `tax_rule.changed` | vergi | e-ticaret (fiyat kontrolü), denetim |
+| `system.ping` | yönetim (sistem sağlığı) | worker (uçtan uca olay hattı testi; yalnızca loglanır) |
 
 ## Tohum verisi
 

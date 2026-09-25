@@ -1,3 +1,14 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Kurulum betiği çalıştırmasına izin verilen bağımlılıklar (pnpm varsayılan olarak engeller).
+allowBuilds:
+  "@nestjs/core": false
+  "@prisma/engines": true
+  "@scarf/scarf": false
+  "@swc/core": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true

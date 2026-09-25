@@ -1,0 +1,45 @@
+{
+  "name": "@atelier/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc-watch -p tsconfig.build.json --onSuccess \"node --enable-source-maps dist/main.js\"",
+    "start": "node --enable-source-maps dist/main.js",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atelier/db": "workspace:*",
+    "@atelier/shared": "workspace:*",
+    "@nestjs/common": "^12.1.0",
+    "@nestjs/core": "^12.1.0",
+    "@nestjs/platform-express": "^12.1.0",
+    "@nestjs/swagger": "^12.0.0",
+    "@node-rs/argon2": "^2.0.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.0",
+    "pino": "^9.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^12.1.0",
+    "@swc/core": "^1.10.0",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.0",
+    "pino-pretty": "^13.0.0",
+    "supertest": "^7.0.0",
+    "tsc-watch": "^7.0.0",
+    "typescript": "^5.9.0",
+    "unplugin-swc": "^1.5.0",
+    "vitest": "^3.2.0",
+    "pg": "^8.13.0",
+    "@types/pg": "^8.11.0"
+  }
+}

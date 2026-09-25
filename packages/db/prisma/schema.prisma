@@ -14,6 +14,8 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
@@ -30,14 +32,43 @@ model User {
   fullName      String
   passwordHash  String?
   twoFactorOn   Boolean    @default(false)
+  totpSecretEnc String?    // TOTP sırrı, alan şifrelemesiyle (packages/shared/src/node/pii.ts)
+  totpLastCounter Int?     // son kabul edilen TOTP adımı; aynı kodun tekrar kullanımını engeller
+  failedLoginCount Int     @default(0)
+  lockedUntil   DateTime?
   isExternal    Boolean    @default(false) // örn. mali müşavir
   isActive      Boolean    @default(true)
   lastLoginAt   DateTime?
   roles         UserRole[]
+  sessions      Session[]
   auditLogs     AuditLog[]
   deviceTasks   DeviceTask[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+}
+
+enum SessionKind {
+  WEB
+  DEVICE // mobil depo cihazı (YTK-07)
+}
+
+// Oturum: istemciye rastgele token verilir, burada yalnızca SHA-256 hash'i durur.
+// Silinmez; çıkış/iptal revokedAt ile işaretlenir.
+model Session {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  kind       SessionKind
+  tokenHash  String      @unique
+  deviceName String?
+  ip         String?
+  userAgent  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime    @default(now())
+  revokedAt  DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, kind])
 }
 
 model Role {
