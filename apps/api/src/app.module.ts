@@ -14,6 +14,8 @@ import { LOGGER } from "./logger.js";
 import { AuthGuard, PermissionGuard } from "./permissions/guards.js";
 import { PermissionService } from "./permissions/permission.service.js";
 import { PrismaService } from "./prisma.service.js";
+import { CountsController } from "./stock/counts.controller.js";
+import { StockController } from "./stock/stock.controller.js";
 import { SystemController } from "./system/system.controller.js";
 
 @Module({})
@@ -21,7 +23,7 @@ export class AppModule {
   static register(config: AppConfig, logger: Logger): DynamicModule {
     return {
       module: AppModule,
-      controllers: [AuthController, AdminController, SystemController],
+      controllers: [AuthController, AdminController, SystemController, StockController, CountsController],
       providers: [
         { provide: APP_CONFIG, useValue: config },
         { provide: LOGGER, useValue: logger },

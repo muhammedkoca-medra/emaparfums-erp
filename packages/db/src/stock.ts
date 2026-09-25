@@ -58,6 +58,8 @@ export interface MovementInput {
   refId?: string | null;
   userId?: string | null;
   deviceId?: string | null;
+  /** Elle hareket gerekçesi (düzeltme, transfer). */
+  note?: string | null;
 }
 
 /** Hareketin yönünü ve lokasyon kurallarını doğrular. */
@@ -195,6 +197,7 @@ export async function recordMovement(tx: Tx, input: MovementInput, now = new Dat
       refId: input.refId ?? null,
       userId: input.userId ?? null,
       deviceId: input.deviceId ?? null,
+      note: input.note ?? null,
       createdAt: now,
     },
   });

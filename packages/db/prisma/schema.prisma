@@ -502,6 +502,7 @@ model StockMovement {
   refId          String?
   userId         String?
   deviceId       String? // mobil depo cihazı
+  note           String? // elle hareket gerekçesi (düzeltme, transfer); kişisel veri yazılmaz
   createdAt      DateTime     @default(now())
 
   @@index([itemId, createdAt])

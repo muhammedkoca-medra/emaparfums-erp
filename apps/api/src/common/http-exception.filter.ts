@@ -1,4 +1,13 @@
-import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
+import {
+  type ArgumentsHost,
+  BadRequestException,
+  Catch,
+  ConflictException,
+  type ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
+import { Prisma, StockError } from "@atelier/db";
 import { type Request, type Response } from "express";
 import { type Logger } from "pino";
 
@@ -18,7 +27,8 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly log: Logger) {}
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(raw: unknown, host: ArgumentsHost) {
+    const exception = translate(raw);
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request & { id?: string }>();
@@ -44,4 +54,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     res.status(status).json({ statusCode: status, message, requestId: req.id, ...extra });
   }
+}
+
+/** Alan hatalarını HTTP yanıtına çevirir: iş kuralı ihlali 409/400, tekrar eden kayıt 409. */
+function translate(e: unknown): unknown {
+  if (e instanceof StockError) {
+    const conflict = ["INSUFFICIENT_AVAILABLE", "LOT_NOT_RELEASED", "RESERVATION_CLOSED", "LOT_EXPIRED"];
+    return conflict.includes(e.code)
+      ? new ConflictException({ message: e.message, code: e.code })
+      : new BadRequestException({ message: e.message, code: e.code });
+  }
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    return new ConflictException({ message: "Bu bilgiyle kayıtlı bir kayıt zaten var", code: "DUPLICATE" });
+  }
+  return e;
 }

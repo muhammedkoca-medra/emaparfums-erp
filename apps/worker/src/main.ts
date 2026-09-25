@@ -9,6 +9,7 @@ import { startEventWorker } from "./event-worker.js";
 import { handlers } from "./handlers/index.js";
 import { startDispatcher } from "./outbox-dispatcher.js";
 import { createQueues, redisConnection } from "./queues.js";
+import { startScheduler } from "./scheduled.js";
 
 loadEnv({ path: path.resolve(import.meta.dirname, "../../../.env"), quiet: true });
 
@@ -42,6 +43,8 @@ const dispatcher = startDispatcher(prisma, queues.events, log, {
   pollMs: config.OUTBOX_POLL_MS,
 });
 
+const scheduler = await startScheduler({ connection, prefix: config.QUEUE_PREFIX, prisma, log });
+
 // İsteğe bağlı sağlık kontrolü: Redis bağlantısı ve olay işleyicinin çalıştığını söyler.
 const health = config.WORKER_HEALTH_PORT
   ? createServer((req, res) => {
@@ -65,6 +68,8 @@ async function shutdown(signal: string) {
   health?.close();
   await dispatcher.stop();
   await worker.close();
+  await scheduler.worker.close();
+  await scheduler.queue.close();
   await Promise.all([queues.events.close(), queues.dlq.close()]);
   await prisma.$disconnect();
   process.exit(0);

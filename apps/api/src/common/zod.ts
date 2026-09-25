@@ -19,7 +19,9 @@ export class ZodPipe<T extends z.ZodType> implements PipeTransform<unknown, z.in
 
 /** OpenAPI belgesine zod şemasından istek gövdesi ekler. */
 export const ApiZodBody = (schema: z.ZodType) =>
-  ApiBody({ schema: z.toJSONSchema(schema, { io: "input" }) as Record<string, unknown> });
+  ApiBody({
+    schema: z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }) as Record<string, unknown>,
+  });
 
 /** OpenAPI belgesine zod nesnesinin alanlarını sorgu parametresi olarak ekler. */
 export function ApiZodQuery(schema: z.ZodObject): MethodDecorator {

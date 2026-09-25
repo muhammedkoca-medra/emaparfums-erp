@@ -58,7 +58,7 @@ erDiagram
   - `StockBalance`, `StockMovement`, rezervasyon ve üretim tüketimi hep lot üzerinden yürür.
   - Lot takibi gerektirmeyen kalemler (ör. selofan) için kalem başına tek bir "GENEL" lot açılır.
   - Bu sayede geri çağırma zinciri (hammadde lotu → parti → mamul lotu → sipariş satırı → müşteri) kopmaz.
-- **Hareket defteri.** `StockMovement` yalnızca eklenir (append-only). `StockBalance` bu hareketlerden türetilmiş bir önbellektir ve yalnızca `packages/db/src/stock.ts` tarafından güncellenir. Gece bir tutarlılık işi, hareket toplamlarıyla bakiyeleri karşılaştırır.
+- **Hareket defteri.** `StockMovement` yalnızca eklenir (append-only); elle yapılan düzeltme ve transferlerde gerekçe `note` alanına yazılır. `StockBalance` bu hareketlerden türetilmiş bir önbellektir ve yalnızca `packages/db/src/stock.ts` tarafından güncellenir. Gece bir tutarlılık işi, hareket toplamlarıyla bakiyeleri karşılaştırır.
 - **Rezervasyon.**
   - `StockReservation` yalnızca satış sipariş satırına değil, her türlü iç kullanıma bağlanabilir: `refType`/`refId` (ör. `SalesOrderLine`, `ProductionBatch`, `Manual`). `orderLineId` isteğe bağlıdır; satış rezervasyonunda doldurulur.
   - Rezervasyon `StockBalance.qtyReserved` alanını artırır. Serbest bırakma (`releasedAt`) ve rezervasyonun sevkiyatla tüketilmesi bu alanı azaltır. Hepsi `packages/db/src/stock.ts` içinde, aynı transaction'da yapılır.
