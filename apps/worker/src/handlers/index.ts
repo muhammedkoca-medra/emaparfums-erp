@@ -4,6 +4,7 @@ import { type Logger } from "pino";
 import { notifyOrderConfirmed, notifyShipmentStatus } from "./notifications.js";
 import { orderConfirmed } from "./order-confirmed.js";
 import { paymentCaptured } from "./payment-captured.js";
+import { inspectOnBatchCompleted, inspectOnLotReceived, releaseBatchOnLotReleased } from "./quality.js";
 import { systemPing } from "./system-ping.js";
 
 /**
@@ -30,4 +31,7 @@ export const handlers: HandlerMap = {
     { name: "notify.order-confirmed", handle: notifyOrderConfirmed },
   ],
   "shipment.status_changed": [{ name: "notify.shipment-status", handle: notifyShipmentStatus }],
+  "lot.received": [{ name: "quality.inspect-on-receipt", handle: inspectOnLotReceived }],
+  "batch.completed": [{ name: "quality.inspect-on-batch", handle: inspectOnBatchCompleted }],
+  "lot.released": [{ name: "production.release-batch-on-lot", handle: releaseBatchOnLotReleased }],
 };

@@ -884,6 +884,23 @@ async function stock(itemIds: Record<string, string>) {
   }
 }
 
+/** KAL-01: kalem tipine göre otomatik açılacak muayenelerin test şablonları. */
+const QC_TESTS: { code: string; name: string; appliesTo: ("RAW_MATERIAL" | "PACKAGING" | "SEMI_FINISHED" | "FINISHED_GOOD" | "SAMPLE")[]; spec?: unknown }[] = [
+  { code: "COA", name: "Analiz sertifikası (CoA) kontrolü", appliesTo: ["RAW_MATERIAL"] },
+  { code: "IDENTITY", name: "Kimlik/görünüş kontrolü", appliesTo: ["RAW_MATERIAL"] },
+  { code: "APPEARANCE", name: "Görünüş ve berraklık", appliesTo: ["SEMI_FINISHED", "FINISHED_GOOD"] },
+  { code: "ODOR_PANEL", name: "Koku paneli (referansla)", appliesTo: ["SEMI_FINISHED", "FINISHED_GOOD"] },
+  { code: "FILL_VOLUME", name: "Dolum hacmi", appliesTo: ["FINISHED_GOOD"], spec: { unit: "ml" } },
+  { code: "LEAK", name: "Sızdırmazlık", appliesTo: ["FINISHED_GOOD", "PACKAGING"] },
+  { code: "LABEL_CHECK", name: "Etiket ve parti no kontrolü", appliesTo: ["FINISHED_GOOD"] },
+];
+
+async function qcTests() {
+  for (const t of QC_TESTS) {
+    await prisma.qcTest.upsert({ where: { code: t.code }, update: { name: t.name, appliesTo: t.appliesTo }, create: { code: t.code, name: t.name, appliesTo: t.appliesTo, spec: (t.spec ?? null) as Prisma.InputJsonValue } });
+  }
+}
+
 async function main() {
   console.log("Tohum verisi yükleniyor…");
   const roleIds = await roles();
@@ -909,6 +926,8 @@ async function main() {
   console.log("  ✓ örnek müşteriler (KVKK rıza kayıtlı, PII şifreli)");
   await batches();
   console.log("  ✓ örnek üretim partileri (karışım + demlenme)");
+  await qcTests();
+  console.log("  ✓ kalite test şablonları (KAL-01)");
 }
 
 main()
