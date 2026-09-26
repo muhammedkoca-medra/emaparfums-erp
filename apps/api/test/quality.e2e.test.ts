@@ -84,3 +84,70 @@ describe("kalite muayene ve lot serbest bırakma (F3-04, KAL-02/03)", () => {
     await sales.post(`/quality/inspections/${insp.id}/release`).send({}).expect(403);
   });
 });
+
+describe("uyum belgeleri ve satış kilidi (F3-04, KAL-04)", () => {
+  async function product(status: "ACTIVE" | "SALES_LOCKED" = "ACTIVE") {
+    const sfx = Math.floor(Math.random() * 1e9);
+    const it = await ctx.prisma.item.create({ data: { code: `MC-${sfx}`, name: "Mamul C", type: "FINISHED_GOOD", uom: "PCS" } });
+    return ctx.prisma.product.create({ data: { itemId: it.id, sku: `SC-${sfx}`, name: "Ürün C", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status } });
+  }
+  const MANDATORY = ["UTS_NOTIFICATION", "SAFETY_ASSESSMENT", "PIF", "LABEL_APPROVAL"] as const;
+
+  it("zorunlu belge VALID değilse ürün SALES_LOCKED olur ve compliance.changed yayılır", async () => {
+    const qc = await loginAgent(ctx, await createUser(ctx, ["QUALITY"]));
+    const p = await product("ACTIVE");
+    const r = await qc.put(`/quality/compliance/${p.id}/UTS_NOTIFICATION`).send({ status: "IN_PROGRESS", externalRef: "UTS-123" }).expect(200);
+    expect(r.body.productStatus).toBe("SALES_LOCKED");
+    expect(r.body.statusChanged).toBe(true);
+    expect((await ctx.prisma.product.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("SALES_LOCKED");
+    expect(await ctx.prisma.outboxEvent.findFirst({ where: { type: "compliance.changed", aggregateId: p.id } })).toBeTruthy();
+  });
+
+  it("tüm zorunlu belgeler VALID olunca ürün ACTIVE olur", async () => {
+    const qc = await loginAgent(ctx, await createUser(ctx, ["QUALITY"]));
+    const p = await product("SALES_LOCKED");
+    for (const t of MANDATORY) await qc.put(`/quality/compliance/${p.id}/${t}`).send({ status: "VALID" }).expect(200);
+    expect((await ctx.prisma.product.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("ACTIVE");
+    const list = await qc.get(`/quality/compliance?productId=${p.id}`).expect(200);
+    expect(list.body.docs.filter((d: { status: string }) => d.status === "VALID")).toHaveLength(MANDATORY.length);
+  });
+});
+
+describe("izlenebilirlik ve geri çağırma (F3-04, KAL-06)", () => {
+  async function forwardChain() {
+    const sfx = Math.floor(Math.random() * 1e9);
+    const it = await ctx.prisma.item.create({ data: { code: `MR-${sfx}`, name: "Mamul R", type: "FINISHED_GOOD", uom: "PCS" } });
+    const product = await ctx.prisma.product.create({ data: { itemId: it.id, sku: `SR-${sfx}`, name: "Ürün R", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME" } });
+    const formula = await ctx.prisma.formula.create({ data: { code: `FR-${sfx}`, version: 1, name: "F", concentrationPct: "20", status: "APPROVED" } });
+    const batch = await ctx.prisma.productionBatch.create({ data: { number: `PR-${sfx}`, productId: product.id, formulaId: formula.id, plannedQty: 10, stage: "QUALITY_CONTROL" } });
+    const outLot = await ctx.prisma.lot.create({ data: { itemId: it.id, lotNo: `L-OUT-${sfx}`, qcStatus: "RELEASED", batchId: batch.id } });
+    const wh = await ctx.prisma.warehouse.create({ data: { code: `R-${sfx}`, name: "R" } });
+    const loc = await ctx.prisma.location.create({ data: { warehouseId: wh.id, code: "R-01", pickSequence: 1 } });
+    const channel = await ctx.prisma.salesChannel.create({ data: { code: `CH-${sfx}`, name: "K", type: "WEBSITE" } });
+    const customer = await ctx.prisma.customer.create({ data: { type: "INDIVIDUAL", fullName: "Geri Çağrı Müşteri" } });
+    const order = await ctx.prisma.salesOrder.create({ data: { number: `OR-${sfx}`, channelId: channel.id, customerId: customer.id, status: "CONFIRMED", netTotal: "100", otvTotal: "0", kdvTotal: "0", grandTotal: "100" } });
+    const line = await ctx.prisma.salesOrderLine.create({ data: { orderId: order.id, productId: product.id, qty: 1, unitPriceGross: "100", netAmount: "100", otvRate: "0", otvAmount: "0", kdvRate: "0.20", kdvAmount: "0" } });
+    await ctx.prisma.stockReservation.create({ data: { itemId: it.id, lotId: outLot.id, locationId: loc.id, orderLineId: line.id, refType: "SalesOrderLine", refId: line.id, qty: "1" } });
+    return { outLot, customer };
+  }
+
+  it("trace mamul lotu için ileri (müşteri) zincirini döndürür", async () => {
+    const qc = await loginAgent(ctx, await createUser(ctx, ["QUALITY"]));
+    const { outLot } = await forwardChain();
+    const t = await qc.get(`/quality/trace/${outLot.id}`).expect(200);
+    expect(t.body.batch).toBeTruthy();
+    expect(t.body.orders.length).toBeGreaterThanOrEqual(1);
+    expect(t.body.affectedCustomers).toBeGreaterThanOrEqual(1);
+  });
+
+  it("simülasyon lotu karantinaya almaz; gerçek geri çağırma alır", async () => {
+    const qc = await loginAgent(ctx, await createUser(ctx, ["QUALITY"]));
+    const { outLot } = await forwardChain();
+    const sim = await qc.post("/quality/recalls").send({ lotIds: [outLot.id], reason: "test", isSimulation: true }).expect(201);
+    expect(sim.body.affectedCustomers).toBeGreaterThanOrEqual(1);
+    expect((await ctx.prisma.lot.findUniqueOrThrow({ where: { id: outLot.id } })).qcStatus).toBe("RELEASED");
+    const real = await qc.post("/quality/recalls").send({ lotIds: [outLot.id], reason: "gerçek", isSimulation: false }).expect(201);
+    expect(real.body.affectedCustomers).toBeGreaterThanOrEqual(1);
+    expect((await ctx.prisma.lot.findUniqueOrThrow({ where: { id: outLot.id } })).qcStatus).toBe("QUARANTINE");
+  });
+});

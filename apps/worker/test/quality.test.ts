@@ -1,7 +1,7 @@
 import { createPrismaClient, type Db } from "@atelier/db";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { inspectOnBatchCompleted, inspectOnLotReceived, releaseBatchOnLotReleased } from "../src/handlers/quality.js";
+import { deactivateOnComplianceChanged, inspectOnBatchCompleted, inspectOnLotReceived, releaseBatchOnLotReleased } from "../src/handlers/quality.js";
 import { workerTestDbUrl } from "./env.js";
 
 const log = pino({ level: "silent" });
@@ -50,5 +50,19 @@ describe("kalite worker işleyicileri (KAL-01, URT-06)", () => {
   it("lot.released → partisiz lotta hata vermez", async () => {
     const l = await lot();
     await expect(releaseBatchOnLotReleased({ type: "lot.released", lotId: l.id }, { prisma, log, eventId: "e4" })).resolves.toBeUndefined();
+  });
+
+  it("compliance.changed → SALES_LOCKED üründe pazaryeri stok 0 iter (mock, hatasız)", async () => {
+    const sfx = Math.random().toString(36).slice(2, 7);
+    const it = await prisma.item.create({ data: { code: `CC-${sfx}`, name: "CC", type: "FINISHED_GOOD", uom: "PCS" } });
+    const locked = await prisma.product.create({ data: { itemId: it.id, sku: `CS-${sfx}`, name: "P", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status: "SALES_LOCKED" } });
+    await expect(deactivateOnComplianceChanged({ type: "compliance.changed", productId: locked.id }, { prisma, log, eventId: "e5" })).resolves.toBeUndefined();
+  });
+
+  it("compliance.changed → ACTIVE üründe pazaryerine dokunmaz", async () => {
+    const sfx = Math.random().toString(36).slice(2, 7);
+    const it = await prisma.item.create({ data: { code: `CA-${sfx}`, name: "CA", type: "FINISHED_GOOD", uom: "PCS" } });
+    const active = await prisma.product.create({ data: { itemId: it.id, sku: `CAS-${sfx}`, name: "P", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status: "ACTIVE" } });
+    await expect(deactivateOnComplianceChanged({ type: "compliance.changed", productId: active.id }, { prisma, log, eventId: "e6" })).resolves.toBeUndefined();
   });
 });
