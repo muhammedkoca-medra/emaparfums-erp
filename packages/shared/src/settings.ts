@@ -23,6 +23,12 @@ export const SETTINGS = {
    * Boş varsayılan = limit yok (kontrol engel çıkarmaz).
    */
   "ifra.limits": { schema: z.record(z.string(), z.record(z.string(), z.number().nonnegative())), default: {} as Record<string, Record<string, number>> },
+  /**
+   * KAL-07: alerjenin son üründeki oranı (%) bu eşiği aşarsa etikette beyan zorunlu (mustLabel).
+   * Durulanmayan (leave-on) ürün varsayılanı; gerçek eşik ve durulanan/durulanmayan ayrımı mevzuat
+   * teyidine tabi (docs/04#dogrulanacaklar). Varsayılan %0.001 (= 10 ppm).
+   */
+  "allergen.labelThresholdPct": { schema: z.number().nonnegative().max(100), default: 0.001 },
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;

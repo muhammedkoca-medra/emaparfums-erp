@@ -17,12 +17,14 @@ import {
   type BomUpdateRequest,
   bomUpdateSchema,
   checkIfraLimits,
+  computeSalesLock,
   type FormulaCreateRequest,
   formulaCreateSchema,
   type FormulaDecisionRequest,
   formulaDecisionSchema,
   type FormulaDraftRequest,
   formulaDraftSchema,
+  mustLabelAllergen,
   validateFormulaLines,
 } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
@@ -222,6 +224,8 @@ export class FormulasController {
         });
       }
       const before = await formulaSnapshot(tx, id);
+      // KAL-07: mustLabel eşikten otomatik hesaplanır (kullanıcı girdisi bağlayıcı değil).
+      const threshold = await getSetting(tx, "allergen.labelThresholdPct");
       await tx.formulaLine.deleteMany({ where: { formulaId: id } });
       await tx.formulaAllergen.deleteMany({ where: { formulaId: id } });
       await tx.formula.update({
@@ -235,7 +239,7 @@ export class FormulasController {
             create: body.allergens.map((a) => ({
               name: a.name,
               pctInFinal: a.pctInFinal,
-              mustLabel: a.mustLabel,
+              mustLabel: mustLabelAllergen(a.pctInFinal, threshold),
             })),
           },
         },
@@ -347,8 +351,20 @@ export class FormulasController {
         where: { formulaId: { in: prevIds }, isActive: true },
         data: { formulaId: id },
       });
-      for (const p of products)
+      // KAL-07: formül değişince etiket onay belgesi geçersiz olur; ürün durumu yeniden hesaplanır.
+      for (const p of products) {
+        await tx.complianceDocument.upsert({
+          where: { productId_type: { productId: p.id, type: "LABEL_APPROVAL" } },
+          update: { status: "EXPIRED" },
+          create: { productId: p.id, type: "LABEL_APPROVAL", status: "EXPIRED" },
+        });
+        const prod = await tx.product.findUniqueOrThrow({ where: { id: p.id }, select: { status: true } });
+        const docs = await tx.complianceDocument.findMany({ where: { productId: p.id }, select: { type: true, status: true } });
+        const next = computeSalesLock(prod.status, docs);
+        if (next !== prod.status) await tx.product.update({ where: { id: p.id }, data: { status: next } });
         await emit(tx, { type: "product.updated", productId: p.id, fields: ["formula"] });
+        await emit(tx, { type: "compliance.changed", productId: p.id });
+      }
       await writeAudit(tx, {
         userId: auth.userId,
         action: "formula.approve",

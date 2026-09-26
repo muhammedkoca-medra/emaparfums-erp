@@ -295,6 +295,29 @@ describe("F3-03 · IFRA limit kontrolü (URT-09)", () => {
   });
 });
 
+describe("F3-04 · alerjen beyan eşiği (KAL-07)", () => {
+  it("mustLabel eşikten otomatik hesaplanır (kullanıcı girdisi bağlayıcı değil)", async () => {
+    const e = (await admin.post("/catalog/items").send({ code: code("HM"), name: "Alerjen madde", type: "RAW_MATERIAL", uom: "KG" }).expect(201)).body;
+    const fcode = `F-${randomUUID().slice(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, "0")}`;
+    const f = (await uretim.post("/formulas").send({ code: fcode, name: "Alerjen", concentrationPct: "20" }).expect(201)).body;
+    await uretim
+      .put(`/formulas/${f.id}`)
+      .send({
+        lines: [{ itemId: e.id, percentage: "100" }],
+        // eşik %0.001: 0.5 üstünde (kullanıcı false demiş), 0.0005 altında (kullanıcı true demiş)
+        allergens: [
+          { name: "Linalool", pctInFinal: "0.5", mustLabel: false },
+          { name: "Limonene", pctInFinal: "0.0005", mustLabel: true },
+        ],
+      })
+      .expect(200);
+    const rows = await ctx.prisma.formulaAllergen.findMany({ where: { formulaId: f.id }, orderBy: { name: "asc" } });
+    const byName = Object.fromEntries(rows.map((r) => [r.name, r.mustLabel]));
+    expect(byName.Linalool).toBe(true);
+    expect(byName.Limonene).toBe(false);
+  });
+});
+
 describe("F1-08 · vergi kuralları", () => {
   it("yeni oran taslak girilir, onayla yayına alınır; önceki kural kapanır; eski tarih eski oranı verir", async () => {
     const c = `T${randomUUID()

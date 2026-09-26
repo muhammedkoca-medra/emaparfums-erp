@@ -87,6 +87,11 @@ export function validateFormulaLines(lines: { itemId: string; percentage: string
   return errors;
 }
 
+/** KAL-07: alerjenin son üründeki oranı beyan eşiğini aşarsa etikette beyan zorunlu. */
+export function mustLabelAllergen(pctInFinal: string | number, thresholdPct: number): boolean {
+  return new Decimal(pctInFinal).greaterThanOrEqualTo(thresholdPct);
+}
+
 export interface IfraViolation {
   itemId: string;
   code: string;

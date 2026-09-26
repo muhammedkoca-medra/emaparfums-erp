@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkIfraLimits, validateFormulaLines } from "./formula.js";
+import { checkIfraLimits, mustLabelAllergen, validateFormulaLines } from "./formula.js";
 
 describe("formül satır doğrulaması", () => {
   it("toplam Decimal ile tam %100 olmalı (0.1 + 0.2 tuzağı yok)", () => {
@@ -43,5 +43,13 @@ describe("checkIfraLimits (URT-09)", () => {
   it("kategori yoksa ya da limit tanımsızsa atlar", () => {
     expect(checkIfraLimits(lines, "20", null, { "HM-X": { "4": 0.1 } })).toEqual([]);
     expect(checkIfraLimits(lines, "20", "4", {})).toEqual([]);
+  });
+});
+
+describe("mustLabelAllergen (KAL-07)", () => {
+  it("eşik ve üstünde beyan zorunlu, altında değil", () => {
+    expect(mustLabelAllergen("0.001", 0.001)).toBe(true);
+    expect(mustLabelAllergen("0.5", 0.001)).toBe(true);
+    expect(mustLabelAllergen("0.0005", 0.001)).toBe(false);
   });
 });
