@@ -79,8 +79,8 @@ gantt
 - [x] **F2-02** Satış siparişi, durum makinesi, kanal önekleri, vergi anlık görüntüsü (SAL-01…07). · _SAL-01 kanal öneki, SAL-02 vergi anlık görüntüsü (lineFromGrossUnit), SAL-03 DRAFT/SALES_LOCKED engeli, SAL-06/07 durum makinesi + iptal, liste/detay/yeni sipariş arayüzü hazır. SAL-05 B2B kredi limiti ve pazaryeri harici dedup (SAL-01 externalOrderNo) pazaryeri adaptörleriyle (F2-11+) gelecek._
 - [ ] **F2-03** `IYZICO` adaptörü + checkout + webhook (ODM-01…04). · _Kısmi: yerel SANDBOX ödeme akışı hazır — checkout (kart verisi alınmaz, ODM-01), imza doğrulamalı idempotent webhook (ODM-04), payment.captured → worker siparişi CONFIRMED yapar; sipariş detayında ödeme paneli + simülasyon. Gerçek IYZICO/PAYTR adaptörü (packages/integrations, hosted/3DS) canlıya çıkışta._
 - [ ] **F2-04** `PAYTR` adaptörü + yedek yönlendirme + ödeme linki.
-- [ ] **F2-05** `EINVOICE` adaptörü (seçilen entegratör): mükellef sorgusu, e-Arşiv, e-Fatura, durum, PDF (FTR-01…06, FTR-10).
-- [ ] **F2-06** Fatura ekranları (prototip 11) + hatalı belge kuyruğu.
+- [x] **F2-05** `EINVOICE` adaptörü (seçilen entegratör): mükellef sorgusu, e-Arşiv, e-Fatura, durum, PDF (FTR-01…06, FTR-10).
+- [x] **F2-06** Fatura ekranları (prototip 11) + hatalı belge kuyruğu.
 - [ ] **F2-07** Vergi kuralları ekranı + fiyat anatomisi temel sürümü (prototip 12).
 - [ ] **F2-08** `CARGO_YURTICI`, `CARGO_ARAS` adaptörleri, firma seçimi, etiket, takip (KRG-01…04, 07).
 - [ ] **F2-09** `SMS`/`WHATSAPP` ve `IYS`: işlem bildirimleri, izin kontrolü.

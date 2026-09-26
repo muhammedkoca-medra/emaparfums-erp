@@ -87,6 +87,7 @@ export const NAV: { group: NavGroupKey; items: NavItem[] }[] = [
     items: [
       { key: "sales", href: "/satis", permission: "sales", icon: "trend", phase: 2, spec: "satis.md" },
       { key: "orders", href: "/siparisler", permission: "sales", icon: "cart", phase: 2, spec: "satis.md" },
+      { key: "invoicing", href: "/faturalar", permission: "invoicing", icon: "doc", phase: 2, spec: "fatura.md" },
       { key: "customers", href: "/musteriler", permission: "sales", icon: "users", phase: 2, spec: "satis.md" },
       { key: "pricing", href: "/fiyatlandirma", permission: "sales", icon: "coin", phase: 2, spec: "vergi.md" },
       {

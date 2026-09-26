@@ -24,7 +24,7 @@
       "ecommerce": "E-Ticaret",
       "loyalty": "Sadakat & Abonelik",
       "payments": "Ödemeler",
-      "invoicing": "Faturalandırma",
+      "invoicing": "Faturalar",
       "tax": "Vergi Merkezi",
       "costing": "Maliyet",
       "shipping": "Kargo Takip",
@@ -1097,5 +1097,68 @@
     "usedBy": "{count, plural, one {# üründe} other {# üründe}} kullanılıyor",
     "noItem": "Ambalaj kalemi bağlı değil.",
     "volume": "Hacim"
+  },
+  "invoices": {
+    "title": "Faturalar",
+    "subtitle": "e-Arşiv / e-Fatura belgeleri ve hatalı belge kuyruğu",
+    "empty": "Fatura yok.",
+    "back": "Faturalara dön",
+    "count": "{count, plural, one {# belge} other {# belge}}",
+    "errorQueue": "Hatalı belgeler",
+    "col": {
+      "number": "No",
+      "type": "Tür",
+      "customer": "Müşteri",
+      "order": "Sipariş",
+      "status": "Durum",
+      "total": "Tutar",
+      "date": "Tarih"
+    },
+    "type": {
+      "E_ARSIV": "e-Arşiv",
+      "E_FATURA": "e-Fatura",
+      "E_IHRACAT": "e-İhracat",
+      "RETURN": "İade"
+    },
+    "status": {
+      "DRAFT": "Taslak",
+      "SENT": "Gönderildi",
+      "DELIVERED": "İletildi",
+      "AWAITING_RESPONSE": "Yanıt bekliyor",
+      "ACCEPTED": "Kabul",
+      "REJECTED": "Red",
+      "ERROR": "Hata",
+      "CANCELLED": "İptal",
+      "POSTED": "Muhasebede"
+    },
+    "section": {
+      "lines": "Satırlar",
+      "totals": "Toplamlar"
+    },
+    "line": {
+      "desc": "Açıklama",
+      "qty": "Adet",
+      "unit": "Birim (vergisiz)",
+      "net": "Net",
+      "otv": "ÖTV",
+      "kdv": "KDV"
+    },
+    "totals": {
+      "net": "Net",
+      "otv": "ÖTV",
+      "kdv": "KDV",
+      "grand": "Genel toplam"
+    },
+    "pdf": "PDF",
+    "retry": "Yeniden gönder",
+    "cancel": "İptal et",
+    "return": "İade faturası",
+    "retried": "Yeniden gönderildi.",
+    "cancelled": "İptal edildi.",
+    "returned": "İade faturası oluşturuldu.",
+    "cancelReason": "İptal gerekçesi:",
+    "errorLabel": "Hata",
+    "noEttn": "Belge henüz gönderilmedi.",
+    "filterAll": "Tümü"
   }
 }

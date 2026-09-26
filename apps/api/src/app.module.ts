@@ -14,6 +14,7 @@ import { APP_CONFIG, type AppConfig } from "./config.js";
 import { LOGGER } from "./logger.js";
 import { AuthGuard, PermissionGuard } from "./permissions/guards.js";
 import { PermissionService } from "./permissions/permission.service.js";
+import { IntegrationsService } from "./common/integrations.service.js";
 import { PiiService } from "./common/pii.service.js";
 import { PrismaService } from "./prisma.service.js";
 import { CatalogController } from "./catalog/catalog.controller.js";
@@ -24,6 +25,7 @@ import { CountsController } from "./stock/counts.controller.js";
 import { StockController } from "./stock/stock.controller.js";
 import { ProductionController } from "./production/production.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
+import { InvoicesController } from "./invoices/invoices.controller.js";
 import { OrdersController } from "./sales/orders.controller.js";
 import { SalesController } from "./sales/sales.controller.js";
 import { ShowcaseController } from "./showcase/showcase.controller.js";
@@ -51,6 +53,7 @@ export class AppModule {
         SalesController,
         OrdersController,
         PaymentsController,
+        InvoicesController,
         ProductionController,
       ],
       providers: [
@@ -68,6 +71,7 @@ export class AppModule {
         AuthService,
         PermissionService,
         PiiService,
+        IntegrationsService,
         RateLimitGuard,
         // Global guard sırası: hız sınırı → oturum → yetki.
         { provide: APP_GUARD, useExisting: RateLimitGuard },
