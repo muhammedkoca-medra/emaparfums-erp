@@ -45,7 +45,7 @@ describe("STK-10 · gece tutarlılık işi", () => {
 });
 
 describe("KAL-05 · uyum belgesi süre kontrolü", () => {
-  async function product(status = "ACTIVE") {
+  async function product(status: "ACTIVE" | "SALES_LOCKED" = "ACTIVE") {
     const sfx = randomUUID().slice(0, 6);
     const it = await prisma.item.create({ data: { code: `CX-${sfx}`, name: "CX", type: "FINISHED_GOOD", uom: "PCS" } });
     return prisma.product.create({ data: { itemId: it.id, sku: `CXS-${sfx}`, name: "P", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status } });

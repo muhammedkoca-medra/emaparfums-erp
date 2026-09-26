@@ -23,3 +23,4 @@ export * from "./quality.js";
 export * from "./costing.js";
 export * from "./content.js";
 export * from "./scent-ai.js";
+export * from "./loyalty.js";

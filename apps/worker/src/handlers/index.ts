@@ -2,6 +2,7 @@ import { type Db } from "@atelier/db";
 import { type DomainEvent, type DomainEventType } from "@atelier/shared";
 import { type Logger } from "pino";
 import { notifyOrderConfirmed, notifyShipmentStatus } from "./notifications.js";
+import { earnLoyaltyOnOrderConfirmed } from "./loyalty.js";
 import { orderConfirmed } from "./order-confirmed.js";
 import { paymentCaptured } from "./payment-captured.js";
 import { deactivateOnComplianceChanged, inspectOnBatchCompleted, inspectOnLotReceived, releaseBatchOnLotReleased } from "./quality.js";
@@ -29,6 +30,7 @@ export const handlers: HandlerMap = {
   "order.confirmed": [
     { name: "invoice.issue-on-confirm", handle: orderConfirmed },
     { name: "notify.order-confirmed", handle: notifyOrderConfirmed },
+    { name: "loyalty.earn-on-confirm", handle: earnLoyaltyOnOrderConfirmed },
   ],
   "shipment.status_changed": [{ name: "notify.shipment-status", handle: notifyShipmentStatus }],
   "lot.received": [{ name: "quality.inspect-on-receipt", handle: inspectOnLotReceived }],
