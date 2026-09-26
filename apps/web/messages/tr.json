@@ -27,7 +27,7 @@
       "invoicing": "Faturalar",
       "tax": "Vergi Merkezi",
       "costing": "Maliyet",
-      "shipping": "Kargo Takip",
+      "shipping": "Kargo",
       "social": "Sosyal Medya",
       "content": "İçerik Stüdyosu",
       "scent": "Koku Laboratuvarı",
@@ -1160,5 +1160,52 @@
     "errorLabel": "Hata",
     "noEttn": "Belge henüz gönderilmedi.",
     "filterAll": "Tümü"
+  },
+  "shipping": {
+    "title": "Kargo",
+    "subtitle": "Sevkiyat, etiket ve takip",
+    "new": "Yeni gönderi",
+    "empty": "Gönderi yok.",
+    "back": "Kargoya dön",
+    "count": "{count, plural, one {# gönderi} other {# gönderi}}",
+    "col": {
+      "tracking": "Takip no",
+      "carrier": "Firma",
+      "order": "Sipariş",
+      "status": "Durum",
+      "cost": "Ücret",
+      "date": "Tarih"
+    },
+    "status": {
+      "CREATED": "Oluşturuldu",
+      "LABEL_PRINTED": "Etiket basıldı",
+      "HANDED_OVER": "Teslim alındı",
+      "IN_TRANSIT": "Yolda",
+      "OUT_FOR_DELIVERY": "Dağıtımda",
+      "DELIVERED": "Teslim edildi",
+      "DELAYED": "Gecikti",
+      "RETURNED": "İade",
+      "LOST": "Kayıp"
+    },
+    "section": {
+      "events": "Hareketler"
+    },
+    "label": "Etiket (PDF)",
+    "track": "Takip sorgula",
+    "tracked": "Takip güncellendi.",
+    "form": {
+      "order": "Sipariş",
+      "carrier": "Kargo firması",
+      "desi": "Desi",
+      "choose": "Seçin",
+      "dangerous": "Tehlikeli madde (UN1266)",
+      "create": "Gönderi oluştur",
+      "saved": "Kaydedildi.",
+      "noOrders": "Uygun sipariş yok."
+    },
+    "perf": "Firma performansı",
+    "onTime": "Zamanında",
+    "damage": "Hasar",
+    "noEvents": "Hareket yok."
   }
 }

@@ -59,6 +59,7 @@ describe("yetki (F0-05, YTK-01)", () => {
       "0 /system/health",
       "1 /auth/login",
       "1 /auth/mfa/verify",
+      "1 /webhooks/cargo/:carrier",
       "1 /webhooks/einvoice",
       "1 /webhooks/payments/:provider",
     ]);

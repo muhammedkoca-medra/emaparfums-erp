@@ -82,7 +82,7 @@ gantt
 - [x] **F2-05** `EINVOICE` adaptörü (seçilen entegratör): mükellef sorgusu, e-Arşiv, e-Fatura, durum, PDF (FTR-01…06, FTR-10).
 - [x] **F2-06** Fatura ekranları (prototip 11) + hatalı belge kuyruğu.
 - [ ] **F2-07** Vergi kuralları ekranı + fiyat anatomisi temel sürümü (prototip 12).
-- [ ] **F2-08** `CARGO_YURTICI`, `CARGO_ARAS` adaptörleri, firma seçimi, etiket, takip (KRG-01…04, 07).
+- [x] **F2-08** `CARGO_YURTICI`, `CARGO_ARAS` adaptörleri, firma seçimi, etiket, takip (KRG-01…04, 07).
 - [ ] **F2-09** `SMS`/`WHATSAPP` ve `IYS`: işlem bildirimleri, izin kontrolü.
 - [ ] **F2-10** `WEBSITE` entegrasyonu (ADR-0005 kararına göre).
 - [ ] **F2-11** `TRENDYOL` adaptörü: sipariş çek, stok/fiyat it, ilan, fatura yükle (ETC-01…08).

@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { integrationLogSink } from "@atelier/db";
 import {
   buildContext,
+  type CargoCapabilities,
   createDefaultRegistry,
   MemoryLogSink,
   type EInvoiceCapabilities,
@@ -44,5 +45,10 @@ export class IntegrationsService {
   /** E-belge entegratörü (mock: e-Arşiv/e-Fatura). */
   einvoice(direction: "IN" | "OUT" = "OUT") {
     return this.resolve<IntegrationAdapter & EInvoiceCapabilities>("EINVOICE", direction);
+  }
+
+  /** Kargo entegratörü (mock). code: CARGO_YURTICI / CARGO_ARAS. */
+  cargo(code: string, direction: "IN" | "OUT" = "OUT") {
+    return this.resolve<IntegrationAdapter & CargoCapabilities>(code, direction);
   }
 }
