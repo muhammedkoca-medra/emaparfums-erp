@@ -40,6 +40,9 @@
   --radius-card: 16px;
   --radius-control: 9px;
 
+  /* Marka fontları <link> ile yüklenir (layout.tsx). Çevrimdışıyken yüklenmezse yedek zincire düşer. */
+  --font-fraunces: "Fraunces";
+  --font-manrope: "Manrope";
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-sans: var(--font-manrope), system-ui, sans-serif;
 }
