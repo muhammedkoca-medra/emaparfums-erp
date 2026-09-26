@@ -12,10 +12,11 @@ import {
   Req,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { emit, type Tx, writeAudit } from "@atelier/db";
+import { emit, getSetting, type Tx, writeAudit } from "@atelier/db";
 import {
   type BomUpdateRequest,
   bomUpdateSchema,
+  checkIfraLimits,
   type FormulaCreateRequest,
   formulaCreateSchema,
   type FormulaDecisionRequest,
@@ -309,6 +310,23 @@ export class FormulasController {
         });
         return { id, status: "DRAFT" };
       }
+      // URT-09: IFRA madde limiti onaydan önce kontrol edilir (limitler parametrik).
+      const full = await tx.formula.findUniqueOrThrow({
+        where: { id },
+        select: { concentrationPct: true, ifraCategory: true, lines: { select: { itemId: true, percentage: true, item: { select: { code: true } } } } },
+      });
+      const limits = await getSetting(tx, "ifra.limits");
+      const violations = checkIfraLimits(
+        full.lines.map((l) => ({ itemId: l.itemId, code: l.item.code, percentage: l.percentage.toString() })),
+        full.concentrationPct.toString(),
+        full.ifraCategory,
+        limits,
+      );
+      if (violations.length)
+        throw new BadRequestException({
+          message: `IFRA limiti aşıldı; formül onaylanamaz (URT-09): ${violations.map((v) => `${v.code} son üründe %${v.finalPct} > %${v.limit}`).join("; ")}`,
+          issues: violations.map((v) => ({ path: "lines", message: `${v.code}: %${v.finalPct} > %${v.limit}` })),
+        });
       const previous = await tx.formula.findMany({
         where: { code: f.code, status: "APPROVED", id: { not: id } },
         select: { id: true },

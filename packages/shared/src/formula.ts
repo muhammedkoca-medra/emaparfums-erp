@@ -86,3 +86,36 @@ export function validateFormulaLines(lines: { itemId: string; percentage: string
     errors.push(`Satır yüzdelerinin toplamı %100 olmalı (şu an %${total.toString()})`);
   return errors;
 }
+
+export interface IfraViolation {
+  itemId: string;
+  code: string;
+  finalPct: string;
+  limit: number;
+}
+
+/**
+ * URT-09: IFRA limit kontrolü. Bir maddenin son üründeki oranı = konsantredeki oranı × konsantrasyon.
+ * Kategori limitini aşan maddeler döner. Kategori yoksa ya da limit tanımlı değilse o madde atlanır.
+ * Limit tablosu parametriktir (SystemSetting `ifra.limits`).
+ */
+export function checkIfraLimits(
+  lines: { itemId: string; code: string; percentage: string }[],
+  concentrationPct: string | number,
+  category: string | null | undefined,
+  limits: Record<string, Record<string, number>>,
+): IfraViolation[] {
+  if (!category) return [];
+  const conc = new Decimal(concentrationPct);
+  const violations: IfraViolation[] = [];
+  for (const l of lines) {
+    const limit = limits[l.code]?.[category];
+    if (limit == null) continue;
+    // Son üründeki % = konsantredeki % × (konsantrasyon% / 100)
+    const finalPct = new Decimal(l.percentage).times(conc).div(100);
+    if (finalPct.greaterThan(limit)) {
+      violations.push({ itemId: l.itemId, code: l.code, finalPct: finalPct.toDecimalPlaces(6).toString(), limit });
+    }
+  }
+  return violations;
+}

@@ -17,6 +17,12 @@ export const SETTINGS = {
   },
   /** STK-05: aynı kalem için stock.below_min en fazla bu kadar saatte bir yayınlanır. */
   "stock.belowMinRenotifyHours": { schema: z.number().int().min(1).max(720), default: 24 },
+  /**
+   * URT-09: IFRA madde limitleri. { itemCode: { ifraCategory: sonÜründeMaksYüzde } }.
+   * Parametrik; gerçek IFRA limit tablosu mali/uzman teyidiyle doldurulur (docs/04#dogrulanacaklar).
+   * Boş varsayılan = limit yok (kontrol engel çıkarmaz).
+   */
+  "ifra.limits": { schema: z.record(z.string(), z.record(z.string(), z.number().nonnegative())), default: {} as Record<string, Record<string, number>> },
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;

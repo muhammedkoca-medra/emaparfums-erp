@@ -276,6 +276,25 @@ describe("F1-02 · formül sürümü ve onay", () => {
   });
 });
 
+describe("F3-03 · IFRA limit kontrolü (URT-09)", () => {
+  it("IFRA limitini aşan formül onaylanamaz; limit gevşeyince onaylanır", async () => {
+    const e = (await admin.post("/catalog/items").send({ code: code("HM"), name: "Kısıtlı madde", type: "RAW_MATERIAL", uom: "KG" }).expect(201)).body;
+    const fcode = `F-${randomUUID().slice(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, "0")}`;
+    const f = (await uretim.post("/formulas").send({ code: fcode, name: "IFRA", concentrationPct: "20", ifraCategory: "4" }).expect(201)).body;
+    await uretim.put(`/formulas/${f.id}`).send({ lines: [{ itemId: e.id, percentage: "100" }], allergens: [] }).expect(200);
+    await uretim.post(`/formulas/${f.id}/submit`).expect(200);
+    // Son üründe %20 (100 × 20/100). Limit %1 → onay engellenir.
+    await ctx.prisma.systemSetting.upsert({ where: { key: "ifra.limits" }, update: { value: { [e.code]: { "4": 1 } } }, create: { key: "ifra.limits", value: { [e.code]: { "4": 1 } } } });
+    const blocked = await admin.post(`/formulas/${f.id}/decide`).send({ decision: "APPROVE" }).expect(400);
+    expect(blocked.body.message).toContain("IFRA");
+    expect((await ctx.prisma.formula.findUniqueOrThrow({ where: { id: f.id } })).status).toBe("IN_REVIEW");
+    // Limit %25 → %20 uygun, onaylanır.
+    await ctx.prisma.systemSetting.update({ where: { key: "ifra.limits" }, data: { value: { [e.code]: { "4": 25 } } } });
+    await admin.post(`/formulas/${f.id}/decide`).send({ decision: "APPROVE" }).expect(200);
+    expect((await ctx.prisma.formula.findUniqueOrThrow({ where: { id: f.id } })).status).toBe("APPROVED");
+  });
+});
+
 describe("F1-08 · vergi kuralları", () => {
   it("yeni oran taslak girilir, onayla yayına alınır; önceki kural kapanır; eski tarih eski oranı verir", async () => {
     const c = `T${randomUUID()
