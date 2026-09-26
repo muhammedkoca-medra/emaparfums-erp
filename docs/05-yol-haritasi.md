@@ -103,7 +103,7 @@ gantt
 
 ## Faz 3 · Üretim, kalite ve mobil depo (≈6 hafta)
 
-- [ ] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…08). · _Kısmi: karışım kartı (esans/baz gramaj + %), aşama akışı + geçiş logu + olay (URT-08), maserasyon kilidi + erken geçiş onayı (URT-04), URT-01 onaylı formül kontrolü ve görsel arayüz (beher, maserasyon saati, aşama adımları) hazır. Kalan: URT-02 ölçekleme/eksik, URT-03 FEFO tüketim + BatchConsumption + maliyet, URT-07 hat planı._
+- [x] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…05, 08). · _Karışım kartı (esans/baz), aşama akışı + geçiş logu + olay (URT-08), maserasyon kilidi + erken geçiş onayı (URT-04), URT-01 onaylı formül kontrolü, görsel arayüz (beher, maserasyon saati, aşama adımları, 3B şişe). URT-02 malzeme ölçekleme + eksik (materials ucu + panel), URT-03 FEFO rezervasyon/tüketim + BatchConsumption + BatchCost, URT-05 dolum çıktısı (mamul lotu QUARANTINE). BOM'suz partiler esans/baz kartıyla yürür. Kalan: URT-06 (lot.released → parti RELEASED) F3-04 kalite ile; URT-07 hat planı F3-02 ile._
 - [ ] **F3-02** Hat planı (Gantt), kapasite kontrolü.
 - [ ] **F3-03** Formül değişikliğinde IFRA limit kontrolü (URT-09), limit tablosu.
 - [ ] **F3-04** Kalite: muayene şablonları, lot serbest bırakma, DÖF (KAL-01…03).
