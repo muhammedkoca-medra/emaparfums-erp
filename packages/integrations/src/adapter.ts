@@ -91,6 +91,11 @@ export interface CargoCapabilities {
   cancel(ctx: IntegrationContext, trackingNo: string): Promise<void>;
 }
 
+export interface EmbeddingsCapabilities {
+  /** Metni vektöre gömer (F5-09; mock: deterministik yerel vektör, gerçek servis ağa çıkışta). */
+  embed(ctx: IntegrationContext, text: string): Promise<number[]>;
+}
+
 export interface SocialCapabilities {
   /** Gönderiyi yayınlar; platform gönderi kimliği döner (mock). */
   publish(ctx: IntegrationContext, post: { caption: string; assetUrls?: string[] }): Promise<{ externalId: string }>;

@@ -12,6 +12,7 @@ export { MessagingMockAdapter } from "./messaging/mock.js";
 export { MarketplaceMockAdapter } from "./marketplace/mock.js";
 export { FxMockAdapter } from "./fx/mock.js";
 export { SocialMockAdapter } from "./social/mock.js";
+export { EmbeddingsMockAdapter } from "./ai/mock.js";
 
 import { TemplateAdapter, TEMPLATE_CODE } from "./_template/index.js";
 import { TemplateMockAdapter } from "./_template/mock.js";
@@ -21,6 +22,7 @@ import { MessagingMockAdapter } from "./messaging/mock.js";
 import { MarketplaceMockAdapter } from "./marketplace/mock.js";
 import { FxMockAdapter } from "./fx/mock.js";
 import { SocialMockAdapter } from "./social/mock.js";
+import { EmbeddingsMockAdapter } from "./ai/mock.js";
 import { EInvoiceAdapter, EINVOICE_CODE } from "./einvoice/index.js";
 import { EInvoiceMockAdapter } from "./einvoice/mock.js";
 import { IntegrationRegistry } from "./registry.js";
@@ -90,5 +92,6 @@ export function createDefaultRegistry(): IntegrationRegistry {
     });
   }
   reg.register<IntegrationAdapter>({ code: "FX_TCMB", kind: "FX", requiredCredentials: [], create: () => new FxMockAdapter(), createMock: () => new FxMockAdapter() });
+  reg.register<IntegrationAdapter>({ code: "EMBEDDINGS", kind: "AI", requiredCredentials: ["apiKey"], create: () => new EmbeddingsMockAdapter(), createMock: () => new EmbeddingsMockAdapter() });
   return reg;
 }

@@ -27,6 +27,20 @@ describe("kayıt defteri", () => {
     expect(reg.resolve("TEMPLATE", { credentials: { apiKey: "x" } }).mode).toBe("live");
     expect(reg.resolve("TEMPLATE", { credentials: { apiKey: "x" } }, "mock").mode).toBe("mock");
   });
+  it("sosyal, embeddings ve ek pazaryeri/kargo adaptörleri çözülür (F4-07/09, F5-09)", () => {
+    const reg = createDefaultRegistry();
+    for (const code of ["META", "TIKTOK", "AMAZON_TR", "CICEKSEPETI", "CARGO_MNG", "EMBEDDINGS"]) {
+      expect(reg.resolve(code, { credentials: {} }, "mock").mode).toBe("mock");
+    }
+  });
+  it("embeddings mock deterministik vektör üretir (F5-09)", async () => {
+    const { adapter } = createDefaultRegistry().resolve<import("./adapter.js").IntegrationAdapter & import("./adapter.js").EmbeddingsCapabilities>("EMBEDDINGS", { credentials: {} }, "mock");
+    const sink = new MemoryLogSink();
+    const v1 = await adapter.embed(ctxWith(sink), "amber woody");
+    const v2 = await adapter.embed(ctxWith(sink), "amber woody");
+    expect(v1).toEqual(v2);
+    expect(v1).toHaveLength(16);
+  });
   it("bilinmeyen kod ve çift kayıt hata verir", () => {
     const reg = createDefaultRegistry();
     expect(() => reg.resolve("YOK", { credentials: {} })).toThrow();
