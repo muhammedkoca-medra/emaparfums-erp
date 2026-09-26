@@ -1159,7 +1159,14 @@
     "cancelReason": "İptal gerekçesi:",
     "errorLabel": "Hata",
     "noEttn": "Belge henüz gönderilmedi.",
-    "filterAll": "Tümü"
+    "filterAll": "Tümü",
+    "matchStatus": {
+      "NOT_APPLICABLE": "—",
+      "PENDING": "Bekliyor",
+      "MATCHED": "Eşleşti",
+      "MISMATCH": "Uyuşmuyor"
+    },
+    "match": "3lü eşleştirme"
   },
   "shipping": {
     "title": "Kargo",
@@ -1279,6 +1286,8 @@
       "saved": "Kaydedildi.",
       "noItems": "Kalem yok."
     },
-    "suppliersTitle": "Tedarikçiler"
+    "suppliersTitle": "Tedarikçiler",
+    "incomingInvoice": "Alış faturası (simüle)",
+    "invoiced": "Alış faturası oluşturuldu."
   }
 }

@@ -75,6 +75,7 @@ export class InvoicesController {
       type: inv.type,
       direction: inv.direction,
       status: inv.status,
+      matchStatus: inv.matchStatus,
       issueDate: inv.issueDate.toISOString(),
       currency: inv.currency,
       customer: inv.customer,

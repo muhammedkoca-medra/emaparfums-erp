@@ -2,6 +2,9 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { ApiTags } from "@nestjs/swagger";
 import { createLot, emit, Prisma, recordMovement, writeAudit } from "@atelier/db";
 import {
+  type IncomingInvoiceRequest,
+  incomingInvoiceSchema,
+  MATCH_PRICE_TOLERANCE_PCT,
   PO_APPROVAL_THRESHOLD,
   type PoCreateRequest,
   poCreateSchema,
@@ -173,6 +176,67 @@ export class PurchasingController {
       await writeAudit(tx, { userId: auth.userId, action: "po.approve", entity: "PurchaseOrder", entityId: id, before: { status: "PENDING_APPROVAL" }, after: { status: "ORDERED" }, ...clientInfo(req) });
     });
     return { id, status: "ORDERED" };
+  }
+
+  /**
+   * SAT-06/FTR-08: gelen alış faturası (entegratör simülasyonu) + 3'lü eşleştirme.
+   * Satır miktarı mal kabulle (±%0), birim fiyat sipariş fiyatıyla (±%1) karşılaştırılır.
+   */
+  @Post("orders/:id/invoice")
+  @RequirePermission("purchasing", "CREATE")
+  @ApiZodBody(incomingInvoiceSchema)
+  async incomingInvoice(@Param("id") id: string, @Body(new ZodPipe(incomingInvoiceSchema)) body: IncomingInvoiceRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    const po = await this.prisma.purchaseOrder.findUnique({ where: { id }, include: { lines: true, supplier: { select: { id: true } } } });
+    if (!po) throw new NotFoundException({ message: "Sipariş bulunamadı" });
+    const src = body.lines ?? po.lines.map((l) => ({ poLineId: l.id, qty: l.qty.toString(), unitPrice: l.unitPrice.toString() }));
+
+    // 3'lü eşleştirme: fatura ↔ sipariş ↔ mal kabul.
+    let matched = true;
+    const invLines: { itemId: string; description: string; qty: Prisma.Decimal; unitPrice: Prisma.Decimal; netAmount: Prisma.Decimal; otvRate: Prisma.Decimal; otvAmount: Prisma.Decimal; kdvRate: Prisma.Decimal; kdvAmount: Prisma.Decimal }[] = [];
+    let net = new Prisma.Decimal(0);
+    let kdv = new Prisma.Decimal(0);
+    for (const line of src) {
+      const poLine = po.lines.find((l) => l.id === line.poLineId);
+      if (!poLine) throw new BadRequestException({ message: "Sipariş satırı bulunamadı" });
+      const invQty = new Prisma.Decimal(line.qty);
+      const invPrice = new Prisma.Decimal(line.unitPrice);
+      // qty ↔ mal kabul (±%0), price ↔ sipariş (±%1)
+      if (!invQty.equals(poLine.receivedQty)) matched = false;
+      const priceDiffPct = poLine.unitPrice.greaterThan(0) ? invPrice.minus(poLine.unitPrice).abs().div(poLine.unitPrice).mul(100).toNumber() : 0;
+      if (priceDiffPct > MATCH_PRICE_TOLERANCE_PCT) matched = false;
+      const lineNet = invQty.mul(invPrice);
+      const lineKdv = lineNet.mul(poLine.kdvRate);
+      net = net.plus(lineNet);
+      kdv = kdv.plus(lineKdv);
+      invLines.push({ itemId: poLine.itemId, description: "Alış", qty: invQty, unitPrice: invPrice, netAmount: lineNet, otvRate: new Prisma.Decimal(0), otvAmount: new Prisma.Decimal(0), kdvRate: poLine.kdvRate, kdvAmount: lineKdv });
+    }
+    const grand = net.plus(kdv);
+    const matchStatus = matched ? "MATCHED" : "MISMATCH";
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const inv = await tx.invoice.create({
+        data: {
+          direction: "PURCHASE",
+          type: "E_FATURA",
+          status: "DELIVERED",
+          matchStatus,
+          issueDate: new Date(),
+          supplierId: po.supplierId,
+          purchaseOrderId: po.id,
+          currency: po.currency,
+          netTotal: net,
+          otvTotal: new Prisma.Decimal(0),
+          kdvBase: net,
+          kdvTotal: kdv,
+          grandTotal: grand,
+          lines: { create: invLines },
+        },
+      });
+      await emit(tx, { type: "invoice.purchase_received", invoiceId: inv.id });
+      await writeAudit(tx, { userId: auth.userId, action: "invoice.purchase_received", entity: "Invoice", entityId: inv.id, after: { po: po.number, matchStatus, grand: grand.toFixed(2) }, ...clientInfo(req) });
+      return inv;
+    });
+    return { id: created.id, matchStatus, grandTotal: grand.toFixed(2) };
   }
 
   /** SAT-04: mal kabul → lot (QUARANTINE) + RECEIPT hareketi. SAT-05 aşım kontrolü. */

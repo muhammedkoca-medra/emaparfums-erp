@@ -62,3 +62,16 @@ export const receiptCreateSchema = z.object({
     .max(200),
 });
 export type ReceiptCreateRequest = z.infer<typeof receiptCreateSchema>;
+
+/** SAT-06: 3'lü eşleştirme toleransları. */
+export const MATCH_QTY_TOLERANCE_PCT = 0;
+export const MATCH_PRICE_TOLERANCE_PCT = 1;
+
+/** Gelen alış faturası (entegratör teslim eder; yerelde simülasyon). Satır verilmezse siparişten alınır. */
+export const incomingInvoiceSchema = z.object({
+  lines: z
+    .array(z.object({ poLineId: z.string().min(1), qty, unitPrice: price }))
+    .max(200)
+    .optional(),
+});
+export type IncomingInvoiceRequest = z.infer<typeof incomingInvoiceSchema>;

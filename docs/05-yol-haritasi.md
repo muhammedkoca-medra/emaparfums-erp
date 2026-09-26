@@ -90,7 +90,7 @@ gantt
 - [ ] **F2-13** E-ticaret ekranları (prototip 06): kanal kartları, listeleme sağlığı, kanal içeriği (AI olmadan elle).
 - [x] **F2-14** Satın alma: tedarikçi, sipariş, onay akışı, web üzerinden mal kabul (SAT-03…05, 07).
 - [x] **F2-15** MRP önerileri (SAT-01, SAT-02) + ekran (prototip 04).
-- [ ] **F2-16** Gelen e-Fatura + 3'lü eşleştirme (SAT-06, FTR-08).
+- [x] **F2-16** Gelen e-Fatura + 3'lü eşleştirme (SAT-06, FTR-08).
 - [ ] **F2-17** `FX_TCMB` kur işi.
 - [ ] **F2-18** `mevzuat-denetcisi` incelemesi: fatura, vergi, KVKK. Kritik bulgu kalmayana kadar düzeltme.
 

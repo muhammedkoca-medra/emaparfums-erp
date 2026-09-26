@@ -71,6 +71,11 @@ export function PoActions({
             {t("approve")}
           </button>
         )}
+        {["RECEIVING", "CLOSED"].includes(status) && canCreate && (
+          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => run(() => apiPost(`/purchasing/orders/${id}/invoice`), t("invoiced"))}>
+            {t("incomingInvoice")}
+          </button>
+        )}
       </div>
 
       {canReceive && (

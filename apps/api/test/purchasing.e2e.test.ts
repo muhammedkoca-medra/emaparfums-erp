@@ -58,6 +58,30 @@ describe("satın alma (F2-14/15, SAT)", () => {
     await p.post(`/purchasing/orders/${po.body.id}/receipts`).send({ lines: [{ poLineId, qty: "120" }] }).expect(400);
   });
 
+  it("3'lü eşleştirme: eşleşen / fiyat farkı / miktar farkı (SAT-06)", async () => {
+    const p = await loginAgent(ctx, await createUser(ctx, ["PURCHASING"]));
+    // Kabul edilmiş bir sipariş hazırla (100 adet, 80₺)
+    async function receivedPo() {
+      const po = await p.post("/purchasing/orders").send({ supplierId, lines: [{ itemId, qty: "100", unitPrice: "80", kdvRate: "0.20" }] }).expect(201);
+      await p.post(`/purchasing/orders/${po.body.id}/submit`).send({}).expect(201);
+      const poLineId = (await p.get(`/purchasing/orders/${po.body.id}`)).body.lines[0].id;
+      await p.post(`/purchasing/orders/${po.body.id}/receipts`).send({ lines: [{ poLineId, qty: "100" }] }).expect(201);
+      return { id: po.body.id, poLineId };
+    }
+    // Eşleşen: miktar = kabul, fiyat = sipariş
+    const a = await receivedPo();
+    const m1 = await p.post(`/purchasing/orders/${a.id}/invoice`).send({ lines: [{ poLineId: a.poLineId, qty: "100", unitPrice: "80" }] }).expect(201);
+    expect(m1.body.matchStatus).toBe("MATCHED");
+    // Fiyat %2 farklı → MISMATCH (tolerans %1)
+    const b = await receivedPo();
+    const m2 = await p.post(`/purchasing/orders/${b.id}/invoice`).send({ lines: [{ poLineId: b.poLineId, qty: "100", unitPrice: "81.6" }] }).expect(201);
+    expect(m2.body.matchStatus).toBe("MISMATCH");
+    // Miktar farklı → MISMATCH
+    const c = await receivedPo();
+    const m3 = await p.post(`/purchasing/orders/${c.id}/invoice`).send({ lines: [{ poLineId: c.poLineId, qty: "90", unitPrice: "80" }] }).expect(201);
+    expect(m3.body.matchStatus).toBe("MISMATCH");
+  });
+
   it("purchasing:VIEW olmayan erişemez", async () => {
     const sales = await loginAgent(ctx, await createUser(ctx, ["SALES"]));
     await sales.get("/purchasing/orders").expect(403);
