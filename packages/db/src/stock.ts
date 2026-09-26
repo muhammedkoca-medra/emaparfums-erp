@@ -359,6 +359,80 @@ export async function consumeReservation(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Üretim tüketimi (URT-03)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Bir lotun birim maliyeti: önce girişteki (RECEIPT/PRODUCTION_OUTPUT) `unitCost`, yoksa kalemin
+ * geçerli StandardCost'u, o da yoksa 0. Üretim tüketiminde BatchConsumption.unitCost için kullanılır.
+ */
+export async function lotUnitCost(tx: Tx, lotId: string, itemId: string, now = new Date()): Promise<Dec> {
+  const mv = await tx.stockMovement.findFirst({
+    where: { lotId, unitCost: { not: null }, type: { in: ["RECEIPT", "PRODUCTION_OUTPUT"] } },
+    orderBy: { createdAt: "asc" },
+    select: { unitCost: true },
+  });
+  if (mv?.unitCost != null) return new D(mv.unitCost);
+  const sc = await tx.standardCost.findFirst({
+    where: { itemId, validFrom: { lte: now }, OR: [{ validTo: null }, { validTo: { gte: now } }] },
+    orderBy: { validFrom: "desc" },
+    select: { amount: true },
+  });
+  return sc ? new D(sc.amount) : new D(0);
+}
+
+export interface BatchConsumptionResult {
+  itemId: string;
+  lotId: string;
+  qty: Dec;
+  unitCost: Dec;
+  lineCost: Dec;
+}
+
+/**
+ * URT-03: partinin açık rezervasyonlarını tüketir. Her rezervasyon için rezerve düşer, PRODUCTION_CONSUME
+ * hareketi (lot maliyetiyle) ve BatchConsumption kaydı yazılır. Karantinadaki lottan çıkış recordMovement
+ * ile zaten engellenir (STK-03). Dönüş: kalem/lot bazında tüketim ve satır maliyeti.
+ */
+export async function consumeBatchReservations(
+  tx: Tx,
+  input: { batchId: string; userId?: string | null },
+  now = new Date(),
+): Promise<BatchConsumptionResult[]> {
+  const open = await tx.stockReservation.findMany({
+    where: { refType: "ProductionBatch", refId: input.batchId, releasedAt: null, consumedAt: null },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const results: BatchConsumptionResult[] = [];
+  for (const { id } of open) {
+    const r = await lockOpenReservation(tx, id);
+    const qty = new D(r.qty);
+    await decreaseReserved(tx, { ...r, qty });
+    await tx.stockReservation.update({ where: { id: r.id }, data: { consumedAt: now } });
+    const unitCost = await lotUnitCost(tx, r.lotId, r.itemId, now);
+    await recordMovement(
+      tx,
+      {
+        type: "PRODUCTION_CONSUME",
+        itemId: r.itemId,
+        lotId: r.lotId,
+        qty,
+        fromLocationId: r.locationId,
+        unitCost,
+        refType: "ProductionBatch",
+        refId: input.batchId,
+        userId: input.userId,
+      },
+      now,
+    );
+    await tx.batchConsumption.create({ data: { batchId: input.batchId, lotId: r.lotId, qty, unitCost } });
+    results.push({ itemId: r.itemId, lotId: r.lotId, qty, unitCost, lineCost: qty.times(unitCost) });
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Lot
 // ---------------------------------------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+import { Decimal } from "decimal.js";
 import { z } from "zod";
 
 /** Üretim partisi (F3-01 · docs/03-moduller/uretim.md). EMA karışım kartı: esans + parfüm bazı. */
@@ -78,4 +79,64 @@ export type BatchStageRequest = z.infer<typeof batchStageSchema>;
 export function essencePct(essenceGr: number, baseGr: number): number {
   const total = essenceGr + baseGr;
   return total > 0 ? (essenceGr / total) * 100 : 0;
+}
+
+/** Dolum çıktısı (URT-05): üretilen ve fire adedi. Mamul lotu QUARANTINE açılır. */
+export const batchOutputSchema = z.object({
+  producedQty: z.number().int().min(1).max(1_000_000),
+  scrapQty: z.number().int().min(0).max(1_000_000).default(0),
+  note: z.string().trim().max(300).optional(),
+});
+export type BatchOutputRequest = z.infer<typeof batchOutputSchema>;
+
+/**
+ * URT-02: reçete adet başına ölçeklenir (fire payı dahil).
+ * ihtiyaç = bomQty × (1 + scrapPct) × plannedQty / batchSize. Satır bazında 4 haneye yuvarlanır.
+ * Girdiler Decimal-uyumlu string; para/miktar `number` ile hesaplanmaz (CLAUDE.md kural 5).
+ */
+export function scaleRequirement(
+  bomQty: string | number,
+  scrapPct: string | number,
+  plannedQty: number,
+  batchSize: number,
+): string {
+  if (batchSize <= 0) throw new Error("batchSize sıfırdan büyük olmalı");
+  const need = new Decimal(bomQty)
+    .times(new Decimal(1).plus(scrapPct))
+    .times(plannedQty)
+    .dividedBy(batchSize);
+  return need.toDecimalPlaces(4, Decimal.ROUND_UP).toString();
+}
+
+/** Maliyet bileşenleri (BatchCost.component ile aynı). */
+export const COST_COMPONENTS = [
+  "ESSENCE",
+  "ALCOHOL_WATER",
+  "BOTTLE",
+  "PUMP_CAP",
+  "BOX_LABEL",
+  "DIRECT_LABOR",
+  "OVERHEAD",
+  "SCRAP",
+] as const;
+export type CostComponent = (typeof COST_COMPONENTS)[number];
+
+/**
+ * Bir kalemi maliyet bileşenine eşler. Tür + kod + ada göre; belirsizde makul varsayılan.
+ *  - Alkol/su (HM-0001 alkol, HM-0005 su) → ALCOHOL_WATER; diğer hammadde → ESSENCE.
+ *  - Ambalaj: pompa/kapak → PUMP_CAP, kutu/etiket → BOX_LABEL, diğer (şişe) → BOTTLE.
+ */
+export function costComponentForItem(item: { code: string; type: string; name: string }): CostComponent {
+  const c = item.code.toUpperCase();
+  const n = item.name.toLowerCase();
+  if (item.type === "RAW_MATERIAL") {
+    if (c === "HM-0001" || c === "HM-0005") return "ALCOHOL_WATER";
+    return "ESSENCE";
+  }
+  if (item.type === "PACKAGING") {
+    if (/pompa|kapak|valf|pump|cap/.test(n)) return "PUMP_CAP";
+    if (/kutu|etiket|box|label|karton/.test(n)) return "BOX_LABEL";
+    return "BOTTLE";
+  }
+  return "OVERHEAD";
 }
