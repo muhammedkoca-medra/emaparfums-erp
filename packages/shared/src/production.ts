@@ -75,6 +75,33 @@ export const batchStageSchema = z.object({
 });
 export type BatchStageRequest = z.infer<typeof batchStageSchema>;
 
+/** Hat planı slotu (URT-07). Bir parti bir kaynağa (tank/dolum/paket hattı) zaman aralığıyla atanır. */
+export const scheduleSlotSchema = z
+  .object({
+    resourceId: z.string().min(1),
+    batchId: z.string().min(1),
+    startAt: z.coerce.date(),
+    endAt: z.coerce.date(),
+    isTentative: z.boolean().default(false),
+  })
+  .refine((s) => s.endAt.getTime() > s.startAt.getTime(), { message: "Bitiş başlangıçtan sonra olmalı", path: ["endAt"] });
+export type ScheduleSlotRequest = z.infer<typeof scheduleSlotSchema>;
+
+export const scheduleUpdateSchema = z
+  .object({
+    resourceId: z.string().min(1).optional(),
+    startAt: z.coerce.date().optional(),
+    endAt: z.coerce.date().optional(),
+    isTentative: z.boolean().optional(),
+  })
+  .refine((s) => !(s.startAt && s.endAt) || s.endAt.getTime() > s.startAt.getTime(), { message: "Bitiş başlangıçtan sonra olmalı", path: ["endAt"] });
+export type ScheduleUpdateRequest = z.infer<typeof scheduleUpdateSchema>;
+
+/** İki zaman aralığı çakışıyor mu (yarı açık [start,end)). */
+export function intervalsOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  return aStart.getTime() < bEnd.getTime() && bStart.getTime() < aEnd.getTime();
+}
+
 /** Esans yüzdesi = esans / (esans + baz). Konsantrasyon göstergesi. */
 export function essencePct(essenceGr: number, baseGr: number): number {
   const total = essenceGr + baseGr;

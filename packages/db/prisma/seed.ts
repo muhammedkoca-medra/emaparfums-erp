@@ -895,6 +895,20 @@ const QC_TESTS: { code: string; name: string; appliesTo: ("RAW_MATERIAL" | "PACK
   { code: "LABEL_CHECK", name: "Etiket ve parti no kontrolü", appliesTo: ["FINISHED_GOOD"] },
 ];
 
+/** URT-07: hat planı kaynakları (tank, dolum/paket hattı). */
+const RESOURCES: { code: string; name: string; kind: string; capacityPerHour?: string }[] = [
+  { code: "TANK-1", name: "Karışım tankı 1", kind: "TANK", capacityPerHour: "200" },
+  { code: "TANK-2", name: "Karışım tankı 2", kind: "TANK", capacityPerHour: "200" },
+  { code: "DOLUM-1", name: "Dolum hattı 1", kind: "FILLING_LINE", capacityPerHour: "600" },
+  { code: "PAKET-1", name: "Paket hattı 1", kind: "PACK_LINE", capacityPerHour: "800" },
+];
+
+async function resources() {
+  for (const r of RESOURCES) {
+    await prisma.resource.upsert({ where: { code: r.code }, update: { name: r.name, kind: r.kind }, create: { code: r.code, name: r.name, kind: r.kind, capacityPerHour: r.capacityPerHour ? D(r.capacityPerHour) : null } });
+  }
+}
+
 async function qcTests() {
   for (const t of QC_TESTS) {
     await prisma.qcTest.upsert({ where: { code: t.code }, update: { name: t.name, appliesTo: t.appliesTo }, create: { code: t.code, name: t.name, appliesTo: t.appliesTo, spec: (t.spec ?? null) as Prisma.InputJsonValue } });
@@ -928,6 +942,8 @@ async function main() {
   console.log("  ✓ örnek üretim partileri (karışım + demlenme)");
   await qcTests();
   console.log("  ✓ kalite test şablonları (KAL-01)");
+  await resources();
+  console.log("  ✓ üretim kaynakları (hat planı, URT-07)");
 }
 
 main()

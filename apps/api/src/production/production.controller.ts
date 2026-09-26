@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { availableForItem, consumeBatchReservations, createLot, emit, Prisma, recordMovement, reserveFefo, StockError, type Tx, writeAudit } from "@atelier/db";
 import {
@@ -14,7 +14,12 @@ import {
   type BatchUpdateRequest,
   batchUpdateSchema,
   costComponentForItem,
+  intervalsOverlap,
   scaleRequirement,
+  type ScheduleSlotRequest,
+  scheduleSlotSchema,
+  type ScheduleUpdateRequest,
+  scheduleUpdateSchema,
   STAGE_FLOW,
 } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
@@ -464,6 +469,91 @@ export class ProductionController {
       await emit(tx, { type: "batch.completed", batchId: b.id, outputLotId: lot.id });
       return { id, lotId: lot.id, lotNo, producedQty: body.producedQty, unitCost: unitCost.toFixed(4) };
     });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Hat planı (URT-07)
+  // ---------------------------------------------------------------------------------------------
+
+  /** Kaynaklar (tank, dolum/paket hattı). */
+  @Get("resources")
+  @RequirePermission("production", "VIEW")
+  async resources() {
+    const rows = await this.prisma.resource.findMany({ orderBy: { code: "asc" } });
+    return rows.map((r) => ({ id: r.id, code: r.code, name: r.name, kind: r.kind, capacityPerHour: r.capacityPerHour?.toString() ?? null }));
+  }
+
+  /** Hat planı slotları (tarih aralığı). */
+  @Get("schedule")
+  @RequirePermission("production", "VIEW")
+  async schedule(@Query("from") from?: string, @Query("to") to?: string) {
+    const fromD = from ? new Date(from) : new Date(Date.now() - 7 * 86_400_000);
+    const toD = to ? new Date(to) : new Date(Date.now() + 21 * 86_400_000);
+    const slots = await this.prisma.scheduleSlot.findMany({
+      where: { startAt: { lt: toD }, endAt: { gt: fromD } },
+      orderBy: { startAt: "asc" },
+      include: { resource: { select: { code: true, name: true, kind: true } }, batch: { select: { number: true, product: { select: { name: true } } } } },
+    });
+    return slots.map((s) => ({
+      id: s.id,
+      resourceId: s.resourceId,
+      resource: s.resource,
+      batchId: s.batchId,
+      batch: { number: s.batch.number, product: s.batch.product.name },
+      startAt: s.startAt.toISOString(),
+      endAt: s.endAt.toISOString(),
+      isTentative: s.isTentative,
+    }));
+  }
+
+  /** Slot ekler. Kesin (isTentative=false) slot, aynı kaynakta kesin bir slotla çakışamaz (URT-07). */
+  @Post("schedule")
+  @RequirePermission("production", "EDIT")
+  @ApiZodBody(scheduleSlotSchema)
+  async createSlot(@Body(new ZodPipe(scheduleSlotSchema)) body: ScheduleSlotRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    return this.prisma.$transaction(async (tx) => {
+      const [resource, batch] = await Promise.all([
+        tx.resource.findUnique({ where: { id: body.resourceId }, select: { id: true } }),
+        tx.productionBatch.findUnique({ where: { id: body.batchId }, select: { id: true } }),
+      ]);
+      if (!resource) throw new NotFoundException({ message: "Kaynak bulunamadı" });
+      if (!batch) throw new NotFoundException({ message: "Parti bulunamadı" });
+      await this.assertNoConflict(tx, body.resourceId, body.startAt, body.endAt, body.isTentative, null);
+      const slot = await tx.scheduleSlot.create({ data: { resourceId: body.resourceId, batchId: body.batchId, startAt: body.startAt, endAt: body.endAt, isTentative: body.isTentative } });
+      await writeAudit(tx, { userId: auth.userId, action: "schedule.create", entity: "ScheduleSlot", entityId: slot.id, after: { resourceId: body.resourceId, batchId: body.batchId, startAt: body.startAt.toISOString(), endAt: body.endAt.toISOString() }, ...clientInfo(req) });
+      return { id: slot.id };
+    });
+  }
+
+  /** Slotu yeniden planlar (sürükle-bırak). Kapasite ihlali engellenir (URT-07). */
+  @Patch("schedule/:slotId")
+  @RequirePermission("production", "EDIT")
+  @ApiZodBody(scheduleUpdateSchema)
+  async updateSlot(@Param("slotId") slotId: string, @Body(new ZodPipe(scheduleUpdateSchema)) body: ScheduleUpdateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    return this.prisma.$transaction(async (tx) => {
+      const slot = await tx.scheduleSlot.findUnique({ where: { id: slotId } });
+      if (!slot) throw new NotFoundException({ message: "Slot bulunamadı" });
+      const resourceId = body.resourceId ?? slot.resourceId;
+      const startAt = body.startAt ?? slot.startAt;
+      const endAt = body.endAt ?? slot.endAt;
+      const isTentative = body.isTentative ?? slot.isTentative;
+      if (endAt.getTime() <= startAt.getTime()) throw new BadRequestException({ message: "Bitiş başlangıçtan sonra olmalı" });
+      await this.assertNoConflict(tx, resourceId, startAt, endAt, isTentative, slotId);
+      await tx.scheduleSlot.update({ where: { id: slotId }, data: { resourceId, startAt, endAt, isTentative } });
+      await writeAudit(tx, { userId: auth.userId, action: "schedule.update", entity: "ScheduleSlot", entityId: slotId, before: { resourceId: slot.resourceId, startAt: slot.startAt.toISOString(), endAt: slot.endAt.toISOString() }, after: { resourceId, startAt: startAt.toISOString(), endAt: endAt.toISOString() }, ...clientInfo(req) });
+      return { id: slotId };
+    });
+  }
+
+  /** URT-07: kesin slot aynı kaynakta başka bir kesin slotla çakışamaz. Tentative slotlar çakışabilir. */
+  private async assertNoConflict(tx: Tx, resourceId: string, startAt: Date, endAt: Date, isTentative: boolean, excludeId: string | null) {
+    if (isTentative) return; // provisional slotlar kapasite ihlali saymaz
+    const candidates = await tx.scheduleSlot.findMany({
+      where: { resourceId, isTentative: false, startAt: { lt: endAt }, endAt: { gt: startAt }, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      include: { batch: { select: { number: true } } },
+    });
+    const clash = candidates.find((c) => intervalsOverlap(startAt, endAt, c.startAt, c.endAt));
+    if (clash) throw new ConflictException({ message: `Kaynak bu aralıkta dolu (parti ${clash.batch.number}); kapasite aşılamaz (URT-07)` });
   }
 
   /** Mamul deposundaki ilk lokasyon (ETICARET → ANA → herhangi). */

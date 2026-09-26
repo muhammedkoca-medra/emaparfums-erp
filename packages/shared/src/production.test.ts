@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costComponentForItem, essencePct, scaleRequirement } from "./production.js";
+import { costComponentForItem, essencePct, intervalsOverlap, scaleRequirement } from "./production.js";
 
 describe("scaleRequirement (URT-02)", () => {
   it("adet başına ölçekler (fire yok)", () => {
@@ -40,5 +40,14 @@ describe("essencePct", () => {
   it("esans oranını yüzde döndürür", () => {
     expect(essencePct(200, 800)).toBe(20);
     expect(essencePct(0, 0)).toBe(0);
+  });
+});
+
+describe("intervalsOverlap (URT-07)", () => {
+  const d = (h: number) => new Date(2026, 0, 1, h);
+  it("çakışanı bulur, bitişik olanı çakışma saymaz", () => {
+    expect(intervalsOverlap(d(9), d(12), d(11), d(13))).toBe(true);
+    expect(intervalsOverlap(d(9), d(12), d(12), d(14))).toBe(false); // bitişik
+    expect(intervalsOverlap(d(9), d(12), d(13), d(14))).toBe(false); // ayrık
   });
 });

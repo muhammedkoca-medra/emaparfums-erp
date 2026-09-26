@@ -219,3 +219,27 @@ describe("BOM'lu üretim: malzeme, FEFO tüketim, maliyet, çıktı (URT-02/03/0
     await prod.post(`/production/batches/${body.id}/output`).send({ producedQty: 10 }).expect(400);
   });
 });
+
+describe("hat planı — kapasite ve yeniden planlama (URT-07)", () => {
+  it("kesin slot çakışamaz; tentative çakışabilir; yeniden planlama serbest aralığa taşır", async () => {
+    const prod = await loginAgent(ctx, await createUser(ctx, ["PRODUCTION"]));
+    const resource = await ctx.prisma.resource.create({ data: { code: `T-${Math.random().toString(36).slice(2, 7)}`, name: "Tank", kind: "TANK" } });
+    const b1 = (await prod.post("/production/batches").send(batchBody(approvedProductId)).expect(201)).body;
+    const b2 = (await prod.post("/production/batches").send(batchBody(approvedProductId)).expect(201)).body;
+    const base = new Date("2027-03-01T09:00:00Z").getTime();
+    const iso = (h: number) => new Date(base + h * 3_600_000).toISOString();
+    // 09:00–12:00 kesin slot
+    await prod.post("/production/schedule").send({ resourceId: resource.id, batchId: b1.id, startAt: iso(0), endAt: iso(3) }).expect(201);
+    // 11:00–13:00 kesin → çakışma 409
+    await prod.post("/production/schedule").send({ resourceId: resource.id, batchId: b2.id, startAt: iso(2), endAt: iso(4) }).expect(409);
+    // 11:00–13:00 tentative → izinli 201
+    const tent = (await prod.post("/production/schedule").send({ resourceId: resource.id, batchId: b2.id, startAt: iso(2), endAt: iso(4), isTentative: true }).expect(201)).body;
+    // tentative'i kesin serbest aralığa (13:00–15:00) taşı → 200
+    await prod.patch(`/production/schedule/${tent.id}`).send({ startAt: iso(4), endAt: iso(6), isTentative: false }).expect(200);
+    const list = await prod.get(`/production/schedule?from=${iso(-1)}&to=${iso(24)}`).expect(200);
+    expect(list.body.filter((s: { resourceId: string }) => s.resourceId === resource.id).length).toBe(2);
+    // Kaynak listesi
+    const res = await prod.get("/production/resources").expect(200);
+    expect(res.body.some((r: { id: string }) => r.id === resource.id)).toBe(true);
+  });
+});
