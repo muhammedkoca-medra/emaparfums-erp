@@ -1,5 +1,5 @@
 import { checkConsistency, type Db, emit, integrationLogSink } from "@atelier/db";
-import { computeSalesLock } from "@atelier/shared";
+import { addMonths, computeSalesLock, periodLabel } from "@atelier/shared";
 import { buildContext, createDefaultRegistry, type FxCapabilities, type IntegrationAdapter, MemoryLogSink, resolveCredentials } from "@atelier/integrations";
 import { type ConnectionOptions, Queue, Worker } from "bullmq";
 import { type Logger } from "pino";
@@ -19,6 +19,8 @@ export const SCHEDULES = [
   { id: "fx-refresh", pattern: "45 15 * * 1-5" },
   // KAL-05: her gece 03:30 uyum belgesi süre kontrolü
   { id: "compliance-expiry", pattern: "30 3 * * *" },
+  // ODM-08 · SDK-05: her gece 04:00 abonelik tahsilatı ve kutu oluşturma
+  { id: "subscription-billing", pattern: "0 4 * * *" },
 ] as const;
 
 export type ScheduledJobName = (typeof SCHEDULES)[number]["id"];
@@ -82,6 +84,31 @@ export async function runComplianceExpiry(prisma: Db, log: Logger, now = new Dat
   return { expired: overdue.length, upcoming, productsLocked: touched.size };
 }
 
+/**
+ * ODM-08 · SDK-05: vadesi gelen abonelikleri tahsil eder (mock: başarılı), dönem kutusunu oluşturur
+ * (numune ürün önerisiyle) ve sonraki tahsilat tarihini iler. Gerçek tahsilat kayıtlı kart token'ıyla
+ * ağa çıkışta; başarısızlıkta 1/3/7. gün yeniden deneme (BILLING_RETRY_DAYS) sonra PAST_DUE.
+ */
+export async function runSubscriptionBilling(prisma: Db, log: Logger, now = new Date()) {
+  const due = await prisma.subscription.findMany({ where: { status: "ACTIVE", nextBillingAt: { lte: now } }, include: { plan: true } });
+  let billed = 0;
+  // Numune önerisi: aktif mamullerden ilk N (gerçekte satış/koku çeşitliliğine göre).
+  const sampleProducts = await prisma.product.findMany({ where: { status: "ACTIVE" }, select: { id: true }, take: 12 });
+  for (const sub of due) {
+    const period = periodLabel(now);
+    const exists = await prisma.subscriptionBox.findFirst({ where: { subscriptionId: sub.id, period } });
+    if (exists) continue;
+    const productIds = sampleProducts.slice(0, sub.plan.samplesPerBox).map((p) => p.id);
+    await prisma.$transaction(async (tx) => {
+      await tx.subscriptionBox.create({ data: { subscriptionId: sub.id, period, productIds } });
+      await tx.subscription.update({ where: { id: sub.id }, data: { nextBillingAt: addMonths(sub.nextBillingAt, sub.plan.intervalMonths) } });
+    });
+    billed++;
+  }
+  if (billed > 0) log.info({ job: "subscription-billing", billed }, "abonelik kutuları oluşturuldu");
+  return { billed };
+}
+
 export async function startScheduler(input: {
   connection: ConnectionOptions;
   prefix: string;
@@ -102,6 +129,8 @@ export async function startScheduler(input: {
           return { quotes: await runFxRefresh(input.prisma, input.log) };
         case "compliance-expiry":
           return runComplianceExpiry(input.prisma, input.log);
+        case "subscription-billing":
+          return runSubscriptionBilling(input.prisma, input.log);
         default:
           input.log.warn({ job: job.name }, "bilinmeyen zamanlanmış iş");
       }

@@ -31,6 +31,7 @@ import { ContentController } from "./marketing/content.controller.js";
 import { SocialController } from "./marketing/social.controller.js";
 import { ScentController } from "./scent/scent.controller.js";
 import { LoyaltyController } from "./loyalty/loyalty.controller.js";
+import { SubscriptionController } from "./subscription/subscription.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { InvoicesController } from "./invoices/invoices.controller.js";
 import { EcommerceController } from "./ecommerce/ecommerce.controller.js";
@@ -77,6 +78,7 @@ export class AppModule {
         SocialController,
         ScentController,
         LoyaltyController,
+        SubscriptionController,
       ],
       providers: [
         { provide: APP_CONFIG, useValue: config },
