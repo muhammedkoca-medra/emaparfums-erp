@@ -31,6 +31,13 @@ export class PaymentsController {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
+  /** Aktif ödeme sağlayıcıları (F2-04: sağlayıcı seçimi + yedek). */
+  @Get("payments/providers")
+  @RequirePermission("sales", "VIEW")
+  async providers() {
+    return this.prisma.paymentProvider.findMany({ where: { isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } });
+  }
+
   /** Sağlayıcı oturumu başlatır: Payment (PENDING) oluşturur, siparişi PAYMENT_PENDING'e alır. */
   @Post("payments/checkout")
   @RequirePermission("sales", "CREATE")
@@ -40,7 +47,9 @@ export class PaymentsController {
     if (!order) throw new NotFoundException({ message: "Sipariş bulunamadı" });
     if (order.status !== "NEW" && order.status !== "PAYMENT_PENDING")
       throw new BadRequestException({ message: "Bu sipariş için ödeme başlatılamaz" });
-    const provider = await this.prisma.paymentProvider.findFirst({ where: { isActive: true }, orderBy: { code: "asc" } });
+    const provider = body.providerId
+      ? await this.prisma.paymentProvider.findFirst({ where: { id: body.providerId, isActive: true } })
+      : await this.prisma.paymentProvider.findFirst({ where: { isActive: true }, orderBy: { code: "asc" } });
     if (!provider) throw new BadRequestException({ message: "Aktif ödeme sağlayıcısı yok" });
 
     const externalTxId = `sbx_${randomUUID()}`;

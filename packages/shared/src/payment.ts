@@ -9,6 +9,8 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const checkoutSchema = z.object({
   orderId: z.string().min(1),
   installments: z.number().int().min(1).max(12).default(1),
+  /** Sağlayıcı seçimi (IYZICO/PAYTR…). Verilmezse ilk aktif sağlayıcı. */
+  providerId: z.string().min(1).optional(),
 });
 export type CheckoutRequest = z.infer<typeof checkoutSchema>;
 

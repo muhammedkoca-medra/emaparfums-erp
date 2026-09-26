@@ -1716,6 +1716,20 @@ enum IntegrationStatus {
   ERROR
 }
 
+/** Günlük döviz kuru (F2-17 · FX_TCMB). Belge tarihindeki kur satıra kopyalanır; burada arşiv tutulur. */
+model FxRate {
+  id        String   @id @default(cuid())
+  base      String   @default("TRY")
+  quote     String // USD, EUR, GBP
+  rate      Decimal  @db.Decimal(18, 6) // 1 quote = rate base
+  date      DateTime @db.Date
+  source    String   @default("FX_TCMB")
+  createdAt DateTime @default(now())
+
+  @@unique([quote, date])
+  @@index([date])
+}
+
 model Integration {
   id             String            @id @default(cuid())
   code           String            @unique // docs/04-entegrasyonlar.md kodları

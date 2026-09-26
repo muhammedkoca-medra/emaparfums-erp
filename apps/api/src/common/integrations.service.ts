@@ -6,6 +6,7 @@ import {
   createDefaultRegistry,
   MemoryLogSink,
   type EInvoiceCapabilities,
+  type FxCapabilities,
   type IntegrationAdapter,
   type IntegrationContext,
   type IntegrationRegistry,
@@ -56,5 +57,10 @@ export class IntegrationsService {
   /** Pazaryeri entegratörü (mock). code: TRENDYOL / HEPSIBURADA. */
   marketplace(code: string, direction: "IN" | "OUT" = "OUT") {
     return this.resolve<IntegrationAdapter & MarketplaceCapabilities>(code, direction);
+  }
+
+  /** Döviz kuru entegratörü (mock TCMB). */
+  fx(direction: "IN" | "OUT" = "IN") {
+    return this.resolve<IntegrationAdapter & FxCapabilities>("FX_TCMB", direction);
   }
 }
