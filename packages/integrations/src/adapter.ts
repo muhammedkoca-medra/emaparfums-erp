@@ -72,6 +72,11 @@ export interface PaymentCapabilities {
   installmentOptions(ctx: IntegrationContext, bin: string, amount: string): Promise<unknown[]>;
 }
 
+export interface MessagingCapabilities {
+  /** Mesaj gönderir; sağlayıcı mesaj kimliği döner. Kart/PII loglara maskeli yazılır. */
+  send(ctx: IntegrationContext, msg: { to: string; template: string; body: string }): Promise<{ messageId: string }>;
+}
+
 export interface CargoCapabilities {
   createShipment(
     ctx: IntegrationContext,

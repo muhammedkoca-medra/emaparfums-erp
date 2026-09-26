@@ -1012,6 +1012,7 @@ model Customer {
   quizResults        ScentQuizResult[]
   opportunities      Opportunity[]
   consents           ConsentRecord[]
+  notifications      NotificationLog[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -1029,6 +1030,44 @@ enum ConsentPurpose {
  * KVKK açık rıza kayıtları (docs/07 §KVKK süreçleri). Kanal ve metin sürümüyle birlikte tutulur;
  * geri çekme (revokedAt) izlenir. Customer.kvkkConsentAt/marketingConsentAt en güncel duruma işaret eder.
  */
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+}
+
+enum NotificationPurpose {
+  TRANSACTIONAL // sipariş/kargo bilgilendirmesi — rıza gerektirmez
+  MARKETING // ticari ileti — İYS/açık rıza gerekir
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  BLOCKED // rıza yok (İYS) → gönderilmedi
+}
+
+/**
+ * Bildirim kaydı (F2-09 · docs). İşlem bildirimleri rıza gerektirmez; pazarlama iletisi
+ * MARKETING rızası (İYS) olmadan gönderilmez → BLOCKED. Telefon maskeli tutulur.
+ */
+model NotificationLog {
+  id         String              @id @default(cuid())
+  customerId String?
+  customer   Customer?           @relation(fields: [customerId], references: [id])
+  channel    NotificationChannel
+  purpose    NotificationPurpose
+  template   String
+  toMasked   String // 05** *** **12
+  status     NotificationStatus
+  reason     String?
+  refType    String?
+  refId      String?
+  createdAt  DateTime            @default(now())
+
+  @@index([customerId, createdAt])
+}
+
 model ConsentRecord {
   id          String         @id @default(cuid())
   customerId  String
