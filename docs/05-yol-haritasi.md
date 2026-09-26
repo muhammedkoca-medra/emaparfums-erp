@@ -126,18 +126,18 @@ gantt
 
 ## Faz 4 · Finans derinliği ve pazarlama (≈6 hafta)
 
-- [ ] **F4-01** Maliyet: lot maliyeti, parti kapanışı, sapma (MLY-01…04, 06).
-- [ ] **F4-02** Maliyet ekranları ve "Ne olursa?" senaryosu (MLY-05).
-- [ ] **F4-03** Vergi merkezi analizleri: kanal karşılaştırması, aylık özet, dışa aktarım, takvim.
-- [ ] **F4-04** Pazaryeri hakediş mutabakatı (ODM-06).
-- [ ] **F4-05** `BANK` havale eşleme (ODM-07).
-- [ ] **F4-06** `ACCOUNTING` aktarımı (ADR-0003, FTR-09).
-- [ ] **F4-07** `AMAZON_TR`, `N11`, `CICEKSEPETI`.
-- [ ] **F4-08** `STRIPE`, `BANK_POS`, e-İhracat.
-- [ ] **F4-09** Sosyal medya: takvim, onay, `META` ve `TIKTOK` yayını, UTM atfı (SOS-01…06).
-- [ ] **F4-10** İçerik stüdyosu: brif, `CLAUDE` metin üretimi, uyum kuralları, marka kiti (ICR-01…03, 05, 06).
-- [ ] **F4-11** Görsel üretimi (ICR-04), ADR'ye göre.
-- [ ] **F4-12** Gelen kutusu ve AI yanıt taslakları.
+- [x] **F4-01** Maliyet: lot maliyeti, parti kapanışı, sapma (MLY-01…04, 06).
+- [x] **F4-02** Maliyet ekranları ve "Ne olursa?" senaryosu (MLY-05).
+- [x] **F4-03** Vergi merkezi analizleri: kanal karşılaştırması, aylık özet, dışa aktarım, takvim.
+- [x] **F4-04** Pazaryeri hakediş mutabakatı (ODM-06).
+- [x] **F4-05** `BANK` havale eşleme (ODM-07).
+- [x] **F4-06** `ACCOUNTING` aktarımı (ADR-0003, FTR-09).
+- [x] **F4-07** `AMAZON_TR`, `N11`, `CICEKSEPETI`.
+- [x] **F4-08** `STRIPE`, `BANK_POS`, e-İhracat.
+- [x] **F4-09** Sosyal medya: takvim, onay, `META` ve `TIKTOK` yayını, UTM atfı (SOS-01…06).
+- [x] **F4-10** İçerik stüdyosu: brif, `CLAUDE` metin üretimi, uyum kuralları, marka kiti (ICR-01…03, 05, 06).
+- [ ] **F4-11** Görsel üretimi (ICR-04) — ADR bekliyor (görsel AI sağlayıcı).
+- [ ] **F4-12** Gelen kutusu ve AI yanıt taslakları — **ertelendi** (Inbox/Message şeması + AI; sonraki tur).
 
 **Çıkış kriterleri**
 - Ay sonu kapanışı: maliyet, vergi özeti ve muhasebe aktarımı bir günde tamamlanıyor.
