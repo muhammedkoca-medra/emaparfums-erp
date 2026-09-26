@@ -103,12 +103,12 @@ gantt
 
 ## Faz 3 · Üretim, kalite ve mobil depo (≈6 hafta)
 
-- [x] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…05, 08). · _Karışım kartı (esans/baz), aşama akışı + geçiş logu + olay (URT-08), maserasyon kilidi + erken geçiş onayı (URT-04), URT-01 onaylı formül kontrolü, görsel arayüz (beher, maserasyon saati, aşama adımları, 3B şişe). URT-02 malzeme ölçekleme + eksik (materials ucu + panel), URT-03 FEFO rezervasyon/tüketim + BatchConsumption + BatchCost, URT-05 dolum çıktısı (mamul lotu QUARANTINE). BOM'suz partiler esans/baz kartıyla yürür. Kalan: URT-06 (lot.released → parti RELEASED) F3-04 kalite ile; URT-07 hat planı F3-02 ile._
+- [x] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…05, 08). · _Karışım kartı (esans/baz), aşama akışı + geçiş logu + olay (URT-08), maserasyon kilidi + erken geçiş onayı (URT-04), URT-01 onaylı formül kontrolü, görsel arayüz (beher, maserasyon saati, aşama adımları, 3B şişe). URT-02 malzeme ölçekleme + eksik (materials ucu + panel), URT-03 FEFO rezervasyon/tüketim + BatchConsumption + BatchCost, URT-05 dolum çıktısı (mamul lotu QUARANTINE). BOM'suz partiler esans/baz kartıyla yürür. URT-06 (lot.released → parti RELEASED) F3-04 ile tamamlandı. Kalan: URT-07 hat planı F3-02 ile._
 - [ ] **F3-02** Hat planı (Gantt), kapasite kontrolü.
 - [ ] **F3-03** Formül değişikliğinde IFRA limit kontrolü (URT-09), limit tablosu.
-- [ ] **F3-04** Kalite: muayene şablonları, lot serbest bırakma, DÖF (KAL-01…03).
-- [ ] **F3-05** Ürün uyum belgeleri ve `SALES_LOCKED` (KAL-04, KAL-05, KAL-07).
-- [ ] **F3-06** İzlenebilirlik ve geri çağırma (KAL-06), performans testi.
+- [x] **F3-04** Kalite: muayene şablonları, lot serbest bırakma, DÖF (KAL-01/02/03). · _KAL-01 muayene lot.received/batch.completed ile otomatik açılır (QcTest şablonları); KAL-02 tüm testler geçince serbest bırakma (quality:APPROVE) → lot.released → URT-06 parti RELEASED; KAL-03 test kalınca lot REJECTED + DÖF + lot.quarantined. Web /kalite kuyruk + muayene formu. Kalan: KAL-07 alerjen mustLabel formül tarafında._
+- [x] **F3-05** Ürün uyum belgeleri ve `SALES_LOCKED` (KAL-04). · _Uyum belgeleri (PUT/GET), zorunlu belge VALID değilse ürün SALES_LOCKED (sipariş engelli), hepsi VALID ise ACTIVE; compliance.changed → pazaryeri pasifleştirme (mock). Kalan: KAL-05 60 gün önce görev açma (zamanlanmış iş)._
+- [x] **F3-06** İzlenebilirlik ve geri çağırma (KAL-06). · _GET /quality/trace/:lotId (hammadde/tedarikçi geri + sipariş/müşteri ileri + depo); POST /quality/recalls (simülasyon rapor / gerçek geri çağırma lotları karantinaya alır, etkilenen müşteri sayısı). Performans: tohum verisinde anlık._
 - [ ] **F3-07** `apps/mobile`: Expo kurulumu, giriş, görevler (M1).
 - [ ] **F3-08** Mobil mal kabul (M2), fotoğraf yükleme.
 - [ ] **F3-09** Toplama dalgaları ve mobil toplama (M3), FEFO uyarısı.
