@@ -70,3 +70,7 @@ Aşağıdaki değerler koda parametre olarak girilir ve mali müşavir, avukat v
 - [ ] **KVKK:** VERBİS kaydı, yurt dışına veri aktarımı (bulut, AI servisleri), aydınlatma metinleri, saklama ve imha süreleri.
 - [ ] **Saklama süreleri:** Fatura ve belge saklama süresi, işlem kaydı (AuditLog) saklama süresi.
 - [ ] **Mesafeli satış:** Cayma hakkı ve açılmış kozmetik/parfüm ürünlerinde iade istisnası kuralları.
+- [ ] **e-Fatura mükellefiyet sorgusu (F2-18 bulgu #3):** Alıcının e-Fatura mükellefi olup olmadığı GİB mükellef listesinden doğrulanmalı. Mock adaptör şu an "10 haneli her VKN = e-Fatura mükellefi" varsayıyor; bu yalnızca yereldir, canlıda gerçek sorgu esas alınacak ve müşteri kartındaki `isEInvoiceUser` ile tutarsızlık loglanacak.
+- [ ] **e-Belge iptal/itiraz süreleri (F2-18 bulgu #4-5):** e-Arşiv iptal süresi, ticari e-Fatura itiraz/red ve yanıt (kabul/red) için yasal gün sayıları teyit edilecek. Kod, belge türü + statüye göre iptal / itiraz / iade ayrımı yapacak; gelen ticari e-Fatura kabul/red akışı eklenecek.
+- [ ] **e-İhracat istisna kodu (F2-18 bulgu #2):** E_IHRACAT belgesinde kullanılacak istisna kodu (GİB kod listesi) teyit edilip belgeye yazılacak. Şu an `exemptionCode` boş bırakılıyor.
+- [ ] **Alış faturasında ÖTV oranı (F2-18 bulgu #8):** Etil alkol/etanol gibi ÖTV'ye tabi girdi alımlarında ÖTV oranı TaxRule'dan çözülmeli; şu an alış satırında sabit 0 kullanılıyor.

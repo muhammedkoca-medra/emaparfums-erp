@@ -1,5 +1,8 @@
+import { einvoiceWebhookSignature } from "@atelier/shared/node";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createUser, loginAgent, resetRateLimit, setupTestApp, type TestContext } from "./helpers.js";
+
+const EINVOICE_SECRET = "dev-sandbox-einvoice-webhook-secret-change-me";
 
 let ctx: TestContext;
 let customerId: string;
@@ -62,10 +65,30 @@ describe("fatura (F2-05/06, FTR)", () => {
     expect(after.ettn).toBeTruthy();
   });
 
-  it("webhook ETTN ile durum günceller", async () => {
+  it("webhook imzasız/yanlış imzalı isteği reddeder (401)", async () => {
     const inv = await invoice("SENT");
-    await ctx.http().post("/webhooks/einvoice").send({ ettn: inv.ettn, status: "ACCEPTED" }).expect(201);
+    const payload = { ettn: inv.ettn!, status: "ACCEPTED" as const };
+    await ctx.http().post("/webhooks/einvoice").send(payload).expect(401);
+    await ctx.http().post("/webhooks/einvoice").set("x-signature", "yanlis").send(payload).expect(401);
+    // Durum değişmemeli.
+    expect((await ctx.prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } })).status).toBe("SENT");
+  });
+
+  it("webhook geçerli imza ile ETTN'e göre durum günceller", async () => {
+    const inv = await invoice("SENT");
+    const payload = { ettn: inv.ettn!, status: "ACCEPTED" as const };
+    const sig = einvoiceWebhookSignature(EINVOICE_SECRET, payload);
+    await ctx.http().post("/webhooks/einvoice").set("x-signature", sig).send(payload).expect(201);
     expect((await ctx.prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } })).status).toBe("ACCEPTED");
+  });
+
+  it("iptal edilmiş belge webhook ile geri açılamaz", async () => {
+    const inv = await invoice("SENT");
+    await ctx.prisma.invoice.update({ where: { id: inv.id }, data: { status: "CANCELLED" } });
+    const payload = { ettn: inv.ettn!, status: "ACCEPTED" as const };
+    const sig = einvoiceWebhookSignature(EINVOICE_SECRET, payload);
+    await ctx.http().post("/webhooks/einvoice").set("x-signature", sig).send(payload).expect(400);
+    expect((await ctx.prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } })).status).toBe("CANCELLED");
   });
 
   it("iptal ve iade akışı", async () => {

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query, Req, Res } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, Inject, NotFoundException, Param, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { emit, writeAudit } from "@atelier/db";
@@ -10,10 +10,12 @@ import {
   type InvoiceQuery,
   invoiceQuerySchema,
 } from "@atelier/shared";
+import { verifyEinvoiceSignature } from "@atelier/shared/node";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { IntegrationsService } from "../common/integrations.service.js";
 import { PiiService } from "../common/pii.service.js";
 import { ApiZodBody, ApiZodQuery, ZodPipe } from "../common/zod.js";
+import { APP_CONFIG, type AppConfig } from "../config.js";
 import { Public, RequirePermission } from "../permissions/decorators.js";
 import { PrismaService } from "../prisma.service.js";
 
@@ -28,6 +30,7 @@ export class InvoicesController {
     private readonly prisma: PrismaService,
     private readonly integrations: IntegrationsService,
     private readonly pii: PiiService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   @Get("invoices")
@@ -198,13 +201,24 @@ export class InvoicesController {
     return { id: created.id, number: r.number, status: "SENT" };
   }
 
-  /** e-Belge webhook'u: ETTN ile durum güncellemesi (mock; imza gerçek entegratörde). */
+  /**
+   * e-Belge webhook'u: ETTN ile durum güncellemesi. İmza (HMAC) doğrulanmadan durum DEĞİŞMEZ
+   * (ödeme webhook'u ile aynı desen; mevzuat-denetçisi bulgusu #1). İptal edilmiş belge webhook ile
+   * geri açılamaz — CANCELLED terminaldir. `x-signature` başlığı entegratör gizli anahtarıyla üretilir.
+   */
   @Post("webhooks/einvoice")
   @Public()
   @ApiZodBody(einvoiceWebhookSchema)
-  async webhook(@Body(new ZodPipe(einvoiceWebhookSchema)) body: EInvoiceWebhookPayload) {
+  async webhook(
+    @Body(new ZodPipe(einvoiceWebhookSchema)) body: EInvoiceWebhookPayload,
+    @Headers("x-signature") signature: string | undefined,
+  ) {
+    if (!verifyEinvoiceSignature(this.config.EINVOICE_WEBHOOK_SECRET, body, signature))
+      throw new UnauthorizedException({ message: "Geçersiz webhook imzası" });
     const inv = await this.prisma.invoice.findUnique({ where: { ettn: body.ettn } });
     if (!inv) return { ok: false };
+    // İptal edilmiş belge terminaldir; webhook ile başka statüye çekilemez.
+    if (inv.status === "CANCELLED") throw new BadRequestException({ message: "İptal edilmiş belgenin durumu değiştirilemez" });
     await this.prisma.invoice.update({ where: { id: inv.id }, data: { status: body.status } });
     return { ok: true, status: body.status };
   }

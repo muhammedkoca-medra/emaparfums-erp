@@ -41,7 +41,7 @@ Invoice, InvoiceLine, DispatchNote, Customer (`isEInvoiceUser`), TaxRule.
 - `GET /invoices?direction&type&status`, `GET /invoices/:id`, `GET /invoices/:id/pdf`
 - `POST /invoices/:id/retry`, `POST /invoices/:id/cancel`, `POST /invoices/:id/return`
 - `POST /dispatch-notes`
-- `POST /webhooks/einvoice`
+- `POST /webhooks/einvoice` — `x-signature` (HMAC) doğrulanmadan durum değişmez; iptal edilmiş belge terminaldir (ödeme webhook'u ile aynı desen).
 
 ## Kabul kriterleri
 - [ ] Mock entegratörle e-Arşiv, e-Fatura, e-İhracat ve iade akışları uçtan uca çalışıyor.

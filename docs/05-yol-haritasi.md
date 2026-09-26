@@ -92,7 +92,7 @@ gantt
 - [x] **F2-15** MRP önerileri (SAT-01, SAT-02) + ekran (prototip 04).
 - [x] **F2-16** Gelen e-Fatura + 3'lü eşleştirme (SAT-06, FTR-08).
 - [x] **F2-17** `FX_TCMB` kur işi.
-- [ ] **F2-18** `mevzuat-denetcisi` incelemesi: fatura, vergi, KVKK. Kritik bulgu kalmayana kadar düzeltme.
+- [x] **F2-18** `mevzuat-denetcisi` incelemesi: fatura, vergi, KVKK. Kritik bulgu (e-Belge webhook imzasız → durum sahtelenmesi) düzeltildi: HMAC imza doğrulaması + iptal edilmiş belge terminal. Vergi/PCI/PII/İYS uyumlu bulundu. ÖNEMLİ bulgular (mükellefiyet sorgusu, iptal/itiraz süreleri, ihracat istisna kodu, alış ÖTV) `docs/04#dogrulanacaklar` listesine eklendi.
 
 **Çıkış kriterleri (pilot)**
 - Kendi sitede veya bir pazaryerinde 2 hafta boyunca gerçek siparişler insan müdahalesi olmadan faturalanıyor ve kargolanıyor.

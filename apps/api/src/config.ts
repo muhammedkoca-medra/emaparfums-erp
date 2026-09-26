@@ -20,6 +20,8 @@ const schema = z
     PII_HASH_KEY: z.string().min(1),
     /** Ödeme webhook imza doğrulaması (ODM-04). Üretimde sağlayıcının gizli anahtarıyla değiştirilir. */
     PAYMENT_WEBHOOK_SECRET: z.string().min(16).default("dev-sandbox-payment-webhook-secret-change-me"),
+    /** e-Belge webhook imza doğrulaması (FTR). Üretimde entegratörün gizli anahtarıyla değiştirilir. */
+    EINVOICE_WEBHOOK_SECRET: z.string().min(16).default("dev-sandbox-einvoice-webhook-secret-change-me"),
     /** Dış sistem adaptör modu. Yerelde "mock" (CLAUDE.md kural 8); canlıda "auto" ile anahtar varsa gerçek. */
     INTEGRATIONS_MODE: z.enum(["mock", "auto"]).default("mock"),
     LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
