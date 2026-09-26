@@ -25,6 +25,7 @@ import { CountsController } from "./stock/counts.controller.js";
 import { StockController } from "./stock/stock.controller.js";
 import { ProductionController } from "./production/production.controller.js";
 import { QualityController } from "./quality/quality.controller.js";
+import { CostingController } from "./costing/costing.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { InvoicesController } from "./invoices/invoices.controller.js";
 import { EcommerceController } from "./ecommerce/ecommerce.controller.js";
@@ -65,6 +66,7 @@ export class AppModule {
         FxController,
         ProductionController,
         QualityController,
+        CostingController,
       ],
       providers: [
         { provide: APP_CONFIG, useValue: config },

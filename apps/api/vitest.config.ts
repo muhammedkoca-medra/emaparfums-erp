@@ -9,6 +9,9 @@ export default defineConfig({
     globalSetup: ["test/global-setup.ts"],
     // e2e testleri aynı test veritabanını kullanır; dosyalar sırayla çalışır.
     fileParallelism: false,
+    // Tek fork: Windows'ta tinypool IPC "Channel closed" yarışını önler (dosya sayısı arttıkça).
+    pool: "forks",
+    poolOptions: { forks: { singleFork: true } },
     testTimeout: 20_000,
     hookTimeout: 60_000,
   },

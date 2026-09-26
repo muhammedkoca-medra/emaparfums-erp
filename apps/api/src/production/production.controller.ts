@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { availableForItem, consumeBatchReservations, createLot, emit, Prisma, recordMovement, reserveFefo, StockError, type Tx, writeAudit } from "@atelier/db";
+import { availableForItem, consumeBatchReservations, createLot, emit, getSetting, Prisma, recordMovement, reserveFefo, StockError, type Tx, writeAudit } from "@atelier/db";
 import {
   type BatchAdvanceRequest,
   batchAdvanceSchema,
@@ -14,7 +14,9 @@ import {
   type BatchUpdateRequest,
   batchUpdateSchema,
   costComponentForItem,
+  hourlyCost,
   intervalsOverlap,
+  productionHours,
   scaleRequirement,
   type ScheduleSlotRequest,
   scheduleSlotSchema,
@@ -442,6 +444,21 @@ export class ProductionController {
       const lot = await createLot(tx, { itemId: b.product.itemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
       await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
 
+      // MLY-02: parti kapanışında işçilik ve genel gider bileşenleri eklenir (aşama sürelerinden).
+      const stages = await tx.productionStageLog.findMany({ where: { batchId: b.id }, select: { startedAt: true, endedAt: true } });
+      const hours = productionHours(stages);
+      const laborRate = await getSetting(tx, "costing.laborRatePerHour");
+      const overheadRate = await getSetting(tx, "costing.overheadRatePerHour");
+      const qtyD = new Prisma.Decimal(body.producedQty > 0 ? body.producedQty : 1);
+      const laborUnit = new Prisma.Decimal(hourlyCost(hours, laborRate)).div(qtyD).toDecimalPlaces(4);
+      const overheadUnit = new Prisma.Decimal(hourlyCost(hours, overheadRate)).div(qtyD).toDecimalPlaces(4);
+      for (const [component, unit] of [["DIRECT_LABOR", laborUnit], ["OVERHEAD", overheadUnit]] as const) {
+        await tx.batchCost.upsert({
+          where: { batchId_component: { batchId: b.id, component } },
+          update: { actual: unit },
+          create: { batchId: b.id, component, standard: unit, actual: unit },
+        });
+      }
       // Mamul birim maliyeti = toplam tüketim maliyeti / üretilen adet (BatchCost bileşen toplamı).
       const costs = await tx.batchCost.findMany({ where: { batchId: b.id }, select: { actual: true } });
       const unitCost = costs.reduce((s, c) => s.plus(c.actual), new Prisma.Decimal(0));

@@ -29,6 +29,12 @@ export const SETTINGS = {
    * teyidine tabi (docs/04#dogrulanacaklar). Varsayılan %0.001 (= 10 ppm).
    */
   "allergen.labelThresholdPct": { schema: z.number().nonnegative().max(100), default: 0.001 },
+  /** MLY-02: direkt işçilik saatlik ücreti (TRY/saat). Parametrik. */
+  "costing.laborRatePerHour": { schema: z.string().regex(/^\d+(\.\d{1,2})?$/), default: "120.00" },
+  /** MLY-02: genel üretim gideri saatlik dağıtım oranı (TRY/saat). Parametrik. */
+  "costing.overheadRatePerHour": { schema: z.string().regex(/^\d+(\.\d{1,2})?$/), default: "80.00" },
+  /** MLY-04: standart-gerçek sapma bu oranı aşarsa bileşen bazında uyarı (%). */
+  "costing.varianceWarnPct": { schema: z.number().nonnegative().max(100), default: 3 },
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;
