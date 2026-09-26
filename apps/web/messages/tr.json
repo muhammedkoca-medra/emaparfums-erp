@@ -1359,5 +1359,36 @@
       "submit": "Uygula"
     },
     "note": "Gerçek Trendyol/Hepsiburada bağlantısı ağa çıkışta; yerelde mock adaptör."
+  },
+  "quality": {
+    "title": "Kalite & Mevzuat",
+    "subtitle": "Lot serbest bırakma, muayene ve uygunsuzluklar",
+    "back": "Kaliteye dön",
+    "queue": "Lot serbest bırakma kuyruğu",
+    "empty": "Muayene bekleyen lot yok.",
+    "col": { "lot": "Lot", "item": "Kalem", "status": "Durum", "action": "İşlem" },
+    "status": { "PENDING": "Bekliyor", "TESTING": "Test ediliyor", "PASSED": "Geçti", "FAILED": "Kaldı" },
+    "lotQc": { "QUARANTINE": "Karantina", "RELEASED": "Serbest", "REJECTED": "Reddedildi" },
+    "open": "Aç",
+    "tests": "Testler",
+    "test": { "pass": "Geçti", "fail": "Kaldı", "pending": "Bekliyor" },
+    "recordResults": "Sonuçları kaydet",
+    "recorded": "Sonuçlar kaydedildi.",
+    "release": "Lotu serbest bırak",
+    "released": "Lot serbest bırakıldı.",
+    "releaseBlocked": "Tüm zorunlu testler geçmeden serbest bırakılamaz.",
+    "value": "Değer (isteğe bağlı)",
+    "nc": {
+      "title": "Uygunsuzluklar (DÖF)",
+      "empty": "Açık uygunsuzluk yok.",
+      "number": "No",
+      "desc": "Açıklama",
+      "status": "Durum",
+      "OPEN": "Açık",
+      "INVESTIGATING": "İncelemede",
+      "ACTION": "Aksiyon",
+      "CLOSED": "Kapalı"
+    },
+    "noAccess": "Bu modülü görme yetkiniz yok."
   }
 }
