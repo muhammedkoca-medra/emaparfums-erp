@@ -23,9 +23,10 @@ import { EInvoiceAdapter, EINVOICE_CODE } from "./einvoice/index.js";
 import { EInvoiceMockAdapter } from "./einvoice/mock.js";
 import { IntegrationRegistry } from "./registry.js";
 
-export const CARGO_CODES = ["CARGO_YURTICI", "CARGO_ARAS"] as const;
+export const CARGO_CODES = ["CARGO_YURTICI", "CARGO_ARAS", "CARGO_MNG", "CARGO_PTT", "TRENDYOL_EXPRESS", "HEPSIJET"] as const;
 export const MESSAGING_CODES = ["SMS", "WHATSAPP"] as const;
-export const MARKETPLACE_CODES = ["TRENDYOL", "HEPSIBURADA"] as const;
+// F4-07: pazaryeri adaptörleri (mock). Kimlik girilince gerçek moda geçer.
+export const MARKETPLACE_CODES = ["TRENDYOL", "HEPSIBURADA", "AMAZON_TR", "N11", "CICEKSEPETI"] as const;
 
 /**
  * Uygulamanın kullandığı kayıt defteri. Yeni adaptörler buraya eklenir (/entegrasyon).
