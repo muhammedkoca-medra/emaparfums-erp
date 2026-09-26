@@ -18,3 +18,4 @@ export * from "./bottles.js";
 export * from "./invoice.js";
 export * from "./shipping.js";
 export * from "./purchasing.js";
+export * from "./ecommerce.js";

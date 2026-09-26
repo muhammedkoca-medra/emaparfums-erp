@@ -1289,5 +1289,53 @@
     "suppliersTitle": "Tedarikçiler",
     "incomingInvoice": "Alış faturası (simüle)",
     "invoiced": "Alış faturası oluşturuldu."
+  },
+  "ecommerce": {
+    "title": "E-Ticaret",
+    "subtitle": "Pazaryeri kanalları, listeleme sağlığı ve sipariş çekme",
+    "channels": "Kanallar",
+    "listings": "Listelenen ürünler",
+    "noListings": "Listeleme yok.",
+    "chCol": {
+      "name": "Kanal",
+      "listings": "Listeleme",
+      "orders": "Sipariş"
+    },
+    "lCol": {
+      "product": "Ürün",
+      "channel": "Kanal",
+      "status": "Durum",
+      "price": "Fiyat",
+      "stock": "Stok",
+      "score": "İçerik",
+      "sync": "Son senkron"
+    },
+    "status": {
+      "NOT_LISTED": "Listelenmedi",
+      "PENDING_APPROVAL": "Onay bekliyor",
+      "ACTIVE": "Yayında",
+      "PAUSED": "Duraklatıldı",
+      "ERROR": "Hata"
+    },
+    "synced": "✓",
+    "notSynced": "—",
+    "pushStock": "Stok it",
+    "pushed": "Stok itildi.",
+    "listProduct": "Ürün listele",
+    "listed": "Listelendi.",
+    "syncOrder": "Sipariş çek (simüle)",
+    "pulled": "Sipariş içeri alındı.",
+    "duplicate": "Bu sipariş zaten alınmış.",
+    "form": {
+      "channel": "Kanal",
+      "product": "Ürün",
+      "choose": "Seçin",
+      "extNo": "Pazaryeri sipariş no",
+      "sku": "SKU",
+      "qty": "Adet",
+      "price": "Birim fiyat (KDV dahil)",
+      "submit": "Uygula"
+    },
+    "note": "Gerçek Trendyol/Hepsiburada bağlantısı ağa çıkışta; yerelde mock adaptör."
   }
 }

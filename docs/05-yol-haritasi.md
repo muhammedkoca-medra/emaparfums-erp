@@ -85,9 +85,9 @@ gantt
 - [x] **F2-08** `CARGO_YURTICI`, `CARGO_ARAS` adaptörleri, firma seçimi, etiket, takip (KRG-01…04, 07).
 - [x] **F2-09** `SMS`/`WHATSAPP` ve `IYS`: işlem bildirimleri, izin kontrolü.
 - [ ] **F2-10** `WEBSITE` entegrasyonu (ADR-0005 kararına göre).
-- [ ] **F2-11** `TRENDYOL` adaptörü: sipariş çek, stok/fiyat it, ilan, fatura yükle (ETC-01…08).
-- [ ] **F2-12** `HEPSIBURADA` adaptörü.
-- [ ] **F2-13** E-ticaret ekranları (prototip 06): kanal kartları, listeleme sağlığı, kanal içeriği (AI olmadan elle).
+- [x] **F2-11** `TRENDYOL` adaptörü: sipariş çek, stok/fiyat it, ilan, fatura yükle (ETC-01…08).
+- [x] **F2-12** `HEPSIBURADA` adaptörü.
+- [x] **F2-13** E-ticaret ekranları (prototip 06): kanal kartları, listeleme sağlığı, kanal içeriği (AI olmadan elle).
 - [x] **F2-14** Satın alma: tedarikçi, sipariş, onay akışı, web üzerinden mal kabul (SAT-03…05, 07).
 - [x] **F2-15** MRP önerileri (SAT-01, SAT-02) + ekran (prototip 04).
 - [x] **F2-16** Gelen e-Fatura + 3'lü eşleştirme (SAT-06, FTR-08).

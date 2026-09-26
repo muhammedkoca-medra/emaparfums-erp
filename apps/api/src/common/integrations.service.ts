@@ -9,6 +9,7 @@ import {
   type IntegrationAdapter,
   type IntegrationContext,
   type IntegrationRegistry,
+  type MarketplaceCapabilities,
   resolveCredentials,
 } from "@atelier/integrations";
 import { APP_CONFIG, type AppConfig } from "../config.js";
@@ -50,5 +51,10 @@ export class IntegrationsService {
   /** Kargo entegratörü (mock). code: CARGO_YURTICI / CARGO_ARAS. */
   cargo(code: string, direction: "IN" | "OUT" = "OUT") {
     return this.resolve<IntegrationAdapter & CargoCapabilities>(code, direction);
+  }
+
+  /** Pazaryeri entegratörü (mock). code: TRENDYOL / HEPSIBURADA. */
+  marketplace(code: string, direction: "IN" | "OUT" = "OUT") {
+    return this.resolve<IntegrationAdapter & MarketplaceCapabilities>(code, direction);
   }
 }

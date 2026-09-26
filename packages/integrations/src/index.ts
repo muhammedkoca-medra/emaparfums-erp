@@ -9,18 +9,21 @@ export { EInvoiceAdapter, EINVOICE_CODE } from "./einvoice/index.js";
 export { EInvoiceMockAdapter } from "./einvoice/mock.js";
 export { CargoMockAdapter } from "./cargo/mock.js";
 export { MessagingMockAdapter } from "./messaging/mock.js";
+export { MarketplaceMockAdapter } from "./marketplace/mock.js";
 
 import { TemplateAdapter, TEMPLATE_CODE } from "./_template/index.js";
 import { TemplateMockAdapter } from "./_template/mock.js";
 import { type IntegrationAdapter } from "./adapter.js";
 import { CargoMockAdapter } from "./cargo/mock.js";
 import { MessagingMockAdapter } from "./messaging/mock.js";
+import { MarketplaceMockAdapter } from "./marketplace/mock.js";
 import { EInvoiceAdapter, EINVOICE_CODE } from "./einvoice/index.js";
 import { EInvoiceMockAdapter } from "./einvoice/mock.js";
 import { IntegrationRegistry } from "./registry.js";
 
 export const CARGO_CODES = ["CARGO_YURTICI", "CARGO_ARAS"] as const;
 export const MESSAGING_CODES = ["SMS", "WHATSAPP"] as const;
+export const MARKETPLACE_CODES = ["TRENDYOL", "HEPSIBURADA"] as const;
 
 /**
  * Uygulamanın kullandığı kayıt defteri. Yeni adaptörler buraya eklenir (/entegrasyon).
@@ -59,6 +62,15 @@ export function createDefaultRegistry(): IntegrationRegistry {
       requiredCredentials: ["apiKey"],
       create: () => new MessagingMockAdapter(code),
       createMock: () => new MessagingMockAdapter(code),
+    });
+  }
+  for (const code of MARKETPLACE_CODES) {
+    reg.register<IntegrationAdapter>({
+      code,
+      kind: "MARKETPLACE",
+      requiredCredentials: ["apiKey"],
+      create: () => new MarketplaceMockAdapter(code),
+      createMock: () => new MarketplaceMockAdapter(code),
     });
   }
   return reg;
