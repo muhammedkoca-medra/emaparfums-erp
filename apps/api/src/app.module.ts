@@ -26,6 +26,9 @@ import { StockController } from "./stock/stock.controller.js";
 import { ProductionController } from "./production/production.controller.js";
 import { QualityController } from "./quality/quality.controller.js";
 import { CostingController } from "./costing/costing.controller.js";
+import { AccountingController } from "./accounting/accounting.controller.js";
+import { ContentController } from "./marketing/content.controller.js";
+import { SocialController } from "./marketing/social.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { InvoicesController } from "./invoices/invoices.controller.js";
 import { EcommerceController } from "./ecommerce/ecommerce.controller.js";
@@ -67,6 +70,9 @@ export class AppModule {
         ProductionController,
         QualityController,
         CostingController,
+        AccountingController,
+        ContentController,
+        SocialController,
       ],
       providers: [
         { provide: APP_CONFIG, useValue: config },

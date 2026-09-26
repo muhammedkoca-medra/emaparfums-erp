@@ -11,6 +11,7 @@ export { CargoMockAdapter } from "./cargo/mock.js";
 export { MessagingMockAdapter } from "./messaging/mock.js";
 export { MarketplaceMockAdapter } from "./marketplace/mock.js";
 export { FxMockAdapter } from "./fx/mock.js";
+export { SocialMockAdapter } from "./social/mock.js";
 
 import { TemplateAdapter, TEMPLATE_CODE } from "./_template/index.js";
 import { TemplateMockAdapter } from "./_template/mock.js";
@@ -19,6 +20,7 @@ import { CargoMockAdapter } from "./cargo/mock.js";
 import { MessagingMockAdapter } from "./messaging/mock.js";
 import { MarketplaceMockAdapter } from "./marketplace/mock.js";
 import { FxMockAdapter } from "./fx/mock.js";
+import { SocialMockAdapter } from "./social/mock.js";
 import { EInvoiceAdapter, EINVOICE_CODE } from "./einvoice/index.js";
 import { EInvoiceMockAdapter } from "./einvoice/mock.js";
 import { IntegrationRegistry } from "./registry.js";
@@ -27,6 +29,8 @@ export const CARGO_CODES = ["CARGO_YURTICI", "CARGO_ARAS", "CARGO_MNG", "CARGO_P
 export const MESSAGING_CODES = ["SMS", "WHATSAPP"] as const;
 // F4-07: pazaryeri adaptörleri (mock). Kimlik girilince gerçek moda geçer.
 export const MARKETPLACE_CODES = ["TRENDYOL", "HEPSIBURADA", "AMAZON_TR", "N11", "CICEKSEPETI"] as const;
+// F4-09: sosyal medya adaptörleri (mock).
+export const SOCIAL_CODES = ["META", "TIKTOK", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "PINTEREST"] as const;
 
 /**
  * Uygulamanın kullandığı kayıt defteri. Yeni adaptörler buraya eklenir (/entegrasyon).
@@ -74,6 +78,15 @@ export function createDefaultRegistry(): IntegrationRegistry {
       requiredCredentials: ["apiKey"],
       create: () => new MarketplaceMockAdapter(code),
       createMock: () => new MarketplaceMockAdapter(code),
+    });
+  }
+  for (const code of SOCIAL_CODES) {
+    reg.register<IntegrationAdapter>({
+      code,
+      kind: "SOCIAL",
+      requiredCredentials: ["apiKey"],
+      create: () => new SocialMockAdapter(code),
+      createMock: () => new SocialMockAdapter(code),
     });
   }
   reg.register<IntegrationAdapter>({ code: "FX_TCMB", kind: "FX", requiredCredentials: [], create: () => new FxMockAdapter(), createMock: () => new FxMockAdapter() });

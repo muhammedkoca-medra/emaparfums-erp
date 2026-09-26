@@ -90,3 +90,10 @@ export interface CargoCapabilities {
   track(ctx: IntegrationContext, trackingNo: string): Promise<{ status: string; events: unknown[] }>;
   cancel(ctx: IntegrationContext, trackingNo: string): Promise<void>;
 }
+
+export interface SocialCapabilities {
+  /** Gönderiyi yayınlar; platform gönderi kimliği döner (mock). */
+  publish(ctx: IntegrationContext, post: { caption: string; assetUrls?: string[] }): Promise<{ externalId: string }>;
+  /** Yayınlanmış gönderinin metriklerini çeker (mock: reach/engagement/clicks). */
+  metrics(ctx: IntegrationContext, externalId: string): Promise<{ reach: number; engagement: number; clicks: number }>;
+}

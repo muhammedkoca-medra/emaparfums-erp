@@ -1168,6 +1168,7 @@ model SalesOrder {
   kdvTotal          Decimal          @db.Decimal(18, 2)
   grandTotal        Decimal          @db.Decimal(18, 2)
   paymentTermsDays  Int?
+  utmCampaign       String? // SOS-06: sosyal medya UTM atfı
   lines             SalesOrderLine[]
   payments          Payment[]
   invoices          Invoice[]

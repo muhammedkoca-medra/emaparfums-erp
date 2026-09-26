@@ -960,6 +960,21 @@ async function main() {
   console.log("  ✓ üretim kaynakları (hat planı, URT-07)");
   await taxCalendar();
   console.log("  ✓ vergi takvimi (beyan tarihleri)");
+  await socialAccounts();
+  console.log("  ✓ sosyal medya hesapları (F4-09)");
+}
+
+/** F4-09: örnek sosyal medya hesapları (yayın mock adaptörle). */
+async function socialAccounts() {
+  const accounts: [string, string][] = [
+    ["INSTAGRAM", "@emaparfums"],
+    ["TIKTOK", "@emaparfums"],
+    ["META", "EMA Parfums"],
+  ];
+  for (const [platform, handle] of accounts) {
+    const exists = await prisma.socialAccount.findFirst({ where: { platform, handle } });
+    if (!exists) await prisma.socialAccount.create({ data: { platform, handle } });
+  }
 }
 
 main()

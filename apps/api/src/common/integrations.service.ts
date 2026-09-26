@@ -12,6 +12,7 @@ import {
   type IntegrationRegistry,
   type MarketplaceCapabilities,
   resolveCredentials,
+  type SocialCapabilities,
 } from "@atelier/integrations";
 import { APP_CONFIG, type AppConfig } from "../config.js";
 import { PrismaService } from "../prisma.service.js";
@@ -62,5 +63,10 @@ export class IntegrationsService {
   /** Döviz kuru entegratörü (mock TCMB). */
   fx(direction: "IN" | "OUT" = "IN") {
     return this.resolve<IntegrationAdapter & FxCapabilities>("FX_TCMB", direction);
+  }
+
+  /** Sosyal medya entegratörü (mock). code: META / TIKTOK / INSTAGRAM… */
+  social(code: string, direction: "IN" | "OUT" = "OUT") {
+    return this.resolve<IntegrationAdapter & SocialCapabilities>(code, direction);
   }
 }
