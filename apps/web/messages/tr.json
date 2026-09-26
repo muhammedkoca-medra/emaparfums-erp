@@ -1207,5 +1207,78 @@
     "onTime": "Zamanında",
     "damage": "Hasar",
     "noEvents": "Hareket yok."
+  },
+  "purchasing": {
+    "title": "Satın Alma",
+    "subtitle": "MRP önerileri, siparişler ve mal kabul",
+    "back": "Satın almaya dön",
+    "suggestions": "MRP önerileri",
+    "noSuggestions": "Önerilecek kalem yok (stoklar yeterli).",
+    "supCol": {
+      "item": "Kalem",
+      "available": "Eldeki",
+      "min": "Min",
+      "suggested": "Öneri",
+      "supplier": "Tedarikçi"
+    },
+    "createFromSug": "Sipariş oluştur",
+    "ordersTitle": "Siparişler",
+    "empty": "Sipariş yok.",
+    "count": "{count, plural, one {# sipariş} other {# sipariş}}",
+    "col": {
+      "number": "No",
+      "supplier": "Tedarikçi",
+      "status": "Durum",
+      "total": "Tutar",
+      "lines": "Satır",
+      "date": "Tarih"
+    },
+    "status": {
+      "REQUESTED": "Talep",
+      "PENDING_APPROVAL": "Onay bekliyor",
+      "ORDERED": "Sipariş verildi",
+      "IN_TRANSIT": "Yolda",
+      "RECEIVING": "Kabul ediliyor",
+      "CLOSED": "Kapandı",
+      "CANCELLED": "İptal"
+    },
+    "section": {
+      "lines": "Satırlar",
+      "receipts": "Mal kabuller",
+      "receive": "Mal kabul"
+    },
+    "line": {
+      "item": "Kalem",
+      "qty": "Miktar",
+      "unit": "Birim fiyat",
+      "received": "Alınan"
+    },
+    "submit": "Onaya/siparişe gönder",
+    "approve": "Onayla",
+    "submitted": "Gönderildi.",
+    "approved": "Onaylandı.",
+    "receiveQty": "Kabul miktarı",
+    "lotNo": "Lot no (ops.)",
+    "receiveBtn": "Kabul et",
+    "received": "Mal kabul yapıldı.",
+    "newSupplier": "Yeni tedarikçi",
+    "supName": "Ad / unvan",
+    "supTax": "VKN",
+    "save": "Kaydet",
+    "newOrder": "Yeni sipariş",
+    "form": {
+      "supplier": "Tedarikçi",
+      "choose": "Seçin",
+      "item": "Kalem",
+      "qty": "Miktar",
+      "unit": "Birim fiyat",
+      "kdv": "KDV",
+      "addLine": "Satır ekle",
+      "remove": "Kaldır",
+      "create": "Sipariş oluştur",
+      "saved": "Kaydedildi.",
+      "noItems": "Kalem yok."
+    },
+    "suppliersTitle": "Tedarikçiler"
   }
 }

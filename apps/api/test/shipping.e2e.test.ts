@@ -7,7 +7,7 @@ let carrierId: string;
 
 beforeAll(async () => {
   ctx = await setupTestApp();
-  const channel = await ctx.prisma.salesChannel.create({ data: { code: "WEB", name: "Web", type: "WEBSITE" } });
+  const channel = await ctx.prisma.salesChannel.upsert({ where: { code: "WEB" }, update: {}, create: { code: "WEB", name: "Web", type: "WEBSITE" } });
   const customer = await ctx.prisma.customer.create({ data: { type: "INDIVIDUAL", fullName: "M" } });
   const order = await ctx.prisma.salesOrder.create({
     data: { number: "WB-0001", channelId: channel.id, customerId: customer.id, status: "SHIPPED", netTotal: "100", otvTotal: "0", kdvTotal: "0", grandTotal: "100" },

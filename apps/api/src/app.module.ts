@@ -26,6 +26,7 @@ import { StockController } from "./stock/stock.controller.js";
 import { ProductionController } from "./production/production.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { InvoicesController } from "./invoices/invoices.controller.js";
+import { PurchasingController } from "./purchasing/purchasing.controller.js";
 import { ShippingController } from "./shipping/shipping.controller.js";
 import { OrdersController } from "./sales/orders.controller.js";
 import { SalesController } from "./sales/sales.controller.js";
@@ -56,6 +57,7 @@ export class AppModule {
         PaymentsController,
         InvoicesController,
         ShippingController,
+        PurchasingController,
         ProductionController,
       ],
       providers: [

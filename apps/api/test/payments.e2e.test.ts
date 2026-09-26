@@ -17,7 +17,7 @@ async function makeOrder(ctx: TestContext, agent: Awaited<ReturnType<typeof logi
 
 beforeAll(async () => {
   ctx = await setupTestApp();
-  const channel = await ctx.prisma.salesChannel.create({ data: { code: "WEB", name: "Web", type: "WEBSITE" } });
+  const channel = await ctx.prisma.salesChannel.upsert({ where: { code: "WEB" }, update: {}, create: { code: "WEB", name: "Web", type: "WEBSITE" } });
   channelId = channel.id;
   const customer = await ctx.prisma.customer.create({ data: { type: "INDIVIDUAL", fullName: "Test Müşteri" } });
   customerId = customer.id;
