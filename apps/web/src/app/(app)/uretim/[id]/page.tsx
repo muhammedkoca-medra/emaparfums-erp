@@ -7,7 +7,9 @@ import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { AdvanceButton } from "../AdvanceButton";
 import { BatchEditor } from "../BatchEditor";
 import { MacerationClock } from "../MacerationClock";
+import { type Materials, MaterialsPanel } from "../MaterialsPanel";
 import { MixBeaker } from "../MixBeaker";
+import { OutputForm } from "../OutputForm";
 import { StageBadge } from "../StageBadge";
 import { StageStepper } from "../StageStepper";
 
@@ -43,6 +45,12 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
     throw e;
   }
   const canEdit = me.permissions.includes("production:EDIT");
+  let materials: Materials | null = null;
+  try {
+    materials = await apiGet<Materials>(`/production/batches/${encodeURIComponent(id)}/materials`);
+  } catch {
+    materials = null;
+  }
 
   return (
     <>
@@ -76,6 +84,10 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {canEdit && <AdvanceButton batchId={b.id} stage={b.stage} macerationDone={b.maceration?.done ?? true} />}
+
+        {materials && <MaterialsPanel materials={materials} />}
+
+        {canEdit && b.stage === "FILLING" && b.producedQty === 0 && <OutputForm batchId={b.id} plannedQty={b.plannedQty} />}
 
         {canEdit && <BatchEditor batch={b} />}
 

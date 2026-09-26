@@ -964,6 +964,28 @@
     "advanceDone": "Aşama ilerletildi.",
     "overridePrompt": "Demlenme süresi dolmadı. Erken geçiş gerekçesi (yönetici onayı):",
     "released": "Parti tamamlandı",
+    "materials": {
+      "title": "Malzeme uygunluğu",
+      "subtitle": "Reçete adet başına ölçeklendi (fire dahil)",
+      "code": "Kod",
+      "name": "Malzeme",
+      "required": "Gerekli",
+      "available": "Mevcut",
+      "shortage": "Eksik",
+      "ok": "Yeterli",
+      "noBom": "Bu ürün için aktif reçete (BOM) tanımlı değil; parti esans/baz karışım kartıyla yürütülür.",
+      "shortageWarn": "Eksik malzeme var; tartım aşamasına geçiş engellenir. Satın alma önerilir."
+    },
+    "output": {
+      "title": "Dolum çıktısı",
+      "subtitle": "Üretilen ve fire adedini girin; mamul lotu karantinada açılır.",
+      "produced": "Üretilen adet",
+      "scrap": "Fire adedi",
+      "note": "Not (isteğe bağlı)",
+      "submit": "Çıktıyı kaydet",
+      "done": "Çıktı kaydedildi; mamul lotu {lot} karantinada açıldı.",
+      "already": "Bu parti için çıktı zaten girildi."
+    },
     "form": {
       "product": "Parfüm (ürün)",
       "choose": "Seçin",
