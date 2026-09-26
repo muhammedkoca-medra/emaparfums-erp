@@ -147,15 +147,15 @@ gantt
 
 ## Faz 5 · Koku AI, sadakat ve akıllı öneriler (≈5 hafta)
 
-- [ ] **F5-01** Akor skorları ve ürün vektörleri (KOK-01, KOK-02).
-- [ ] **F5-02** Benzer koku araması ve karşılanmayan talep raporu (KOK-03, KOK-04, KOK-07).
-- [ ] **F5-03** Koku testi: web gömme bileşeni, mağaza tableti, QR (KOK-05, KOK-06).
-- [ ] **F5-04** Sadakat: puan, seviye, sona erme (SDK-01…03).
-- [ ] **F5-05** Abonelik: plan, tahsilat, kutu içeriği, numune üretim önerisi (SDK-04, SDK-05, ODM-08).
-- [ ] **F5-06** Ayrılma riski ve yeniden dolum (SDK-06, SDK-07).
-- [ ] **F5-07** Kontrol paneli AI önerileri ve talep tahmini (PNL-03, PNL-04).
-- [ ] **F5-08** Toplama rotası optimizasyonu (MOB-04).
-- [ ] **F5-09** `YOUTUBE`, `PINTEREST`, `EMBEDDINGS`.
+- [x] **F5-01** Akor skorları ve ürün vektörleri (KOK-01, KOK-02).
+- [x] **F5-02** Benzer koku araması ve karşılanmayan talep raporu (KOK-03, KOK-04, KOK-07).
+- [ ] **F5-03** Koku testi kiosk/QR arayüzü (KOK-05, KOK-06) — **ertelendi** (arayüz; ScentQuizResult/Recommendation şeması hazır).
+- [x] **F5-04** Sadakat: puan, seviye, sona erme (SDK-01…03).
+- [x] **F5-05** Abonelik: plan, tahsilat, kutu içeriği, numune üretim önerisi (SDK-04, SDK-05, ODM-08).
+- [x] **F5-06** Ayrılma riski ve yeniden dolum (SDK-06, SDK-07).
+- [x] **F5-07** Kontrol paneli AI önerileri ve talep tahmini (PNL-03, PNL-04).
+- [ ] **F5-08** Toplama rotası optimizasyonu (MOB-04) — **ertelendi** (mobil kapsamı).
+- [x] **F5-09** `YOUTUBE`, `PINTEREST`, `EMBEDDINGS`.
 
 **Çıkış kriterleri**
 - Koku testinden satın alma oranı ölçülüyor.
