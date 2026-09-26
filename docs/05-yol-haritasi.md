@@ -84,7 +84,7 @@ gantt
 - [x] **F2-07** Vergi kuralları ekranı + fiyat anatomisi temel sürümü (prototip 12).
 - [x] **F2-08** `CARGO_YURTICI`, `CARGO_ARAS` adaptörleri, firma seçimi, etiket, takip (KRG-01…04, 07).
 - [x] **F2-09** `SMS`/`WHATSAPP` ve `IYS`: işlem bildirimleri, izin kontrolü.
-- [ ] **F2-10** `WEBSITE` entegrasyonu (ADR-0005 kararına göre).
+- [ ] **F2-10** `WEBSITE` entegrasyonu (ADR-0005 kararına göre). · _Bloke: ADR-0005 (kendi site altyapısı) kullanıcı kararı bekleniyor; karar sonrası yapılacak._
 - [x] **F2-11** `TRENDYOL` adaptörü: sipariş çek, stok/fiyat it, ilan, fatura yükle (ETC-01…08).
 - [x] **F2-12** `HEPSIBURADA` adaptörü.
 - [x] **F2-13** E-ticaret ekranları (prototip 06): kanal kartları, listeleme sağlığı, kanal içeriği (AI olmadan elle).
