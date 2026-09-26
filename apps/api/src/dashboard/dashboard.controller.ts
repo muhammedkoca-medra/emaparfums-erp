@@ -1,6 +1,7 @@
-import { Controller, Get, type MessageEvent, Sse } from "@nestjs/common";
+import { Controller, Get, type MessageEvent, Param, Query, Sse } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { type PermissionModule } from "@atelier/shared";
+import { forecastNextMonth, type PermissionModule, UNMET_DEMAND_MAX_SCORE } from "@atelier/shared";
+import { availableForItem, Prisma } from "@atelier/db";
 import { concatMap, from, interval, type Observable, startWith } from "rxjs";
 import { type AuthContext, CurrentUser } from "../auth/auth-context.js";
 import { RequirePermission } from "../permissions/decorators.js";
@@ -166,5 +167,63 @@ export class DashboardController {
         createdAt: r.createdAt.toISOString(),
       };
     });
+  }
+
+  /** PNL-04: bir ürünün son 6 ayki satışından sonraki ay talep tahmini. */
+  @Get("forecast/:productId")
+  @RequirePermission("dashboard", "VIEW")
+  async forecast(@Param("productId") productId: string) {
+    const since = new Date();
+    since.setUTCMonth(since.getUTCMonth() - 6, 1);
+    since.setUTCHours(0, 0, 0, 0);
+    const lines = await this.prisma.salesOrderLine.findMany({
+      where: { productId, order: { status: { notIn: ["NEW", "CANCELLED", "PAYMENT_PENDING"] }, createdAt: { gte: since } } },
+      select: { qty: true, order: { select: { createdAt: true } } },
+    });
+    const byMonth = new Map<string, number>();
+    for (const l of lines) {
+      const d = l.order.createdAt;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      byMonth.set(key, (byMonth.get(key) ?? 0) + l.qty);
+    }
+    const months = [...byMonth.keys()].sort();
+    const series = months.map((m) => byMonth.get(m)!);
+    return { productId, months, series, ...forecastNextMonth(series) };
+  }
+
+  /** PNL-03: kural tabanlı AI önerileri (düşük stok, karşılanmayan talep, yüksek ayrılma riski). */
+  @Get("ai-suggestions")
+  @RequirePermission("dashboard", "VIEW")
+  async aiSuggestions(@Query("limit") limit?: string) {
+    const take = Math.min(Number(limit) || 10, 30);
+    const suggestions: { type: string; title: string; detail: string; priority: "high" | "medium" | "low" }[] = [];
+
+    // 1) Min stok altı kalemler → üretim/satın alma.
+    const items = await this.prisma.item.findMany({ where: { minStock: { not: null } }, select: { id: true, code: true, name: true, minStock: true, type: true } });
+    for (const it of items) {
+      const available = await availableForItem(this.prisma, it.id);
+      if (it.minStock && available.lessThan(it.minStock)) {
+        suggestions.push({
+          type: it.type === "FINISHED_GOOD" ? "PRODUCE" : "PURCHASE",
+          title: `${it.code} stok min altında`,
+          detail: `${it.name}: kullanılabilir ${available.toString()} < min ${it.minStock.toString()}. ${it.type === "FINISHED_GOOD" ? "Üretim önerilir." : "Satın alma önerilir."}`,
+          priority: "high",
+        });
+      }
+    }
+
+    // 2) Karşılanmayan talep → yeni koku değerlendirme.
+    const unmet = await this.prisma.scentSearchLog.groupBy({ by: ["query"], where: { OR: [{ resultCount: 0 }, { topScore: { lt: UNMET_DEMAND_MAX_SCORE.toFixed(4) } }] }, _count: { query: true }, orderBy: { _count: { query: "desc" } }, take: 5 });
+    for (const u of unmet) {
+      suggestions.push({ type: "NEW_SCENT", title: `Karşılanmayan talep: "${u.query}"`, detail: `${u._count.query} arama sonuçsuz/zayıf eşleşti. Yeni koku/ürün değerlendirin.`, priority: "medium" });
+    }
+
+    // 3) Yüksek ayrılma riski → elde tutma.
+    const risky = await this.prisma.subscription.findMany({ where: { status: { in: ["ACTIVE", "PAST_DUE"] }, churnRisk: { gte: new Prisma.Decimal(0.6) } }, include: { customer: { select: { fullName: true } } }, take: 5 });
+    for (const r of risky) {
+      suggestions.push({ type: "RETENTION", title: `Yüksek ayrılma riski: ${r.customer.fullName}`, detail: `Risk ${r.churnRisk?.toString()}. Elde tutma teklifi/iletişim önerilir.`, priority: "high" });
+    }
+
+    return suggestions.slice(0, take);
   }
 }

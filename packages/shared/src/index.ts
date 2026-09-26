@@ -25,3 +25,4 @@ export * from "./content.js";
 export * from "./scent-ai.js";
 export * from "./loyalty.js";
 export * from "./subscription.js";
+export * from "./forecast.js";
