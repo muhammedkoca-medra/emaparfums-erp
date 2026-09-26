@@ -1,0 +1,2158 @@
+[
+  {
+    "orderCode": "EMAE001",
+    "refName": "Absolu Aventus",
+    "refBrand": "Creed",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "meyveli",
+        "strength": 100
+      },
+      {
+        "label": "narenciye",
+        "strength": 88
+      },
+      {
+        "label": "aromatik",
+        "strength": 80
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 84
+      },
+      {
+        "label": "odunsu",
+        "strength": 73
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.56.09.jpeg"
+  },
+  {
+    "orderCode": "EMAE002",
+    "refName": "Acqua di Giò Profondo",
+    "refBrand": "Giorgio Armani",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "deniz",
+        "strength": 100
+      },
+      {
+        "label": "aromatik",
+        "strength": 90
+      },
+      {
+        "label": "narenciye",
+        "strength": 80
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 74
+      },
+      {
+        "label": "taze",
+        "strength": 72
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.56.08.jpeg"
+  },
+  {
+    "orderCode": "EMAE003",
+    "refName": "Aventus",
+    "refBrand": "Creed",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "meyveli",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 84
+      },
+      {
+        "label": "odunsu",
+        "strength": 79
+      },
+      {
+        "label": "deri",
+        "strength": 76
+      },
+      {
+        "label": "narenciye",
+        "strength": 72
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.22.jpeg"
+  },
+  {
+    "orderCode": "EMAE004",
+    "refName": "Althaïr",
+    "refBrand": "Parfums de Marly",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "tatlı",
+        "strength": 100
+      },
+      {
+        "label": "vanilya",
+        "strength": 87
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 91
+      },
+      {
+        "label": "tarçın",
+        "strength": 78
+      },
+      {
+        "label": "aromatik",
+        "strength": 75
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 60,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.21 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE005",
+    "refName": "Uomo Born In Roma",
+    "refBrand": "Valentino",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "mineral",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 84
+      },
+      {
+        "label": "ozonik",
+        "strength": 80
+      },
+      {
+        "label": "aromatik",
+        "strength": 78
+      },
+      {
+        "label": "su",
+        "strength": 74
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.21.jpeg"
+  },
+  {
+    "orderCode": "EMAE006",
+    "refName": "Emporio Armani Stronger With You Intensely",
+    "refBrand": "Giorgio Armani",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 94
+      },
+      {
+        "label": "kehribar",
+        "strength": 82
+      },
+      {
+        "label": "tarçın",
+        "strength": 78
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 80
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 60,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.20 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE007",
+    "refName": "Eros Flame",
+    "refBrand": "Versace",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "tatlı baharatlı",
+        "strength": 87
+      },
+      {
+        "label": "vanilya",
+        "strength": 72
+      },
+      {
+        "label": "aromatik",
+        "strength": 78
+      },
+      {
+        "label": "odunsu",
+        "strength": 70
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.20.jpeg"
+  },
+  {
+    "orderCode": "EMAE008",
+    "refName": "Eros",
+    "refBrand": "Versace",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "aromatik",
+        "strength": 96
+      },
+      {
+        "label": "yeşil",
+        "strength": 91
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 79
+      },
+      {
+        "label": "kehribar",
+        "strength": 76
+      }
+    ],
+    "dayPct": 38,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.19 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE009",
+    "refName": "Fahrenheit",
+    "refBrand": "Dior",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "derin",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 92
+      },
+      {
+        "label": "ozonik",
+        "strength": 85
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 82
+      },
+      {
+        "label": "aromatik",
+        "strength": 80
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.19.jpeg"
+  },
+  {
+    "orderCode": "EMAE010",
+    "refName": "Guilty Elixir de Parfum pour Homme",
+    "refBrand": "Gucci",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 96
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 86
+      },
+      {
+        "label": "tozlu",
+        "strength": 83
+      },
+      {
+        "label": "iris",
+        "strength": 80
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.18 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE011",
+    "refName": "Imagination",
+    "refBrand": "Louis Vuitton",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 73
+      },
+      {
+        "label": "taze",
+        "strength": 68
+      },
+      {
+        "label": "yeşil",
+        "strength": 66
+      },
+      {
+        "label": "kehribar",
+        "strength": 62
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.18.jpeg"
+  },
+  {
+    "orderCode": "EMAE012",
+    "refName": "Invictus Intense",
+    "refBrand": "Rabanne",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "kehribar",
+        "strength": 100
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 73
+      },
+      {
+        "label": "viski",
+        "strength": 68
+      },
+      {
+        "label": "hayvani",
+        "strength": 66
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 62
+      }
+    ],
+    "dayPct": 38,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.17 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAE013",
+    "refName": "Le Beau Paradise Garden",
+    "refBrand": "Jean Paul Gaultier",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "yeşil",
+        "strength": 100
+      },
+      {
+        "label": "hindistan cevizi",
+        "strength": 87
+      },
+      {
+        "label": "tatlı",
+        "strength": 83
+      },
+      {
+        "label": "vanilya",
+        "strength": 71
+      },
+      {
+        "label": "odunsu",
+        "strength": 70
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.17 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE014",
+    "refName": "Le Male Elixir",
+    "refBrand": "Jean Paul Gaultier",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 85
+      },
+      {
+        "label": "bal",
+        "strength": 78
+      },
+      {
+        "label": "aromatik",
+        "strength": 70
+      },
+      {
+        "label": "kehribar",
+        "strength": 68
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 60,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.17.jpeg"
+  },
+  {
+    "orderCode": "EMAE015",
+    "refName": "Sauvage Eau de Parfum",
+    "refBrand": "Dior",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "taze baharatlı",
+        "strength": 100
+      },
+      {
+        "label": "narenciye",
+        "strength": 86
+      },
+      {
+        "label": "kehribar",
+        "strength": 78
+      },
+      {
+        "label": "lavanta",
+        "strength": 70
+      },
+      {
+        "label": "misk",
+        "strength": 68
+      }
+    ],
+    "dayPct": 49,
+    "seasons": {
+      "winter": 27,
+      "spring": 23,
+      "summer": 28,
+      "autumn": 26
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.16 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAE016",
+    "refName": "Spicebomb Extreme",
+    "refBrand": "Victor&Rolf",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "tütün",
+        "strength": 94
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 81
+      },
+      {
+        "label": "tatlı",
+        "strength": 79
+      },
+      {
+        "label": "tarçın",
+        "strength": 70
+      }
+    ],
+    "dayPct": 29,
+    "seasons": {
+      "winter": 43,
+      "spring": 11,
+      "summer": 10,
+      "autumn": 34
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.16 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE017",
+    "refName": "Terre d'Hermès",
+    "refBrand": "Hermes",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 94
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 81
+      },
+      {
+        "label": "aromatik",
+        "strength": 79
+      },
+      {
+        "label": "topraksı",
+        "strength": 73
+      }
+    ],
+    "dayPct": 62,
+    "seasons": {
+      "winter": 0,
+      "spring": 0,
+      "summer": 0,
+      "autumn": 0
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.16.jpeg"
+  },
+  {
+    "orderCode": "EMAE018",
+    "refName": "Bleu De Chanel",
+    "refBrand": "Chanel",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 94
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 81
+      },
+      {
+        "label": "aromatik",
+        "strength": 79
+      },
+      {
+        "label": "topraksı",
+        "strength": 70
+      }
+    ],
+    "dayPct": 61,
+    "seasons": {
+      "winter": 15,
+      "spring": 34,
+      "summer": 24,
+      "autumn": 39
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.15 (3).jpeg"
+  },
+  {
+    "orderCode": "EMAE019",
+    "refName": "One Million",
+    "refBrand": "Paco Rabanne",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "tüberoz",
+        "strength": 94
+      },
+      {
+        "label": "kehribar",
+        "strength": 81
+      },
+      {
+        "label": "hayvani",
+        "strength": 79
+      },
+      {
+        "label": "odunsu",
+        "strength": 70
+      }
+    ],
+    "dayPct": 45,
+    "seasons": {
+      "winter": 30,
+      "spring": 19,
+      "summer": 15,
+      "autumn": 24
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.15 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAE020",
+    "refName": "One Million Lucky",
+    "refBrand": "Paco Rabanne",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 94
+      },
+      {
+        "label": "fındık",
+        "strength": 81
+      },
+      {
+        "label": "bal",
+        "strength": 79
+      },
+      {
+        "label": "meyveli",
+        "strength": 70
+      }
+    ],
+    "dayPct": 48,
+    "seasons": {
+      "winter": 30,
+      "spring": 25,
+      "summer": 10,
+      "autumn": 31
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.15 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE021",
+    "refName": "Le Beau Le Parfum",
+    "refBrand": "Jean Paul Gaultier",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "tatlı",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 79
+      },
+      {
+        "label": "hindistan cevizi",
+        "strength": 78
+      },
+      {
+        "label": "kehribar",
+        "strength": 77
+      },
+      {
+        "label": "vanilya",
+        "strength": 71
+      }
+    ],
+    "dayPct": 49,
+    "seasons": {
+      "winter": 10,
+      "spring": 31,
+      "summer": 41,
+      "autumn": 18
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.15.jpeg"
+  },
+  {
+    "orderCode": "EMAE022",
+    "refName": "Tobacco Vanille",
+    "refBrand": "Tom Ford",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 79
+      },
+      {
+        "label": "tütün",
+        "strength": 79
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 78
+      },
+      {
+        "label": "meyveli",
+        "strength": 71
+      }
+    ],
+    "dayPct": 31,
+    "seasons": {
+      "winter": 43,
+      "spring": 10,
+      "summer": 10,
+      "autumn": 42
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.14 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAE023",
+    "refName": "The Tragedy of Lord George",
+    "refBrand": "Penhaligon's",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "kehribar",
+        "strength": 79
+      },
+      {
+        "label": "vanilya",
+        "strength": 79
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 77
+      },
+      {
+        "label": "tatlı",
+        "strength": 71
+      }
+    ],
+    "dayPct": 45,
+    "seasons": {
+      "winter": 34,
+      "spring": 21,
+      "summer": 10,
+      "autumn": 43
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.14.jpeg"
+  },
+  {
+    "orderCode": "EMAE024",
+    "refName": "London for Men",
+    "refBrand": "Burberry",
+    "gender": "men",
+    "accords": [
+      {
+        "label": "tütün",
+        "strength": 100
+      },
+      {
+        "label": "tarçın",
+        "strength": 79
+      },
+      {
+        "label": "tatlı",
+        "strength": 79
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 77
+      },
+      {
+        "label": "odunsu",
+        "strength": 71
+      }
+    ],
+    "dayPct": 45,
+    "seasons": {
+      "winter": 40,
+      "spring": 10,
+      "summer": 10,
+      "autumn": 45
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.13 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK001",
+    "refName": "Bombshell",
+    "refBrand": "Victoria's Secret",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "meyveli",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 95
+      },
+      {
+        "label": "taze",
+        "strength": 93
+      },
+      {
+        "label": "narenciye",
+        "strength": 90
+      },
+      {
+        "label": "çiçeksi",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 20,
+      "spring": 12,
+      "summer": 55,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.02.jpeg"
+  },
+  {
+    "orderCode": "EMAK002",
+    "refName": "Chloé Eau de Parfum",
+    "refBrand": "Chloé",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "çiçeksi",
+        "strength": 100
+      },
+      {
+        "label": "gül",
+        "strength": 95
+      },
+      {
+        "label": "taze",
+        "strength": 90
+      },
+      {
+        "label": "meyveli",
+        "strength": 80
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 80
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.01.jpeg"
+  },
+  {
+    "orderCode": "EMAK003",
+    "refName": "Coco Mademoiselle Parfum",
+    "refBrand": "Chanel",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "paçuli",
+        "strength": 85
+      },
+      {
+        "label": "odunsu",
+        "strength": 85
+      },
+      {
+        "label": "gül",
+        "strength": 85
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 80
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.00 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK004",
+    "refName": "Crystal Noir",
+    "refBrand": "Versace",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "taze baharatlı",
+        "strength": 100
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 95
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 93
+      },
+      {
+        "label": "hindistan cevizi",
+        "strength": 90
+      },
+      {
+        "label": "laktonik",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.00.jpeg"
+  },
+  {
+    "orderCode": "EMAK005",
+    "refName": "Goddess",
+    "refBrand": "Burberry",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "lavanta",
+        "strength": 85
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 82
+      },
+      {
+        "label": "kakao",
+        "strength": 78
+      },
+      {
+        "label": "tatlı",
+        "strength": 78
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.59.jpeg"
+  },
+  {
+    "orderCode": "EMAK007",
+    "refName": "Idôle",
+    "refBrand": "Lancôme",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "gül",
+        "strength": 100
+      },
+      {
+        "label": "misk",
+        "strength": 90
+      },
+      {
+        "label": "meyveli",
+        "strength": 85
+      },
+      {
+        "label": "tatlı",
+        "strength": 85
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.58.jpeg"
+  },
+  {
+    "orderCode": "EMAK008",
+    "refName": "L'Interdit Eau de Parfum",
+    "refBrand": "Givenchy",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "tüberoz",
+        "strength": 90
+      },
+      {
+        "label": "tatlı",
+        "strength": 85
+      },
+      {
+        "label": "narenciye",
+        "strength": 85
+      },
+      {
+        "label": "odunsu",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.56.jpeg"
+  },
+  {
+    "orderCode": "EMAK009",
+    "refName": "Libre",
+    "refBrand": "Yves Saint Laurent",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "narenciye",
+        "strength": 92
+      },
+      {
+        "label": "lavanta",
+        "strength": 90
+      },
+      {
+        "label": "vanilya",
+        "strength": 85
+      },
+      {
+        "label": "aromatik",
+        "strength": 83
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.53.jpeg"
+  },
+  {
+    "orderCode": "EMAK010",
+    "refName": "Midnight Bloom",
+    "refBrand": "Victoria's Secret",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "hayvani",
+        "strength": 75
+      },
+      {
+        "label": "meyveli",
+        "strength": 68
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.51.jpeg"
+  },
+  {
+    "orderCode": "EMAK011",
+    "refName": "Midnight Poison",
+    "refBrand": "Dior",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "paçuli",
+        "strength": 100
+      },
+      {
+        "label": "narenciye",
+        "strength": 89
+      },
+      {
+        "label": "gül",
+        "strength": 85
+      },
+      {
+        "label": "odunsu",
+        "strength": 82
+      },
+      {
+        "label": "kehribar",
+        "strength": 71
+      }
+    ],
+    "dayPct": 30,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.48.jpeg"
+  },
+  {
+    "orderCode": "EMAK012",
+    "refName": "Mon Guerlain",
+    "refBrand": "Guerlain",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "vanilya",
+        "strength": 100
+      },
+      {
+        "label": "lavanta",
+        "strength": 89
+      },
+      {
+        "label": "odunsu",
+        "strength": 85
+      },
+      {
+        "label": "aromatik",
+        "strength": 82
+      },
+      {
+        "label": "pudra",
+        "strength": 71
+      }
+    ],
+    "dayPct": 57,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.45.jpeg"
+  },
+  {
+    "orderCode": "EMAK013",
+    "refName": "My Way",
+    "refBrand": "Giorgio Armani",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "tüberoz",
+        "strength": 89
+      },
+      {
+        "label": "narenciye",
+        "strength": 85
+      },
+      {
+        "label": "hayvani",
+        "strength": 82
+      },
+      {
+        "label": "vanilya",
+        "strength": 71
+      }
+    ],
+    "dayPct": 67,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.33 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAK014",
+    "refName": "Narcotic Venus",
+    "refBrand": "Nasomatto",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "tüberoz",
+        "strength": 89
+      },
+      {
+        "label": "hayvani",
+        "strength": 85
+      },
+      {
+        "label": "yeşil",
+        "strength": 82
+      },
+      {
+        "label": "yumuşak baharatlı",
+        "strength": 71
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.33 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK015",
+    "refName": "Noa",
+    "refBrand": "Cacharel",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "çiçekli",
+        "strength": 100
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 89
+      },
+      {
+        "label": "misk",
+        "strength": 85
+      },
+      {
+        "label": "taze",
+        "strength": 82
+      },
+      {
+        "label": "pudra",
+        "strength": 71
+      }
+    ],
+    "dayPct": 73,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.33.jpeg"
+  },
+  {
+    "orderCode": "EMAK016",
+    "refName": "Prada Paradoxe Intense",
+    "refBrand": "Prada",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "vanilya",
+        "strength": 89
+      },
+      {
+        "label": "narenciye",
+        "strength": 85
+      },
+      {
+        "label": "yosunlu",
+        "strength": 82
+      },
+      {
+        "label": "kehribar",
+        "strength": 71
+      }
+    ],
+    "dayPct": 45,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.32 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAK017",
+    "refName": "Si",
+    "refBrand": "Giorgio Armani",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "vanilya",
+        "strength": 89
+      },
+      {
+        "label": "aromatik",
+        "strength": 85
+      },
+      {
+        "label": "yumuşak baharatlı",
+        "strength": 82
+      },
+      {
+        "label": "meyveli",
+        "strength": 71
+      }
+    ],
+    "dayPct": 51,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.32 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK018",
+    "refName": "Yara",
+    "refBrand": "Lattafa Perfumes",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "tatlı",
+        "strength": 100
+      },
+      {
+        "label": "vanilya",
+        "strength": 89
+      },
+      {
+        "label": "pudra",
+        "strength": 85
+      },
+      {
+        "label": "tropik",
+        "strength": 82
+      },
+      {
+        "label": "meyveli",
+        "strength": 71
+      }
+    ],
+    "dayPct": 60,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.32.jpeg"
+  },
+  {
+    "orderCode": "EMAK019",
+    "refName": "Narciso Rodriguez for Her Eau de Parfum",
+    "refBrand": "Narciso Rodriguez",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "misk",
+        "strength": 100
+      },
+      {
+        "label": "gül",
+        "strength": 89
+      },
+      {
+        "label": "pudra",
+        "strength": 85
+      },
+      {
+        "label": "odunsu",
+        "strength": 82
+      },
+      {
+        "label": "paçuli",
+        "strength": 71
+      }
+    ],
+    "dayPct": 55,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.31.jpeg"
+  },
+  {
+    "orderCode": "EMAK020",
+    "refName": "Delina Exclusif",
+    "refBrand": "Parfums de Marly",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "gül",
+        "strength": 100
+      },
+      {
+        "label": "meyveli",
+        "strength": 89
+      },
+      {
+        "label": "vanilya",
+        "strength": 85
+      },
+      {
+        "label": "kehribar",
+        "strength": 82
+      },
+      {
+        "label": "tropik",
+        "strength": 71
+      }
+    ],
+    "dayPct": 51,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.30 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAK021",
+    "refName": "Flora Gorgeous Gardenia",
+    "refBrand": "Gucci",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "çiçeksi",
+        "strength": 89
+      },
+      {
+        "label": "tatlı",
+        "strength": 85
+      },
+      {
+        "label": "meyveli",
+        "strength": 82
+      },
+      {
+        "label": "paçuli",
+        "strength": 71
+      }
+    ],
+    "dayPct": 75,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.30 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK022",
+    "refName": "Born In Roma",
+    "refBrand": "Valentino",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "vanilya",
+        "strength": 89
+      },
+      {
+        "label": "meyveli",
+        "strength": 85
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 82
+      },
+      {
+        "label": "yumuşak baharatlı",
+        "strength": 71
+      }
+    ],
+    "dayPct": 51,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.30.jpeg"
+  },
+  {
+    "orderCode": "EMAK023",
+    "refName": "Chance",
+    "refBrand": "Chanel",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 89
+      },
+      {
+        "label": "pudra",
+        "strength": 85
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 82
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 71
+      }
+    ],
+    "dayPct": 71,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.29 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAK024",
+    "refName": "Emporio Armani She",
+    "refBrand": "Giorgio Armani",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "pudra",
+        "strength": 100
+      },
+      {
+        "label": "misk",
+        "strength": 89
+      },
+      {
+        "label": "badem",
+        "strength": 85
+      },
+      {
+        "label": "vanilya",
+        "strength": 82
+      },
+      {
+        "label": "kehribar",
+        "strength": 71
+      }
+    ],
+    "dayPct": 60,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.29.jpeg"
+  },
+  {
+    "orderCode": "EMAK025",
+    "refName": "Acqua di Parma Magnolia Nobile",
+    "refBrand": "Acqua di Parma",
+    "gender": "women",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "çiçeksi",
+        "strength": 89
+      },
+      {
+        "label": "beyaz çiçek",
+        "strength": 85
+      },
+      {
+        "label": "aromatik",
+        "strength": 82
+      },
+      {
+        "label": "odunsu",
+        "strength": 71
+      }
+    ],
+    "dayPct": 71,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.53.27.jpeg"
+  },
+  {
+    "orderCode": "EMAU001",
+    "refName": "Baccarat Rouge 540",
+    "refBrand": "Maison Francis Kurkdjian",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "kehribar",
+        "strength": 79
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 77
+      },
+      {
+        "label": "metalik",
+        "strength": 74
+      },
+      {
+        "label": "aromatik",
+        "strength": 71
+      }
+    ],
+    "dayPct": 42,
+    "seasons": {
+      "winter": 30,
+      "spring": 14,
+      "summer": 16,
+      "autumn": 32
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.13.jpeg"
+  },
+  {
+    "orderCode": "EMAU002",
+    "refName": "Erba Pura",
+    "refBrand": "Xerjoff",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "meyveli",
+        "strength": 99
+      },
+      {
+        "label": "tatlı",
+        "strength": 87
+      },
+      {
+        "label": "misk",
+        "strength": 78
+      },
+      {
+        "label": "tozlu",
+        "strength": 74
+      }
+    ],
+    "dayPct": 57,
+    "seasons": {
+      "winter": 12,
+      "spring": 31,
+      "summer": 30,
+      "autumn": 19
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.12 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAU003",
+    "refName": "Flamenco",
+    "refBrand": "Roman Monegal",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "meyveli",
+        "strength": 99
+      },
+      {
+        "label": "gül",
+        "strength": 87
+      },
+      {
+        "label": "tatlı",
+        "strength": 79
+      },
+      {
+        "label": "aromatik",
+        "strength": 74
+      }
+    ],
+    "dayPct": 51,
+    "seasons": {
+      "winter": 20,
+      "spring": 25,
+      "summer": 23,
+      "autumn": 20
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.12.jpeg"
+  },
+  {
+    "orderCode": "EMAU004",
+    "refName": "God of Fire",
+    "refBrand": "Stephane Humbert Lucas 777",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "meyveli",
+        "strength": 100
+      },
+      {
+        "label": "tropik",
+        "strength": 89
+      },
+      {
+        "label": "tatlı",
+        "strength": 86
+      },
+      {
+        "label": "narenciye",
+        "strength": 76
+      },
+      {
+        "label": "taze",
+        "strength": 72
+      }
+    ],
+    "dayPct": 60,
+    "seasons": {
+      "winter": 10,
+      "spring": 37,
+      "summer": 43,
+      "autumn": 19
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.09.jpeg"
+  },
+  {
+    "orderCode": "EMAU005",
+    "refName": "Khamrah",
+    "refBrand": "Lattafa Perfumes",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "tatlı",
+        "strength": 100
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 89
+      },
+      {
+        "label": "vanilya",
+        "strength": 86
+      },
+      {
+        "label": "kehribar",
+        "strength": 76
+      },
+      {
+        "label": "tarçın",
+        "strength": 72
+      }
+    ],
+    "dayPct": 32,
+    "seasons": {
+      "winter": 40,
+      "spring": 7,
+      "summer": 7,
+      "autumn": 32
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.08 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAU006",
+    "refName": "Kirkè",
+    "refBrand": "Tiziana Terenzi",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "meyveli",
+        "strength": 100
+      },
+      {
+        "label": "tatlı",
+        "strength": 84
+      },
+      {
+        "label": "misk",
+        "strength": 75
+      },
+      {
+        "label": "tozlu",
+        "strength": 75
+      },
+      {
+        "label": "taze",
+        "strength": 70
+      }
+    ],
+    "dayPct": 52,
+    "seasons": {
+      "winter": 20,
+      "spring": 24,
+      "summer": 24,
+      "autumn": 26
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.08.jpeg"
+  },
+  {
+    "orderCode": "EMAU007",
+    "refName": "Layton",
+    "refBrand": "Parfums de Marly",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "sıcak baharatlı",
+        "strength": 100
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 95
+      },
+      {
+        "label": "odunsu",
+        "strength": 95
+      },
+      {
+        "label": "vanilya",
+        "strength": 90
+      },
+      {
+        "label": "aromatik",
+        "strength": 90
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.06 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAU008",
+    "refName": "Oud Wood",
+    "refBrand": "Tom Ford",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "odunsu",
+        "strength": 100
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 92
+      },
+      {
+        "label": "ud",
+        "strength": 90
+      },
+      {
+        "label": "aromatik",
+        "strength": 87
+      },
+      {
+        "label": "vanilya",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.06.jpeg"
+  },
+  {
+    "orderCode": "EMAU009",
+    "refName": "Pacific Chill",
+    "refBrand": "Louis Vuitton",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "narenciye",
+        "strength": 100
+      },
+      {
+        "label": "aromatik",
+        "strength": 92
+      },
+      {
+        "label": "taze baharatlı",
+        "strength": 92
+      },
+      {
+        "label": "meyveli",
+        "strength": 88
+      },
+      {
+        "label": "yeşil",
+        "strength": 87
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 50,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.05.jpeg"
+  },
+  {
+    "orderCode": "EMAU010",
+    "refName": "Fleur Narcotique",
+    "refBrand": "Ex Nihilo",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "beyaz çiçek",
+        "strength": 100
+      },
+      {
+        "label": "çiçekli",
+        "strength": 90
+      },
+      {
+        "label": "taze",
+        "strength": 88
+      },
+      {
+        "label": "meyveli",
+        "strength": 86
+      },
+      {
+        "label": "narenciye",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.04 (2).jpeg"
+  },
+  {
+    "orderCode": "EMAU011",
+    "refName": "Bottled Absolu",
+    "refBrand": "Hugo Boss",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "kehribar",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 90
+      },
+      {
+        "label": "balzamik",
+        "strength": 90
+      },
+      {
+        "label": "sıcak baharatlı",
+        "strength": 88
+      },
+      {
+        "label": "dumanlı",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.04 (1).jpeg"
+  },
+  {
+    "orderCode": "EMAU012",
+    "refName": "Angels' Share",
+    "refBrand": "By Kilian",
+    "gender": "unisex",
+    "accords": [
+      {
+        "label": "sıcak baharatlı",
+        "strength": 100
+      },
+      {
+        "label": "odunsu",
+        "strength": 90
+      },
+      {
+        "label": "tatlı",
+        "strength": 90
+      },
+      {
+        "label": "vanilya",
+        "strength": 85
+      },
+      {
+        "label": "tarçın",
+        "strength": 85
+      }
+    ],
+    "dayPct": 50,
+    "seasons": {
+      "winter": 12,
+      "spring": 12,
+      "summer": 12,
+      "autumn": 12
+    },
+    "file": "WhatsApp Image 2026-09-25 at 22.54.04.jpeg"
+  }
+]

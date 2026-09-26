@@ -30,20 +30,22 @@ const state: E2EState = {
     password: randomBytes(12).toString("base64url"),
     fullName: "Test Yönetici",
   },
-};
-await prisma.user.create({
-  data: {
-    email: state.admin.email,
-    fullName: state.admin.fullName,
-    passwordHash: await hash(state.admin.password, {
-      algorithm: 2,
-      memoryCost: 19456,
-      timeCost: 2,
-      parallelism: 1,
-    }),
-    roles: { create: [{ roleId: roleIds.ADMIN! }] },
+  approver: {
+    email: "onay@emaparfums.local",
+    password: randomBytes(12).toString("base64url"),
+    fullName: "Test Onaylayıcı",
   },
-});
+};
+for (const u of [state.admin, state.approver]) {
+  await prisma.user.create({
+    data: {
+      email: u.email,
+      fullName: u.fullName,
+      passwordHash: await hash(u.password, { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 }),
+      roles: { create: [{ roleId: roleIds.ADMIN! }] },
+    },
+  });
+}
 // Stok: prototip stok tablosundan kesit (depolar, kalemler, lotlar, rezervasyonlar)
 const ana = await prisma.warehouse.create({ data: { code: "ANA", name: "Ana depo" } });
 const soguk = await prisma.warehouse.create({ data: { code: "SOGUK", name: "Soğuk oda (12–15°C)" } });
@@ -100,6 +102,20 @@ for (const [code, name, type, uom, min, lotNo, expiry, l, qty, reserved] of stoc
 }
 await prisma.item.create({
   data: { code: "MM-1003", name: "Noir Ambré EDP 50 ml", type: "FINISHED_GOOD", uom: "PCS", minStock: "300" },
+});
+
+// Faz 1: formül için ikinci hammadde, yayında bir test vergi kuralı (oranlar yalnızca test verisi)
+await prisma.item.create({ data: { code: "HM-0201", name: "Etil alkol (parfüm)", type: "RAW_MATERIAL", uom: "L" } });
+await prisma.taxRule.create({
+  data: {
+    category: "PERFUME",
+    kdvRate: "0.20",
+    otvRate: "0.20",
+    otvList: "IV",
+    note: "e2e test verisi",
+    validFrom: new Date("2026-01-01T00:00:00Z"),
+    approvedAt: new Date("2026-01-01T00:00:00Z"),
+  },
 });
 
 await prisma.$disconnect();

@@ -74,3 +74,66 @@ a:hover {
   outline: 2px solid var(--color-gold-2);
   outline-offset: 2px;
 }
+
+/* ---- Vitrin (herkese açık) efektleri ---- */
+.hero-bg {
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) saturate(1.1);
+  transform: scale(1.2);
+  opacity: 0.5;
+  animation: hero-bg-fade 0.9s ease-out;
+}
+@keyframes hero-bg-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+.hero-img {
+  animation: hero-kenburns 6s ease-out both;
+}
+@keyframes hero-kenburns {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hero-title {
+  animation: rise 0.6s ease-out both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.vitrin-card {
+  animation: rise 0.5s ease-out both;
+}
+.vitrin-card img {
+  transition:
+    transform 0.5s ease,
+    filter 0.5s ease;
+}
+.vitrin-card:hover img {
+  transform: scale(1.06);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg,
+  .hero-img,
+  .hero-title,
+  .vitrin-card,
+  .vitrin-card img {
+    animation: none;
+    transition: none;
+  }
+}

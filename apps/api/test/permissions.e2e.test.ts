@@ -50,8 +50,17 @@ describe("yetki (F0-05, YTK-01)", () => {
       .filter((r) => r.rule?.kind === "public")
       .map((r) => r.route)
       .sort();
-    // RequestMethod: GET = 0, POST = 1
-    expect(pub).toEqual(["0 /system/health", "1 /auth/login", "1 /auth/mfa/verify"]);
+    // RequestMethod: GET = 0, POST = 1. Vitrin uçları herkese açıktır (yalnızca güvenli
+    // koku profili döner; referans marka/iç veri sızmaz — bkz. showcase.e2e.test.ts).
+    // Ödeme webhook'u herkese açıktır ama imza doğrulanır (ODM-04 · payments.e2e.test.ts).
+    expect(pub).toEqual([
+      "0 /showcase/products",
+      "0 /showcase/products/:slug",
+      "0 /system/health",
+      "1 /auth/login",
+      "1 /auth/mfa/verify",
+      "1 /webhooks/payments/:provider",
+    ]);
   });
 
   it("oturumsuz istek 401 ve Türkçe mesaj alır", async () => {

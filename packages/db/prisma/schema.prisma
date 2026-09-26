@@ -258,6 +258,12 @@ model Product {
   compliance      ComplianceDocument[]
   recommendations Recommendation[]
   embedding       Float[] // koku benzerliği için vektör (ileride pgvector)
+  // Vitrin/katalog kartından gelen ham koku profili (akor çubukları, gündüz/gece, mevsim, referans).
+  // Yapısı packages/shared/src/catalog.ts scentProfileSchema ile doğrulanır. Referans marka yalnızca
+  // burada saklanır; herkese açık /showcase ucu bu alanı maskeleyerek döndürür (docs/07).
+  scentProfile    Json?
+  // Seçilen 3B şişe modeli (packages/shared/src/bottles.ts BOTTLE_MODELS kodu). Stok, modele bağlı ambalaj kalemindedir.
+  bottleModel     String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 }
@@ -766,6 +772,11 @@ model Resource {
   slots           ScheduleSlot[]
 }
 
+enum BottleType {
+  METAL
+  AMBER
+}
+
 model ProductionBatch {
   id              String               @id @default(cuid())
   number          String               @unique // P-2609
@@ -776,8 +787,13 @@ model ProductionBatch {
   plannedQty      Int
   producedQty     Int                  @default(0)
   stage           BatchStage           @default(FORMULA_APPROVAL)
+  // Karışım reçetesi (EMA üretim kartı): esans + parfüm bazı gramajı. Yüzdeler gramajdan hesaplanır.
+  essenceGr       Decimal?             @db.Decimal(12, 2)
+  baseGr          Decimal?             @db.Decimal(12, 2)
   macerationStart DateTime?
   macerationDays  Int?
+  macerationPlace String? // demlenme yeri (ör. "Soğuk oda R2", "Tank T3")
+  bottleType      BottleType? // metal / amber şişe
   dueAt           DateTime?
   ownerId         String?
   stageLogs       ProductionStageLog[]
@@ -973,12 +989,17 @@ enum CustomerType {
 }
 
 model Customer {
-  id                 String            @id @default(cuid())
-  type               CustomerType
-  fullName           String
-  email              String?
-  phone              String?
-  taxNo              String? // VKN/TCKN — şifreli saklanır (docs/07-guvenlik-kvkk.md)
+  id       String       @id @default(cuid())
+  type     CustomerType
+  fullName String
+  // Gizli kişisel (docs/07): AES-256-GCM şifreli token saklanır; arama HMAC hash ile.
+  email    String? // şifreli
+  phone    String? // şifreli
+  taxNo    String? // VKN/TCKN — şifreli
+  // Eşitlik araması için HMAC-SHA256 hash (packages/shared/src/node/pii.ts searchHash).
+  emailHash          String?
+  phoneHash          String?
+  taxNoHash          String?
   taxOffice          String?
   isEInvoiceUser     Boolean           @default(false) // GİB e-Fatura mükellefi mi
   kvkkConsentAt      DateTime?
@@ -990,11 +1011,35 @@ model Customer {
   subscriptions      Subscription[]
   quizResults        ScentQuizResult[]
   opportunities      Opportunity[]
+  consents           ConsentRecord[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  @@index([email])
-  @@index([phone])
+  @@index([emailHash])
+  @@index([phoneHash])
+  @@index([taxNoHash])
+}
+
+enum ConsentPurpose {
+  KVKK // aydınlatma + genel işleme açık rızası
+  MARKETING // ticari elektronik ileti (İYS)
+}
+
+/**
+ * KVKK açık rıza kayıtları (docs/07 §KVKK süreçleri). Kanal ve metin sürümüyle birlikte tutulur;
+ * geri çekme (revokedAt) izlenir. Customer.kvkkConsentAt/marketingConsentAt en güncel duruma işaret eder.
+ */
+model ConsentRecord {
+  id          String         @id @default(cuid())
+  customerId  String
+  customer    Customer       @relation(fields: [customerId], references: [id])
+  purpose     ConsentPurpose
+  granted     Boolean // true = rıza verildi, false = geri çekildi
+  channel     String // WEB, STORE, B2B, PHONE...
+  textVersion String // aydınlatma/rıza metni sürümü (ör. "2026-01")
+  createdAt   DateTime       @default(now())
+
+  @@index([customerId, purpose, createdAt])
 }
 
 model Address {

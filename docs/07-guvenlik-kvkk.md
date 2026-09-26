@@ -23,7 +23,7 @@
 - [ ] AI servislerine giden istemlerde kişisel veri yok.
 
 ## KVKK süreçleri
-- **Aydınlatma ve rıza:** Aydınlatma metni ve açık rıza kayıtları (`kvkkConsentAt`, `marketingConsentAt`) kanal ve metin sürümüyle birlikte tutulur.
+- **Aydınlatma ve rıza:** Açık rıza kayıtları `ConsentRecord` tablosunda amaç (KVKK/MARKETING), kanal, metin sürümü ve geri çekme (`granted=false`) ile tutulur; `Customer.kvkkConsentAt`/`marketingConsentAt` en güncel duruma işaret eder. Rıza ver/geri çek `POST /customers/:id/consent` ile, denetime yazılır. Pazarlama iletisi yalnızca güncel `marketingConsentAt` doluysa gönderilebilir (SAL-04; İYS kontrolü Faz 2 ödeme/iletişim adımında).
 - **İlgili kişi başvurusu:** Bilgi talebi ve silme talebi 30 gün içinde yanıtlanır; `Yetki & Kayıtlar` ekranından izlenir.
 - **Yurt dışına aktarım:** Bulut barındırma, e-posta/SMS sağlayıcıları ve AI servisleri için hukuki değerlendirme yapılır (ADR-0002, `04#dogrulanacaklar`).
 - **Saklama ve imha:** Saklama süreleri politika dokümanına göre parametre tablosunda tutulur; imha işi aylık çalışır.

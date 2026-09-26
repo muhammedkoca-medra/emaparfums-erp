@@ -1,3 +1,4 @@
+import { BOTTLE_MODEL_CODES } from "./bottles.js";
 import { z } from "zod";
 import { ITEM_TYPES, UOMS } from "./stock.js";
 
@@ -68,6 +69,7 @@ export const productCreateSchema = z.object({
   volumeMl: z.number().int().min(1).max(5000),
   gtip: gtipSchema,
   taxCategory: z.string().trim().toUpperCase().min(2).max(40),
+  bottleModel: z.enum(BOTTLE_MODEL_CODES).nullable().optional(),
 });
 export type ProductCreateRequest = z.infer<typeof productCreateSchema>;
 
@@ -89,6 +91,51 @@ export const NOTE_FAMILIES = [
   "musky",
   "fresh",
 ] as const;
+
+export const GENDERS = ["women", "men", "unisex"] as const;
+export type Gender = (typeof GENDERS)[number];
+
+/**
+ * Vitrin/katalog kartından gelen ham koku profili (Product.scentProfile Json alanı).
+ * Akor etiketleri Türkçe ve serbesttir (6'lı ACCORDS enum'una bağlı değil): ud, iris, tüberoz…
+ * referenceBrand yalnızca iç kayıtta durur; herkese açık /showcase ucu bunu döndürmez (docs/07).
+ */
+export const scentProfileSchema = z.object({
+  referenceName: z.string().trim().max(120).optional(),
+  referenceBrand: z.string().trim().max(120).optional(),
+  gender: z.enum(GENDERS),
+  accords: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(40),
+        strength: z.number().int().min(0).max(100),
+      }),
+    )
+    .max(12),
+  dayPct: z.number().int().min(0).max(100),
+  seasons: z.object({
+    winter: z.number().int().min(0).max(100),
+    spring: z.number().int().min(0).max(100),
+    summer: z.number().int().min(0).max(100),
+    autumn: z.number().int().min(0).max(100),
+  }),
+  source: z.string().trim().max(40).optional(),
+});
+export type ScentProfile = z.infer<typeof scentProfileSchema>;
+
+/** Vitrinde (herkese açık) gösterilen güvenli ürün görünümü: iç veri (fiyat, stok, referans marka) yok. */
+export interface ShowcaseProduct {
+  id: string;
+  slug: string;
+  name: string;
+  gender: Gender;
+  concentration: string;
+  volumeMl: number;
+  accords: { label: string; strength: number }[];
+  dayPct: number;
+  seasons: { winter: number; spring: number; summer: number; autumn: number };
+  imageUrl: string | null;
+}
 
 export const productScentSchema = z.object({
   notes: z

@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Icon } from "@/components/Icon";
+import { LiveFeed } from "@/components/LiveFeed";
 import { PingButton } from "@/components/PingButton";
 import { Topbar } from "@/components/Topbar";
 import { apiTry, getMe } from "@/lib/api-server";
 import { ALL_ITEMS, canView } from "@/lib/modules";
+
+interface Summary {
+  stock: { criticalItems: number; expiringLots: number; expiryWarningDays: number } | null;
+  production: { formulasInReview: number } | null;
+  tax: { pendingRules: number } | null;
+  admin: { pendingApprovals: number } | null;
+}
 
 interface SystemStatus {
   outbox: { PENDING: number; DISPATCHED: number; FAILED: number };
@@ -25,10 +33,25 @@ export default async function DashboardPage() {
   const t = await getTranslations();
   const me = await getMe();
   const isAdmin = canView(me.permissions, "admin");
-  const [health, status] = await Promise.all([
+  const canDash = canView(me.permissions, "dashboard");
+  const [health, status, summary] = await Promise.all([
     apiTry<{ status: string }>("/system/health"),
     isAdmin ? apiTry<SystemStatus>("/system/status") : Promise.resolve(null),
+    canDash ? apiTry<Summary>("/dashboard/summary") : Promise.resolve(null),
   ]);
+  const kpis: { key: string; value: number; note: string; href: string; alert: boolean }[] = [];
+  if (summary?.stock) {
+    kpis.push(
+      { key: "critical", value: summary.stock.criticalItems, note: t("dashboard.kpi.criticalNote"), href: "/stok", alert: summary.stock.criticalItems > 0 },
+      { key: "expiring", value: summary.stock.expiringLots, note: t("dashboard.kpi.expiringNote", { days: summary.stock.expiryWarningDays }), href: "/stok/skt", alert: summary.stock.expiringLots > 0 },
+    );
+  }
+  if (summary?.production)
+    kpis.push({ key: "formulas", value: summary.production.formulasInReview, note: t("dashboard.kpi.formulasNote"), href: "/formuller", alert: summary.production.formulasInReview > 0 });
+  if (summary?.tax)
+    kpis.push({ key: "taxRules", value: summary.tax.pendingRules, note: t("dashboard.kpi.taxRulesNote"), href: "/vergi", alert: summary.tax.pendingRules > 0 });
+  if (summary?.admin)
+    kpis.push({ key: "approvals", value: summary.admin.pendingApprovals, note: t("dashboard.kpi.approvalsNote"), href: "/yetki?tab=matrix", alert: summary.admin.pendingApprovals > 0 });
   const modules = ALL_ITEMS.filter((i) => i.href !== "/" && canView(me.permissions, i.permission));
   const firstName = me.fullName.split(" ")[0] ?? me.fullName;
 
@@ -36,6 +59,25 @@ export default async function DashboardPage() {
     <>
       <Topbar heading={t(`dashboard.${greetingKey()}`, { name: firstName })} sub={t("dashboard.subtitle")} />
       <div className="flex flex-col gap-4 px-4 py-5 sm:px-8">
+        {kpis.length > 0 && (
+          <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("dashboard.subtitle")}>
+            {kpis.map((k) => (
+              <li key={k.key}>
+                <Link
+                  href={k.href}
+                  className="flex h-full flex-col gap-1 rounded-[16px] border border-line bg-surface p-4 text-text no-underline hover:border-gold-2 hover:text-text"
+                >
+                  <span className="text-[12px] font-semibold text-text-2">{t(`dashboard.kpi.${k.key}`)}</span>
+                  <span className={`num font-display text-[30px] leading-none font-semibold ${k.alert ? "text-bad" : "text-text"}`}>
+                    {k.value}
+                  </span>
+                  <span className="text-xs text-muted">{k.note}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {canDash && <LiveFeed />}
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="flex flex-col gap-3 rounded-[16px] bg-ink p-5 text-on-ink-2 lg:col-span-2">
             <span className="text-[10.5px] font-bold tracking-[0.12em] text-gold uppercase">

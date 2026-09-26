@@ -21,6 +21,13 @@ Koku analizi, benzer koku bulma ve kişiye özel öneri yapar. Satışı artır�
 ## Varlıklar
 ScentNote, ProductNote, ProductAccord, Product.embedding, ScentQuizResult, Recommendation, ScentSearchLog.
 
+## Veri kaynakları (karar · 25 Eylül 2026)
+- **Kendi kataloğumuz:** Nota piramidi, akor skorları ve koku ailesi ürün kartında girilir; benzerlik analizi bu veriyle yapılır.
+- **Referans kokular (rakip / ilham):** Fragrantica gibi kaynaklardan **parfüm bazında, elle** alınır. Yalnızca olgusal bilgi alınır: notalar, akorlar, koku ailesi, yıl, parfümör. Kaynak adresi kaydedilir ve kullanıcı onaylar.
+- **Yasak:** Otomatik toplu veri çekme (kazıyıcı, crawler), sitenin bot korumasını aşma, açıklama metni, görsel ve kullanıcı yorumu kopyalama. Gerekçe: site otomatik erişimi engelliyor; içerik ve veritabanı telif ve FSEK kapsamında korunuyor.
+- **Türkçe terimler:** Nota adları tek sözlükten gelir: `packages/shared/src/scent-notes.ts`. Serbest çeviri yapılmaz; sözlükte olmayan nota eklenirken İngilizce karşılığı yazılır.
+- **İçerik:** Ürün açıklamaları kendi marka dilimizle yazılır (İçerik stüdyosu, Faz 4). Görseller kendi çekimlerimizdir.
+
 ## İş kuralları
 - **KOK-01:**
   - Akor skorları ilk olarak formül satırlarındaki hammaddelerin koku ailesi ağırlıklarından hesaplanır.

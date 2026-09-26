@@ -33,6 +33,19 @@ export async function apiGet<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Oturumsuz (herkese açık) API çağrısı: çerez göndermez, 401'de yönlendirmez. Vitrin için. */
+export async function apiPublicGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new ApiError(res.status, body.message ?? res.statusText);
+  }
+  return (await res.json()) as T;
+}
+
 /** Oturumdaki kullanıcı; oturum yoksa giriş ekranına yönlendirir. */
 export async function getMe(): Promise<MeResponse> {
   return apiGet<MeResponse>("/auth/me");

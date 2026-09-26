@@ -13,6 +13,7 @@ import path from "node:path";
 import { hash } from "@node-rs/argon2";
 import { defaultRolePermissions, ROLE_CODES, ROLE_NAMES } from "@atelier/shared";
 import { config } from "dotenv";
+import { encryptField, keyringFromEnv, searchHash } from "@atelier/shared/node";
 import {
   createLot,
   createPrismaClient,
@@ -509,7 +510,7 @@ async function products(itemIds: Record<string, string>) {
             allergens: {
               create: (f.allergens ?? []).map(([name, pct]) => ({
                 name,
-                pctInFinal: D(pct / 100),
+                pctInFinal: D(pct), // son üründe yüzde (0.12 = %0,12)
                 mustLabel: true,
               })),
             },
@@ -700,6 +701,110 @@ async function taxRules() {
   }
 }
 
+async function bottles() {
+  // Şişe modellerinin ambalaj kalemleri (stok bunlar üzerinden girilir · packages/shared/src/bottles.ts).
+  const rows: [string, string][] = [
+    ["AM-SISE-50Y", "Şişe · 50 ml Zümrüt Yeşili"],
+    ["AM-SISE-50M", "Şişe · 50 ml Kobalt Mavi"],
+    ["AM-SISE-KRISTAL", "Şişe · Kristal Sekizgen"],
+    ["AM-ARAC-KOKU", "Araç Kokusu Kabı"],
+  ];
+  for (const [code, name] of rows) {
+    await prisma.item.upsert({
+      where: { code },
+      update: {},
+      create: { code, name, type: "PACKAGING", uom: "PCS", minStock: "100" },
+    });
+  }
+}
+
+async function customers() {
+  // Örnek müşteriler. PII (e-posta/telefon/VKN) şifreli saklanır, arama hash'i ile (docs/07).
+  const ring = keyringFromEnv();
+  const enc = (v: string | null) => (v ? encryptField(ring, v) : null);
+  const hash = (kind: "email" | "phone" | "taxNo", v: string | null) => (v ? searchHash(ring, kind, v) : null);
+  const discovery = await prisma.loyaltyTier.findUnique({ where: { code: "DISCOVERY" } });
+  const rows: {
+    type: "INDIVIDUAL" | "CORPORATE";
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+    taxNo: string | null;
+    taxOffice: string | null;
+    isEInvoiceUser: boolean;
+    kvkk: boolean;
+    marketing: boolean;
+  }[] = [
+    { type: "INDIVIDUAL", fullName: "Ayşe Yılmaz", email: "ayse.yilmaz@example.com", phone: "05321234567", taxNo: null, taxOffice: null, isEInvoiceUser: false, kvkk: true, marketing: true },
+    { type: "INDIVIDUAL", fullName: "Mehmet Demir", email: "mehmet.demir@example.com", phone: "05339876543", taxNo: null, taxOffice: null, isEInvoiceUser: false, kvkk: true, marketing: false },
+    { type: "CORPORATE", fullName: "Rayiha Kozmetik A.Ş.", email: "satinalma@rayiha.example", phone: "02123334455", taxNo: "1234567890", taxOffice: "Beşiktaş", isEInvoiceUser: true, kvkk: true, marketing: false },
+  ];
+  for (const r of rows) {
+    const exists = r.email ? await prisma.customer.findFirst({ where: { emailHash: hash("email", r.email) } }) : null;
+    if (exists) continue;
+    const now = new Date();
+    const c = await prisma.customer.create({
+      data: {
+        type: r.type,
+        fullName: r.fullName,
+        email: enc(r.email),
+        phone: enc(r.phone),
+        taxNo: enc(r.taxNo),
+        emailHash: hash("email", r.email),
+        phoneHash: hash("phone", r.phone),
+        taxNoHash: hash("taxNo", r.taxNo),
+        taxOffice: r.taxOffice,
+        isEInvoiceUser: r.isEInvoiceUser,
+        kvkkConsentAt: r.kvkk ? now : null,
+        marketingConsentAt: r.marketing ? now : null,
+      },
+    });
+    if (r.kvkk) await prisma.consentRecord.create({ data: { customerId: c.id, purpose: "KVKK", granted: true, channel: "WEB", textVersion: "2026-01" } });
+    if (r.marketing) await prisma.consentRecord.create({ data: { customerId: c.id, purpose: "MARKETING", granted: true, channel: "WEB", textVersion: "2026-01" } });
+    if (discovery) await prisma.loyaltyAccount.create({ data: { customerId: c.id, tierId: discovery.id, points: r.type === "CORPORATE" ? 4200 : 250 } });
+  }
+}
+
+async function batches() {
+  // Örnek üretim partileri (görsel: karışım + demlenme). Onaylı formüllü ürünlerden seçilir.
+  const products = await prisma.product.findMany({
+    where: { formula: { status: "APPROVED" } },
+    include: { formula: true },
+    take: 2,
+  });
+  const specs: { essenceGr: string; baseGr: string; days: number; place: string; bottle: "AMBER" | "METAL"; stage: "MACERATION" | "WEIGHING_MIXING"; startedDaysAgo?: number }[] = [
+    { essenceGr: "200", baseGr: "800", days: 14, place: "Soğuk oda R2", bottle: "AMBER", stage: "MACERATION", startedDaysAgo: 9 },
+    { essenceGr: "150", baseGr: "850", days: 21, place: "Tank T3", bottle: "METAL", stage: "WEIGHING_MIXING" },
+  ];
+  let n = 0;
+  for (let i = 0; i < products.length && i < specs.length; i++) {
+    const prod = products[i]!;
+    const sp = specs[i]!;
+    const number = `P-SEED-${i + 1}`;
+    if (await prisma.productionBatch.findUnique({ where: { number } })) continue;
+    const now = new Date();
+    const macerationStart = sp.stage === "MACERATION" ? new Date(now.getTime() - (sp.startedDaysAgo ?? 0) * 86_400_000) : null;
+    const batch = await prisma.productionBatch.create({
+      data: {
+        number,
+        productId: prod.id,
+        formulaId: prod.formulaId!,
+        plannedQty: 100,
+        essenceGr: sp.essenceGr,
+        baseGr: sp.baseGr,
+        macerationDays: sp.days,
+        macerationPlace: sp.place,
+        bottleType: sp.bottle,
+        macerationStart,
+        stage: sp.stage,
+      },
+    });
+    await prisma.productionStageLog.create({ data: { batchId: batch.id, stage: sp.stage, startedAt: macerationStart ?? now } });
+    n++;
+  }
+  return n;
+}
+
 async function loyalty() {
   // Prototip "Sadakat & abonelik" ekranındaki seviyeler. Oranlar örnektir, işletme onayıyla kesinleşir.
   const tiers = [
@@ -798,6 +903,12 @@ async function main() {
   console.log("  ✓ vergi kuralları (teyit bekliyor)");
   await loyalty();
   console.log("  ✓ sadakat seviyeleri ve abonelik planı");
+  await bottles();
+  console.log("  ✓ şişe ambalaj kalemleri (stok girişi için)");
+  await customers();
+  console.log("  ✓ örnek müşteriler (KVKK rıza kayıtlı, PII şifreli)");
+  await batches();
+  console.log("  ✓ örnek üretim partileri (karışım + demlenme)");
 }
 
 main()

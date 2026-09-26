@@ -23,4 +23,6 @@ export const apiUrl = `http://localhost:${E2E.apiPort}`;
 
 export interface E2EState {
   admin: { email: string; password: string; fullName: string };
+  /** Dört göz onayı için ikinci yönetici */
+  approver: { email: string; password: string; fullName: string };
 }

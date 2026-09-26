@@ -19,23 +19,25 @@
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "three": "^0.171.0"
   },
   "devDependencies": {
+    "@atelier/db": "workspace:*",
     "@next/eslint-plugin-next": "^16.3.0",
+    "@node-rs/argon2": "^2.0.0",
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^24.0.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.171.0",
     "dotenv": "^16.4.0",
     "eslint-plugin-react-hooks": "^7.0.0",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5.9.0",
-    "vitest": "^3.2.0",
-    "@playwright/test": "^1.55.0",
     "tsx": "^4.19.0",
-    "@atelier/db": "workspace:*",
-    "@node-rs/argon2": "^2.0.0"
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
   }
 }

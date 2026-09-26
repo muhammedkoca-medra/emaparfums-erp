@@ -53,16 +53,16 @@ gantt
 
 **Amaç:** Doğru stok verisi. Diğer her şey buna dayanır.
 
-- [ ] **F1-01** Kalem (Item) ve ürün (Product) kartları: CRUD, barkod, GTİP, vergi kategorisi, notalar.
-- [ ] **F1-02** Formül ve reçete (BOM) kartları: sürümleme, onay, alerjen listesi.
-- [ ] **F1-03** `recordMovement()` stok servisi (STK-01…03) + testler.
-- [ ] **F1-04** FEFO rezervasyon servisi (STK-04) + eşzamanlılık testi.
-- [ ] **F1-05** Min stok ve SKT kuralları (STK-05, STK-08) + gece tutarlılık işi (STK-10).
-- [ ] **F1-06** Stok ekranları (prototip 03): liste, kalem detayı, depolar, hareketler.
-- [ ] **F1-07** Web üzerinden sayım (STK-09); mobil Faz 3'te.
-- [ ] **F1-08** `TaxRule` yönetimi + `packages/shared/src/tax.ts` entegrasyonu (VRG-01, VRG-02).
-- [ ] **F1-09** Yetki matrisi ve işlem geçmişi ekranları (prototip 17).
-- [ ] **F1-10** Kontrol paneli iskeleti: KPI kartları, canlı akış (SSE).
+- [x] **F1-01** Kalem (Item) ve ürün (Product) kartları: CRUD, barkod, GTİP, vergi kategorisi, notalar.
+- [x] **F1-02** Formül ve reçete (BOM) kartları: sürümleme, onay, alerjen listesi.
+- [x] **F1-03** `recordMovement()` stok servisi (STK-01…03) + testler.
+- [x] **F1-04** FEFO rezervasyon servisi (STK-04) + eşzamanlılık testi.
+- [x] **F1-05** Min stok ve SKT kuralları (STK-05, STK-08) + gece tutarlılık işi (STK-10).
+- [x] **F1-06** Stok ekranları (prototip 03): liste, kalem detayı, depolar, hareketler.
+- [x] **F1-07** Web üzerinden sayım (STK-09); mobil Faz 3'te.
+- [x] **F1-08** `TaxRule` yönetimi + `packages/shared/src/tax.ts` entegrasyonu (VRG-01, VRG-02).
+- [x] **F1-09** Yetki matrisi ve işlem geçmişi ekranları (prototip 17).
+- [x] **F1-10** Kontrol paneli iskeleti: KPI kartları, canlı akış (SSE).
 
 **Çıkış kriterleri**
 - Tohum verisiyle prototipteki stok ekranı birebir üretiliyor.
@@ -75,9 +75,9 @@ gantt
 
 **Amaç:** Tek bir kanalda gerçek sipariş: ödeme, fatura, kargo ve stok uçtan uca otomatik.
 
-- [ ] **F2-01** Müşteri ve adres, KVKK rıza kayıtları, Müşteri 360° temel görünümü.
-- [ ] **F2-02** Satış siparişi, durum makinesi, kanal önekleri, vergi anlık görüntüsü (SAL-01…07).
-- [ ] **F2-03** `IYZICO` adaptörü + checkout + webhook (ODM-01…04).
+- [x] **F2-01** Müşteri ve adres, KVKK rıza kayıtları, Müşteri 360° temel görünümü.
+- [x] **F2-02** Satış siparişi, durum makinesi, kanal önekleri, vergi anlık görüntüsü (SAL-01…07). · _SAL-01 kanal öneki, SAL-02 vergi anlık görüntüsü (lineFromGrossUnit), SAL-03 DRAFT/SALES_LOCKED engeli, SAL-06/07 durum makinesi + iptal, liste/detay/yeni sipariş arayüzü hazır. SAL-05 B2B kredi limiti ve pazaryeri harici dedup (SAL-01 externalOrderNo) pazaryeri adaptörleriyle (F2-11+) gelecek._
+- [ ] **F2-03** `IYZICO` adaptörü + checkout + webhook (ODM-01…04). · _Kısmi: yerel SANDBOX ödeme akışı hazır — checkout (kart verisi alınmaz, ODM-01), imza doğrulamalı idempotent webhook (ODM-04), payment.captured → worker siparişi CONFIRMED yapar; sipariş detayında ödeme paneli + simülasyon. Gerçek IYZICO/PAYTR adaptörü (packages/integrations, hosted/3DS) canlıya çıkışta._
 - [ ] **F2-04** `PAYTR` adaptörü + yedek yönlendirme + ödeme linki.
 - [ ] **F2-05** `EINVOICE` adaptörü (seçilen entegratör): mükellef sorgusu, e-Arşiv, e-Fatura, durum, PDF (FTR-01…06, FTR-10).
 - [ ] **F2-06** Fatura ekranları (prototip 11) + hatalı belge kuyruğu.
@@ -103,7 +103,7 @@ gantt
 
 ## Faz 3 · Üretim, kalite ve mobil depo (≈6 hafta)
 
-- [ ] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…08).
+- [ ] **F3-01** Üretim partileri, aşamalar, maserasyon kilidi (URT-01…08). · _Kısmi: karışım kartı (esans/baz gramaj + %), aşama akışı + geçiş logu + olay (URT-08), maserasyon kilidi + erken geçiş onayı (URT-04), URT-01 onaylı formül kontrolü ve görsel arayüz (beher, maserasyon saati, aşama adımları) hazır. Kalan: URT-02 ölçekleme/eksik, URT-03 FEFO tüketim + BatchConsumption + maliyet, URT-07 hat planı._
 - [ ] **F3-02** Hat planı (Gantt), kapasite kontrolü.
 - [ ] **F3-03** Formül değişikliğinde IFRA limit kontrolü (URT-09), limit tablosu.
 - [ ] **F3-04** Kalite: muayene şablonları, lot serbest bırakma, DÖF (KAL-01…03).

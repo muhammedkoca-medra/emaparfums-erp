@@ -9,7 +9,7 @@ export class ClientApiError extends Error {
   }
 }
 
-async function send<T>(method: "POST" | "PUT" | "PATCH", path: string, body?: unknown): Promise<T> {
+async function send<T>(method: "GET" | "POST" | "PUT" | "PATCH", path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     headers: { "content-type": "application/json", accept: "application/json" },
@@ -21,6 +21,7 @@ async function send<T>(method: "POST" | "PUT" | "PATCH", path: string, body?: un
   return data as T;
 }
 
+export const apiGetClient = <T>(path: string) => send<T>("GET", path);
 export const apiPost = <T>(path: string, body?: unknown) => send<T>("POST", path, body);
 export const apiPut = <T>(path: string, body?: unknown) => send<T>("PUT", path, body);
 export const apiPatch = <T>(path: string, body?: unknown) => send<T>("PATCH", path, body);

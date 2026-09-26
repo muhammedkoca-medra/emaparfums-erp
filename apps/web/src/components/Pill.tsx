@@ -39,3 +39,7 @@ export const COUNT_TONE: Record<"OPEN" | "SUBMITTED" | "APPROVED", Tone> = {
   SUBMITTED: "warn",
   APPROVED: "ok",
 };
+
+export const PRODUCT_TONE: Record<string, Tone> = { DRAFT: "neu", ACTIVE: "ok", SALES_LOCKED: "bad", DISCONTINUED: "warn" };
+export const FORMULA_TONE: Record<string, Tone> = { DRAFT: "neu", IN_REVIEW: "warn", APPROVED: "ok", ARCHIVED: "neu" };
+export const TAX_STATE_TONE: Record<"PENDING" | "ACTIVE" | "SCHEDULED" | "EXPIRED", Tone> = { PENDING: "warn", ACTIVE: "ok", SCHEDULED: "neu", EXPIRED: "neu" };

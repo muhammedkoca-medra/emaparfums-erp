@@ -12,8 +12,9 @@ import {
   Req,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { type Db, emit, type Tx, writeAudit } from "@atelier/db";
+import { type Db, emit, Prisma, type Tx, writeAudit } from "@atelier/db";
 import {
+  BOTTLE_MODELS,
   catalogQuerySchema,
   type ItemCreateRequest,
   itemCreateSchema,
@@ -131,6 +132,41 @@ export class CatalogController {
 
   // ---- Ürünler ----
 
+  /** Şişe modelleri + bağlı ambalaj kaleminin stoğu (ürün bazlı şişeleme + stok girişi). */
+  @Get("bottles")
+  @RequirePermission("sales", "VIEW")
+  async bottles() {
+    const items = await this.prisma.item.findMany({
+      where: { code: { in: BOTTLE_MODELS.map((b) => b.itemCode) } },
+      select: { id: true, code: true, name: true, uom: true, minStock: true },
+    });
+    const byCode = new Map(items.map((i) => [i.code, i]));
+    const sums = await this.prisma.stockBalance.groupBy({
+      by: ["itemId"],
+      where: { itemId: { in: items.map((i) => i.id) } },
+      _sum: { qtyOnHand: true, qtyReserved: true },
+    });
+    const stockBy = new Map(sums.map((s) => [s.itemId, s._sum]));
+    const usage = await this.prisma.product.groupBy({ by: ["bottleModel"], _count: { _all: true }, where: { bottleModel: { not: null } } });
+    const usageBy = new Map(usage.map((u) => [u.bottleModel, u._count._all]));
+    return BOTTLE_MODELS.map((m) => {
+      const item = byCode.get(m.itemCode) ?? null;
+      const st = item ? stockBy.get(item.id) : undefined;
+      const onHand = st?.qtyOnHand ?? new Prisma.Decimal(0);
+      const reserved = st?.qtyReserved ?? new Prisma.Decimal(0);
+      return {
+        code: m.code,
+        name: m.name,
+        objUrl: m.objUrl,
+        glass: m.glass,
+        volumeMl: m.volumeMl,
+        item: item ? { id: item.id, code: item.code, name: item.name, uom: item.uom } : null,
+        stock: item ? { onHand: onHand.toString(), reserved: reserved.toString(), available: onHand.minus(reserved).toString(), uom: item.uom } : null,
+        productCount: usageBy.get(m.code) ?? 0,
+      };
+    });
+  }
+
   @Get("products")
   @RequirePermission("sales", "VIEW")
   async products() {
@@ -147,10 +183,11 @@ export class CatalogController {
         taxCategory: true,
         status: true,
         item: { select: { id: true, code: true } },
-        formula: { select: { code: true, version: true, status: true } },
+        formula: { select: { id: true, code: true, version: true, status: true } },
+        media: { where: { role: "NOTES_CARD" }, orderBy: { sortOrder: "asc" }, select: { url: true }, take: 1 },
       },
     });
-    return rows;
+    return rows.map(({ media, ...r }) => ({ ...r, imageUrl: media[0]?.url ?? null }));
   }
 
   @Get("products/:id")
@@ -178,6 +215,88 @@ export class CatalogController {
       notes: p.notes.map((n) => ({ name: n.note.name, family: n.note.family, tier: n.tier })),
       canEditScent: perms.has("scent:EDIT"),
       canSeeFormula: perms.has("production:VIEW"),
+    };
+  }
+
+  /**
+   * Ürün genel bakış (görsel merkez): stok, fiyat, formül ve hammadde stoğu tek yerde.
+   * Formül ve hammadde stoğu ticari gizli (production:VIEW). Oran/karar burada yapılmaz; okunur.
+   */
+  @Get("products/:id/overview")
+  @RequirePermission("sales", "VIEW")
+  async overview(@Param("id") id: string, @CurrentUser() auth: AuthContext) {
+    const p = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        item: { select: { id: true, code: true, name: true, uom: true, minStock: true } },
+        formula: { select: { id: true, code: true, version: true, name: true, status: true, concentrationPct: true } },
+        media: { where: { role: "NOTES_CARD" }, orderBy: { sortOrder: "asc" }, select: { url: true }, take: 1 },
+      },
+    });
+    if (!p) throw new NotFoundException({ message: "Ürün bulunamadı" });
+    const perms = await this.permissions.forUser(auth.userId);
+    const canFormula = perms.has("production:VIEW");
+
+    const bal = await this.prisma.stockBalance.aggregate({
+      where: { itemId: p.itemId },
+      _sum: { qtyOnHand: true, qtyReserved: true },
+    });
+    const onHand = bal._sum.qtyOnHand ?? new Prisma.Decimal(0);
+    const reserved = bal._sum.qtyReserved ?? new Prisma.Decimal(0);
+
+    const priceRow = await this.prisma.priceListItem.findFirst({
+      where: { productId: id, validFrom: { lte: new Date() } },
+      orderBy: { validFrom: "desc" },
+      include: { priceList: { select: { currency: true, pricesIncludeTax: true } } },
+    });
+
+    let rawMaterials: { code: string; name: string; uom: string; onHand: string; minStock: string | null; belowMin: boolean; pct: string }[] | null =
+      null;
+    if (canFormula && p.formula) {
+      const lines = await this.prisma.formulaLine.findMany({
+        where: { formulaId: p.formula.id },
+        include: { item: { select: { id: true, code: true, name: true, uom: true, minStock: true } } },
+        orderBy: { percentage: "desc" },
+      });
+      const sums = await this.prisma.stockBalance.groupBy({
+        by: ["itemId"],
+        where: { itemId: { in: lines.map((l) => l.itemId) } },
+        _sum: { qtyOnHand: true },
+      });
+      const onHandBy = new Map(sums.map((s) => [s.itemId, s._sum.qtyOnHand ?? new Prisma.Decimal(0)]));
+      rawMaterials = lines.map((l) => {
+        const oh = onHandBy.get(l.itemId) ?? new Prisma.Decimal(0);
+        return {
+          code: l.item.code,
+          name: l.item.name,
+          uom: l.item.uom,
+          onHand: oh.toString(),
+          minStock: l.item.minStock?.toString() ?? null,
+          belowMin: l.item.minStock ? oh.lessThan(l.item.minStock) : false,
+          pct: l.percentage.toString(),
+        };
+      });
+    }
+
+    return {
+      id: p.id,
+      sku: p.sku,
+      name: p.name,
+      concentration: p.concentration,
+      volumeMl: p.volumeMl,
+      status: p.status,
+      taxCategory: p.taxCategory,
+      bottleModel: p.bottleModel,
+      imageUrl: p.media[0]?.url ?? null,
+      scentProfile: p.scentProfile,
+      item: { id: p.item.id, code: p.item.code, name: p.item.name, uom: p.item.uom, minStock: p.item.minStock?.toString() ?? null },
+      stock: { onHand: onHand.toString(), reserved: reserved.toString(), available: onHand.minus(reserved).toString(), uom: p.item.uom },
+      price: priceRow
+        ? { amount: priceRow.price.toString(), currency: priceRow.priceList.currency, includesTax: priceRow.priceList.pricesIncludeTax }
+        : null,
+      formula: canFormula ? p.formula : p.formula ? { id: p.formula.id, code: p.formula.code, version: p.formula.version, status: p.formula.status, name: null, concentrationPct: null } : null,
+      canSeeFormula: canFormula,
+      rawMaterials,
     };
   }
 

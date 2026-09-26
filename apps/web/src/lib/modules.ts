@@ -34,6 +34,7 @@ export const ICONS = {
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4",
   coin: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM15 9h-4a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9M12 7v2M12 15v2",
   heart: "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20a6 6 0 0 1 12 0M16 4a3.5 3.5 0 0 1 0 7M18 20a6 6 0 0 0-3-5.2",
   key: "M8 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM11 10h10M18 10v4M15 10v3",
   phone: "M7 2h10v20H7zM11 18h2",
   spark:
@@ -67,6 +68,9 @@ export const NAV: { group: NavGroupKey; items: NavItem[] }[] = [
         spec: "uretim.md",
       },
       { key: "stock", href: "/stok", permission: "stock", icon: "box", phase: 1, spec: "stok.md" },
+      { key: "catalog", href: "/urunler", permission: "sales", icon: "store", phase: 1 },
+      { key: "bottles", href: "/siseler", permission: "sales", icon: "flask", phase: 1 },
+      { key: "formulas", href: "/formuller", permission: "production", icon: "doc", phase: 1, spec: "uretim.md" },
       {
         key: "purchasing",
         href: "/satin-alma",
@@ -82,6 +86,9 @@ export const NAV: { group: NavGroupKey; items: NavItem[] }[] = [
     group: "commerce",
     items: [
       { key: "sales", href: "/satis", permission: "sales", icon: "trend", phase: 2, spec: "satis.md" },
+      { key: "orders", href: "/siparisler", permission: "sales", icon: "cart", phase: 2, spec: "satis.md" },
+      { key: "customers", href: "/musteriler", permission: "sales", icon: "users", phase: 2, spec: "satis.md" },
+      { key: "pricing", href: "/fiyatlandirma", permission: "sales", icon: "coin", phase: 2, spec: "vergi.md" },
       {
         key: "ecommerce",
         href: "/e-ticaret",

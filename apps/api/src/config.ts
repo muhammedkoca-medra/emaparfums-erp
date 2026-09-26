@@ -18,6 +18,8 @@ const schema = z
     PII_ENC_KEYS: z.string().min(1),
     PII_ENC_ACTIVE_KEY: z.string().min(1),
     PII_HASH_KEY: z.string().min(1),
+    /** Ödeme webhook imza doğrulaması (ODM-04). Üretimde sağlayıcının gizli anahtarıyla değiştirilir. */
+    PAYMENT_WEBHOOK_SECRET: z.string().min(16).default("dev-sandbox-payment-webhook-secret-change-me"),
     LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
     LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),

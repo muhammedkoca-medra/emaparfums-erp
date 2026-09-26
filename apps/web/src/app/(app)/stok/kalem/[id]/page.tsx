@@ -7,6 +7,7 @@ import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { fmtDate, fmtDateTime, fmtQty } from "@/lib/format";
 import { type MovementRow, movementSign, type WarehouseRow } from "@/lib/stock-types";
 import { ItemActions, type LotOption } from "./ItemActions";
+import { ItemEditForm } from "./ItemEditForm";
 import { ReleaseButton } from "./ReleaseButton";
 
 interface ItemDetail {
@@ -233,6 +234,7 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
                 )}
               </dl>
             </section>
+            {perms.has("stock:EDIT") && <ItemEditForm item={item} />}
             {(perms.has("stock:CREATE") || perms.has("quality:APPROVE")) && (
               <ItemActions
                 itemId={item.id}

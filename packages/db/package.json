@@ -25,7 +25,8 @@
     "validate": "prisma validate",
     "test": "vitest run",
     "typecheck": "prisma generate && tsc --noEmit",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "import:showcase": "tsx prisma/import-showcase.ts"
   },
   "dependencies": {
     "@atelier/shared": "workspace:*",
