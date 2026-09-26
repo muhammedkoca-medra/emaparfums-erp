@@ -83,3 +83,48 @@ describe("ödeme (F2-03, ODM-01/04)", () => {
     expect(p.failureCode).toBe("insufficient_funds");
   });
 });
+
+describe("hakediş mutabakatı ve banka eşleme (F4-04/05, ODM-06/07)", () => {
+  it("hakediş içe aktarımı beklenen/fark ve durum hesaplar; eşik üstü fark görev açar", async () => {
+    const sales = await loginAgent(ctx, await createUser(ctx, ["SALES"]));
+    const ok = await sales
+      .post("/payments/settlements/import")
+      .send({ channelId, periodStart: "2027-04-01", periodEnd: "2027-04-30", received: "900.00", lines: [{ kind: "SALE", amount: "1000.00" }, { kind: "COMMISSION", amount: "100.00" }] })
+      .expect(201);
+    expect(ok.body.expected).toBe("900");
+    expect(ok.body.status).toBe("MATCHED");
+    expect(ok.body.taskOpened).toBe(false);
+
+    const diff = await sales
+      .post("/payments/settlements/import")
+      .send({ channelId, periodStart: "2027-05-01", periodEnd: "2027-05-31", received: "700.00", lines: [{ kind: "SALE", amount: "1000.00" }, { kind: "COMMISSION", amount: "100.00" }] })
+      .expect(201);
+    expect(diff.body.status).toBe("DIFF");
+    expect(diff.body.taskOpened).toBe(true);
+
+    const list = await sales.get("/payments/settlements").expect(200);
+    expect(list.body.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("banka ekstresi sipariş no + tutar tutarsa otomatik eşler, kalanı kuyruğa alır; manuel eşleme çalışır", async () => {
+    const sales = await loginAgent(ctx, await createUser(ctx, ["SALES"]));
+    const orderId = await makeOrder(ctx, sales);
+    const order = await ctx.prisma.salesOrder.findUniqueOrThrow({ where: { id: orderId } });
+    const imp = await sales
+      .post("/payments/bank-transactions/import")
+      .send({ transactions: [
+        { bankCode: "TR-X", iban: "TR000000000000000000000001", valueDate: "2027-05-02", amount: order.grandTotal.toFixed(2), description: `EFT ${order.number} musteri odeme` },
+        { bankCode: "TR-X", iban: "TR000000000000000000000001", valueDate: "2027-05-02", amount: "12.34", description: "aciklamasiz gelen" },
+      ] })
+      .expect(201);
+    expect(imp.body.autoMatched).toBe(1);
+    expect(imp.body.queued).toBe(1);
+
+    const unmatched = await sales.get("/payments/bank-transactions?unmatched=true").expect(200);
+    const queued = unmatched.body.find((t: { amount: string }) => t.amount === "12.34");
+    expect(queued).toBeTruthy();
+    await sales.post(`/payments/bank-transactions/${queued.id}/match`).send({ matchedType: "Invoice", matchedId: "inv-x" }).expect(201);
+    const after = await ctx.prisma.bankTransaction.findUniqueOrThrow({ where: { id: queued.id } });
+    expect(after.matchedId).toBe("inv-x");
+  });
+});
