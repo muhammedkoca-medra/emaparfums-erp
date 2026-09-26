@@ -29,6 +29,7 @@ import { CostingController } from "./costing/costing.controller.js";
 import { AccountingController } from "./accounting/accounting.controller.js";
 import { ContentController } from "./marketing/content.controller.js";
 import { SocialController } from "./marketing/social.controller.js";
+import { ScentController } from "./scent/scent.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { InvoicesController } from "./invoices/invoices.controller.js";
 import { EcommerceController } from "./ecommerce/ecommerce.controller.js";
@@ -73,6 +74,7 @@ export class AppModule {
         AccountingController,
         ContentController,
         SocialController,
+        ScentController,
       ],
       providers: [
         { provide: APP_CONFIG, useValue: config },

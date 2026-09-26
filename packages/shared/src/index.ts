@@ -22,3 +22,4 @@ export * from "./ecommerce.js";
 export * from "./quality.js";
 export * from "./costing.js";
 export * from "./content.js";
+export * from "./scent-ai.js";
