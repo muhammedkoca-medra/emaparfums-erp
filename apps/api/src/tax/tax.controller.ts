@@ -177,4 +177,83 @@ export class TaxController {
       note: rule.note,
     };
   }
+
+  /** Ay aralığı (period=YYYY-MM) → [start, end). */
+  private periodRange(period: string): { start: Date; end: Date } {
+    const m = /^(\d{4})-(\d{2})$/.exec(period);
+    if (!m) throw new BadRequestException({ message: "Dönem biçimi YYYY-MM olmalı" });
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    if (month < 1 || month > 12) throw new BadRequestException({ message: "Ay 01–12 olmalı" });
+    return { start: new Date(Date.UTC(year, month - 1, 1)), end: new Date(Date.UTC(year, month, 1)) };
+  }
+
+  /** VRG-07: aylık vergi özeti; satış (tahsil edilen) ve alış (indirilecek) KDV + kanal karşılaştırması. */
+  @Get("summary")
+  @RequirePermission("tax", "VIEW")
+  async summary(@Query("period") period: string) {
+    const { start, end } = this.periodRange(period);
+    const inRange = { issueDate: { gte: start, lt: end }, status: { not: "CANCELLED" as const } };
+    const [sales, purchase] = await Promise.all([
+      this.prisma.invoice.aggregate({ where: { direction: "SALES", ...inRange }, _sum: { kdvTotal: true, otvTotal: true, netTotal: true } }),
+      this.prisma.invoice.aggregate({ where: { direction: "PURCHASE", ...inRange }, _sum: { kdvTotal: true, otvTotal: true, netTotal: true } }),
+    ]);
+    const num = (d: { toString(): string } | null | undefined) => Number(d?.toString() ?? 0);
+    const collected = num(sales._sum.kdvTotal);
+    const deductible = num(purchase._sum.kdvTotal);
+    // Kanal karşılaştırması: dönemdeki onaylı+ siparişler kanala göre.
+    const orders = await this.prisma.salesOrder.findMany({
+      where: { createdAt: { gte: start, lt: end }, status: { notIn: ["NEW", "CANCELLED", "PAYMENT_PENDING"] } },
+      select: { netTotal: true, kdvTotal: true, otvTotal: true, grandTotal: true, channel: { select: { code: true, name: true } } },
+    });
+    const byChannel = new Map<string, { channel: string; net: number; kdv: number; otv: number; gross: number; count: number }>();
+    for (const o of orders) {
+      const key = o.channel?.code ?? "—";
+      const row = byChannel.get(key) ?? { channel: o.channel?.name ?? "—", net: 0, kdv: 0, otv: 0, gross: 0, count: 0 };
+      row.net += num(o.netTotal);
+      row.kdv += num(o.kdvTotal);
+      row.otv += num(o.otvTotal);
+      row.gross += num(o.grandTotal);
+      row.count += 1;
+      byChannel.set(key, row);
+    }
+    return {
+      period,
+      sales: { net: num(sales._sum.netTotal).toFixed(2), kdv: collected.toFixed(2), otv: num(sales._sum.otvTotal).toFixed(2) },
+      purchase: { net: num(purchase._sum.netTotal).toFixed(2), kdv: deductible.toFixed(2) },
+      netKdvPayable: (collected - deductible).toFixed(2),
+      channels: [...byChannel.values()].map((c) => ({ ...c, net: c.net.toFixed(2), kdv: c.kdv.toFixed(2), otv: c.otv.toFixed(2), gross: c.gross.toFixed(2) })),
+    };
+  }
+
+  /** Aylık özeti CSV olarak dışa aktarır (mali müşavir için; beyanname değildir). */
+  @Get("summary/export")
+  @RequirePermission("tax", "VIEW")
+  async summaryExport(@Query("period") period: string, @Req() req: AuthedRequest) {
+    const s = await this.summary(period);
+    const res = req.res!;
+    const lines = [
+      `Donem;${s.period}`,
+      `Satis Net;${s.sales.net}`,
+      `Satis KDV (tahsil);${s.sales.kdv}`,
+      `Satis OTV;${s.sales.otv}`,
+      `Alis Net;${s.purchase.net}`,
+      `Alis KDV (indirilecek);${s.purchase.kdv}`,
+      `Odenecek KDV;${s.netKdvPayable}`,
+      "",
+      "Kanal;Adet;Net;KDV;OTV;Brut",
+      ...s.channels.map((c) => `${c.channel};${c.count};${c.net};${c.kdv};${c.otv};${c.gross}`),
+    ].join("\n");
+    res.setHeader("content-type", "text/csv; charset=utf-8");
+    res.setHeader("content-disposition", `attachment; filename="vergi-ozet-${period}.csv"`);
+    res.end("﻿" + lines);
+  }
+
+  /** Vergi takvimi: yaklaşan beyan/ödeme tarihleri. */
+  @Get("calendar")
+  @RequirePermission("tax", "VIEW")
+  async calendar() {
+    const rows = await this.prisma.taxCalendarEvent.findMany({ orderBy: { dueDate: "asc" }, take: 50 });
+    return rows.map((e) => ({ id: e.id, title: e.title, dueDate: e.dueDate.toISOString().slice(0, 10), period: e.period, status: e.status }));
+  }
 }

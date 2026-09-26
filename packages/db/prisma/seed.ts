@@ -903,6 +903,20 @@ const RESOURCES: { code: string; name: string; kind: string; capacityPerHour?: s
   { code: "PAKET-1", name: "Paket hattı 1", kind: "PACK_LINE", capacityPerHour: "800" },
 ];
 
+/** F4-03: vergi takvimi örnek olayları (beyan tarihleri parametrik; mevzuat teyidine tabi). */
+async function taxCalendar() {
+  const now = new Date();
+  const events = [0, 1, 2].map((i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 26));
+    const period = `${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2, "0") === "00" ? "12" : String(d.getUTCMonth()).padStart(2, "0")}`;
+    return { title: `KDV beyanı · ${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`, dueDate: d, period };
+  });
+  for (const e of events) {
+    const exists = await prisma.taxCalendarEvent.findFirst({ where: { title: e.title } });
+    if (!exists) await prisma.taxCalendarEvent.create({ data: e });
+  }
+}
+
 async function resources() {
   for (const r of RESOURCES) {
     await prisma.resource.upsert({ where: { code: r.code }, update: { name: r.name, kind: r.kind }, create: { code: r.code, name: r.name, kind: r.kind, capacityPerHour: r.capacityPerHour ? D(r.capacityPerHour) : null } });
@@ -944,6 +958,8 @@ async function main() {
   console.log("  ✓ kalite test şablonları (KAL-01)");
   await resources();
   console.log("  ✓ üretim kaynakları (hat planı, URT-07)");
+  await taxCalendar();
+  console.log("  ✓ vergi takvimi (beyan tarihleri)");
 }
 
 main()
