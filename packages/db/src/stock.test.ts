@@ -4,6 +4,7 @@ import { createPrismaClient, type Db, Prisma } from "./index.js";
 import { getSetting, setSetting } from "./settings.js";
 import {
   availableForItem,
+  reservableForItem,
   checkConsistency,
   consumeReservation,
   createLot,
@@ -203,6 +204,18 @@ describe("STK-01 · recordMovement", () => {
     expect((await balance(item.id, lot.id, locA))?.qtyOnHand.toString()).toBe("6");
     expect((await balance(item.id, lot.id, locB))?.qtyOnHand.toString()).toBe("4");
     expect((await tx((t) => availableForItem(t, item.id))).toString()).toBe("10");
+  });
+
+  it("ayrılabilir miktar yalnızca serbest ve süresi geçmemiş lotları sayar; karantina ayrı döner", async () => {
+    const item = await newItem();
+    await lotWith(item.id, 7, { status: "RELEASED" });
+    await lotWith(item.id, 5, { status: "QUARANTINE" });
+    await lotWith(item.id, 3, { status: "RELEASED", expiry: new Date("2020-01-01") });
+    const r = await tx((t) => reservableForItem(t, item.id));
+    expect(r.reservable.toString()).toBe("7");
+    expect(r.quarantine.toString()).toBe("5");
+    // Eski toplam hesap hepsini sayar (15) — üretim ihtiyacında kullanılmaz.
+    expect((await tx((t) => availableForItem(t, item.id))).toString()).toBe("15");
   });
 
   it("düzeltme artış ve azalış", async () => {

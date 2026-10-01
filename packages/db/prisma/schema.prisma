@@ -201,7 +201,8 @@ model Item {
   storageNote        String? // "12–15°C, ışıktan uzak"
   isHazardous        Boolean             @default(false) // alkol içerikli: UN1266
   belowMinNotifiedAt DateTime? // STK-05: stock.below_min en fazla 24 saatte bir
-  product            Product?
+  product            Product?            @relation("ProductItem")
+  testerFor          Product?            @relation("ProductTesterItem")
   lots               Lot[]
   balances           StockBalance[]
   movements          StockMovement[]
@@ -234,7 +235,10 @@ enum ProductStatus {
 model Product {
   id              String               @id @default(cuid())
   itemId          String               @unique
-  item            Item                 @relation(fields: [itemId], references: [id])
+  item            Item                 @relation("ProductItem", fields: [itemId], references: [id])
+  // Satılamaz tester stoğunun kalemi (SAMPLE · ML). İlk tester dolumunda açılır.
+  testerItemId    String?              @unique
+  testerItem      Item?                @relation("ProductTesterItem", fields: [testerItemId], references: [id])
   sku             String               @unique
   barcode         String?              @unique // GTIN/EAN-13
   name            String
@@ -787,9 +791,16 @@ model ProductionBatch {
   plannedQty      Int
   producedQty     Int                  @default(0)
   stage           BatchStage           @default(FORMULA_APPROVAL)
-  // Karışım reçetesi (EMA üretim kartı): esans + parfüm bazı gramajı. Yüzdeler gramajdan hesaplanır.
+  // Eski partiler: esans + parfüm bazı gramajı (geçmiş kayıt). Yeni partiler hacimle (ml) açılır.
   essenceGr       Decimal?             @db.Decimal(12, 2)
   baseGr          Decimal?             @db.Decimal(12, 2)
+  // Hacimle parti: toplam ml; esans/baz formül konsantrasyonundan bölünüp anlık görüntü olarak saklanır.
+  plannedMl       Decimal?             @db.Decimal(12, 2)
+  essenceMl       Decimal?             @db.Decimal(12, 2)
+  baseMl          Decimal?             @db.Decimal(12, 2)
+  // Dolum dağılımı: tester (ayrı tester stoğuna) ve fire hacmi, ml.
+  testerMl        Decimal              @default(0) @db.Decimal(12, 2)
+  scrapMl         Decimal              @default(0) @db.Decimal(12, 2)
   macerationStart DateTime?
   macerationDays  Int?
   macerationPlace String? // demlenme yeri (ör. "Soğuk oda R2", "Tank T3")
@@ -989,13 +1000,13 @@ enum CustomerType {
 }
 
 model Customer {
-  id       String       @id @default(cuid())
-  type     CustomerType
-  fullName String
+  id                 String            @id @default(cuid())
+  type               CustomerType
+  fullName           String
   // Gizli kişisel (docs/07): AES-256-GCM şifreli token saklanır; arama HMAC hash ile.
-  email    String? // şifreli
-  phone    String? // şifreli
-  taxNo    String? // VKN/TCKN — şifreli
+  email              String? // şifreli
+  phone              String? // şifreli
+  taxNo              String? // VKN/TCKN — şifreli
   // Eşitlik araması için HMAC-SHA256 hash (packages/shared/src/node/pii.ts searchHash).
   emailHash          String?
   phoneHash          String?
@@ -1717,7 +1728,9 @@ enum IntegrationStatus {
   ERROR
 }
 
-/** Günlük döviz kuru (F2-17 · FX_TCMB). Belge tarihindeki kur satıra kopyalanır; burada arşiv tutulur. */
+/**
+ * Günlük döviz kuru (F2-17 · FX_TCMB). Belge tarihindeki kur satıra kopyalanır; burada arşiv tutulur.
+ */
 model FxRate {
   id        String   @id @default(cuid())
   base      String   @default("TRY")

@@ -25,6 +25,7 @@ import { FormulasController } from "./formulas/formulas.controller.js";
 import { CountsController } from "./stock/counts.controller.js";
 import { StockController } from "./stock/stock.controller.js";
 import { ProductionController } from "./production/production.controller.js";
+import { ProductionSetupController } from "./production/production-setup.controller.js";
 import { QualityController } from "./quality/quality.controller.js";
 import { CostingController } from "./costing/costing.controller.js";
 import { AccountingController } from "./accounting/accounting.controller.js";
@@ -73,6 +74,7 @@ export class AppModule {
         EcommerceController,
         FxController,
         ProductionController,
+        ProductionSetupController,
         QualityController,
         CostingController,
         AccountingController,

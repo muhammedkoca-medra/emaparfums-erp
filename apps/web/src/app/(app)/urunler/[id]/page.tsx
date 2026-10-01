@@ -11,6 +11,7 @@ import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { fmtMoney, fmtQty } from "@/lib/format";
 import { DeleteProductButton } from "../_components/DeleteProductButton";
 import { ProductImageManager } from "../_components/ProductImageManager";
+import { ProductionSetupPanel, type SetupData } from "../_components/ProductionSetupPanel";
 import { type ScentProfileForm } from "../_components/ScentProfileFields";
 import { VitrinProfileEditor } from "../_components/VitrinProfileEditor";
 import { ProductActions } from "../ProductActions";
@@ -74,6 +75,19 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const bottle = BOTTLE_MODELS.find((b) => b.code === (ov?.bottleModel ?? p.bottleModel)) ?? null;
   const canEditSales = me.permissions.includes("sales:EDIT");
   const canDelete = me.permissions.includes("sales:DELETE");
+  // Üretim kurulumu (formül + reçete): üretim yetkisiyle görünür.
+  const setup = me.permissions.includes("production:VIEW")
+    ? await apiGet<SetupData>(`/production/setup/${encodeURIComponent(id)}`).catch(() => null)
+    : null;
+  // Sıradaki kurulmamış ürün (ada göre sırada bundan sonraki; yoksa baştan) — 60 ürünü tek tek gezmek için.
+  let nextProduct: { id: string; name: string } | null = null;
+  if (setup && me.permissions.includes("production:CREATE")) {
+    const all = await apiGet<{ id: string; name: string; formula: { status: string } | null }[]>("/catalog/products").catch(() => []);
+    const sorted = [...all].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    const idx = sorted.findIndex((x) => x.id === id);
+    const pendingAfter = [...sorted.slice(idx + 1), ...sorted.slice(0, Math.max(idx, 0))].filter((x) => x.formula?.status !== "APPROVED");
+    nextProduct = pendingAfter[0] ? { id: pendingAfter[0].id, name: pendingAfter[0].name } : null;
+  }
   const GENDERS = ["women", "men", "unisex"] as const;
   const initialProfile: ScentProfileForm | null = sp
     ? {
@@ -235,6 +249,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <VitrinProfileEditor productId={p.id} initial={initialProfile} canEdit={canEditSales} />
           </section>
         )}
+
+        {/* Üretim kurulumu: formül + reçete (parti açabilmek için) */}
+        {setup && <ProductionSetupPanel data={setup} canCreate={me.permissions.includes("production:CREATE")} nextProduct={nextProduct} />}
 
         {/* Kart düzenleme (yetkiye göre) */}
         <details className="rounded-[18px] border border-line bg-surface">

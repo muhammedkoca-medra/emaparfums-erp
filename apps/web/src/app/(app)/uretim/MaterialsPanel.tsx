@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 export interface MaterialLine {
@@ -7,6 +8,7 @@ export interface MaterialLine {
   uom: string;
   requiredQty: string;
   availableQty: string;
+  quarantineQty?: string;
   shortageQty: string;
   ok: boolean;
 }
@@ -33,7 +35,12 @@ export async function MaterialsPanel({ materials }: { materials: Materials }) {
         <h3 className="m-0 font-display text-[16px] font-semibold">{t("title")}</h3>
         <p className="m-0 text-[12px] text-muted">{t("subtitle")}</p>
       </div>
-      {materials.hasShortage && <p className="m-0 rounded-[9px] bg-bad-bg px-3 py-2 text-[13px] text-bad">{t("shortageWarn")}</p>}
+      {materials.hasShortage && (
+        <div className="flex flex-col gap-1 rounded-[9px] bg-bad-bg px-3 py-2 text-[13px] text-bad">
+          <p className="m-0">{t("shortageWarn")}</p>
+          <p className="m-0 text-[12px]">{t("shortageHelp")}</p>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
@@ -55,13 +62,23 @@ export async function MaterialsPanel({ materials }: { materials: Materials }) {
                 </td>
                 <td className="num py-1.5 pr-3 text-right">
                   {l.availableQty} {l.uom}
+                  {l.quarantineQty && Number(l.quarantineQty) > 0 && (
+                    <span className="block text-[11px] font-semibold text-warn">
+                      {t("inQuarantine", { qty: l.quarantineQty, uom: l.uom })}
+                    </span>
+                  )}
                 </td>
                 <td className="py-1.5 text-right">
                   {l.ok ? (
                     <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[12px] font-semibold text-ok">✓ {t("ok")}</span>
                   ) : (
-                    <span className="num rounded-full bg-bad-bg px-2 py-0.5 text-[12px] font-semibold text-bad">
-                      −{l.shortageQty} {l.uom}
+                    <span className="inline-flex flex-col items-end gap-1">
+                      <span className="num rounded-full bg-bad-bg px-2 py-0.5 text-[12px] font-semibold text-bad">
+                        −{l.shortageQty} {l.uom}
+                      </span>
+                      <Link href={`/stok/kalem/${l.itemId}`} className="text-[11.5px] font-semibold text-gold-text">
+                        {t("fixStock")} →
+                      </Link>
                     </span>
                   )}
                 </td>

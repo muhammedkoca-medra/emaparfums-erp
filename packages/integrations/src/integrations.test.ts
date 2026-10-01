@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { EmbeddingsCapabilities, IntegrationAdapter } from "./adapter.js";
 import {
   backoffDelay,
   buildContext,
@@ -34,7 +35,7 @@ describe("kayıt defteri", () => {
     }
   });
   it("embeddings mock deterministik vektör üretir (F5-09)", async () => {
-    const { adapter } = createDefaultRegistry().resolve<import("./adapter.js").IntegrationAdapter & import("./adapter.js").EmbeddingsCapabilities>("EMBEDDINGS", { credentials: {} }, "mock");
+    const { adapter } = createDefaultRegistry().resolve<IntegrationAdapter & EmbeddingsCapabilities>("EMBEDDINGS", { credentials: {} }, "mock");
     const sink = new MemoryLogSink();
     const v1 = await adapter.embed(ctxWith(sink), "amber woody");
     const v2 = await adapter.embed(ctxWith(sink), "amber woody");

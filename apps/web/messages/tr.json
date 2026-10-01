@@ -1032,17 +1032,35 @@
       "shortage": "Eksik",
       "ok": "Yeterli",
       "noBom": "Bu ürün için aktif reçete (BOM) tanımlı değil; parti esans/baz karışım kartıyla yürütülür.",
-      "shortageWarn": "Eksik malzeme var; tartım aşamasına geçiş engellenir. Satın alma önerilir."
+      "shortageWarn": "Eksik malzeme var; tartım aşamasına geçiş engellenir. Satın alma önerilir.",
+      "shortageHelp": "Stok girdiyseniz lot kalite onayı bekliyor olabilir: 'Stok gir / serbest bırak' → İşlemler → Kalite durumu → Serbest.",
+      "fixStock": "Stok gir / serbest bırak",
+      "inQuarantine": "+{qty} {uom} kalite onayı bekliyor"
     },
     "output": {
       "title": "Dolum çıktısı",
-      "subtitle": "Üretilen ve fire adedini girin; mamul lotu karantinada açılır.",
+      "subtitle": "Dolumda hazırlanan her şeyi dağıtın: satılacak adet stoğa, tester ayrı tester stoğuna, fire kayda.",
       "produced": "Üretilen adet",
-      "scrap": "Fire adedi",
+      "scrap": "Fire",
       "note": "Not (isteğe bağlı)",
       "submit": "Çıktıyı kaydet",
       "done": "Çıktı kaydedildi; mamul lotu {lot} karantinada açıldı.",
-      "already": "Bu parti için çıktı zaten girildi."
+      "already": "Bu parti için çıktı zaten girildi.",
+      "toStock": "Stoğa gönder",
+      "unitPcs": "adet",
+      "toStockHint": "{vol} ml şişe · satılabilir stoğa gider",
+      "tester": "Tester",
+      "testerHint": "Ayrı tester stoğuna gider; satılamaz",
+      "scrapHint": "Dökülme / kayıp; stoğa girmez",
+      "batchVolume": "Parti hacmi",
+      "distributed": "Dağıtılan",
+      "balanced": "Hacim tam karşılandı ✓",
+      "unaccounted": "{ml} ml kayıt dışı kaldı",
+      "over": "Partiden {ml} ml fazla dağıtıldı",
+      "doneStock": "{qty} adet satılabilir stoğa girdi (lot {lot}).",
+      "doneTester": "{ml} ml tester stoğuna girdi (lot {lot}).",
+      "doneQc": "Lotlar karantinada; kalite onayından sonra kullanılabilir.",
+      "summary": "Dolum dağılımı"
     },
     "form": {
       "product": "Parfüm (ürün)",
@@ -1055,8 +1073,14 @@
       "bottleType": "Şişe türü",
       "create": "Partiyi başlat",
       "saved": "Kaydedildi.",
-      "noFormula": "Yalnızca onaylı formülü olan ürünler için parti açılır.",
-      "concentrationHint": "Konsantrasyon: %{pct}"
+      "noFormula": "Yalnızca onaylı formülü olan ürünler için parti açılır. Formül için ürün sayfasında 'Üretim kurulumu' yapın.",
+      "concentrationHint": "Konsantrasyon: %{pct}",
+      "plannedMl": "Toplam hacim (ml)",
+      "splitTitle": "Formül %{pct} · şişe {vol} ml",
+      "expectedUnits": "Beklenen şişe",
+      "mlHint": "Toplam hacmi ml olarak girin; esans ve baz formül oranına göre otomatik bölünür.",
+      "essenceMl": "Esans (ml)",
+      "baseMl": "Parfüm bazı (ml)"
     },
     "edit": {
       "title": "Elle düzenle",
@@ -1068,9 +1092,97 @@
       "macerationStart": "Demlenme başlangıcı",
       "save": "Değerleri kaydet",
       "saved": "Değerler güncellendi.",
-      "stageSaved": "Aşama güncellendi."
+      "stageSaved": "Aşama güncellendi.",
+      "volumeHint": "Hacmi değiştirirseniz adet ile esans/baz miktarı formül oranına göre yeniden hesaplanır.",
+      "stageStartedAt": "Aşamaya giriş tarihi (isteğe bağlı)",
+      "stageStartedAtHint": "Geçmiş üretimi işlerken gerçek tarihi girin; boş bırakılırsa şimdi."
     },
-    "bottle3d": "Şişe (3B)"
+    "bottle3d": "Şişe (3B)",
+    "units": "{count, plural, one {# adet} other {# adet}}",
+    "quality": {
+      "title": "Kalite onayı",
+      "subtitle": "Testleri kontrol edip tek tek işaretleyin. Hepsi geçtiyse onaylayın; lotlar serbest kalır ve ürün satışa açılır.",
+      "status": {
+        "QUARANTINE": "Karantina",
+        "RELEASED": "Serbest",
+        "REJECTED": "Reddedildi"
+      },
+      "allReleased": "Tüm lotlar serbest bırakıldı; ürün satışta.",
+      "noPermission": "Kalite onayı vermek için yetkiniz yok.",
+      "checklist": "Kontrol listesi",
+      "checkAll": "Hepsini geçti olarak işaretle",
+      "checkAllHint": "Onay için tüm testler işaretlenmeli. Bir test kaldıysa Kalite ekranından kayıt açın.",
+      "noTests": "Bu lotlar için tanımlı test yok; doğrudan onaylanabilir.",
+      "approve": "Kaliteyi onayla, satışa aç",
+      "approving": "Onaylanıyor…",
+      "done": "Onaylandı: {lots}. Ürün satışa açıldı."
+    },
+    "setup": {
+      "title": "Üretim kurulumu",
+      "intro": "Bu ürünün formülü (esans + konsantrasyon) ve reçetesi. Kurulum tamamlanınca bu ürün için parti açılabilir.",
+      "status": {
+        "APPROVED": "Onaylı",
+        "IN_REVIEW": "Onay bekliyor",
+        "DRAFT": "Taslak",
+        "ARCHIVED": "Arşiv"
+      },
+      "notSetUp": "Kurulmadı",
+      "currentBom": "Reçete · {size} adet · %{pct} esans",
+      "pcs": "adet",
+      "openBatch": "Parti aç",
+      "createTitle": "Formül ve reçeteyi oluştur",
+      "updateTitle": "Kurulumu güncelle (yeni formül sürümü açılır)",
+      "concentration": "Konsantrasyon (%)",
+      "concentrationPlaceholder": "ör. 20",
+      "concentrationHint": "Son üründeki esans oranı. Kalan kısım parfüm bazıdır.",
+      "essence": "Esans",
+      "base": "Parfüm bazı",
+      "choose": "Seçin",
+      "newItem": "Yeni kart aç",
+      "itemCode": "Kod",
+      "itemName": "Ad",
+      "packaging": "Ambalaj (şişe başına 1 adet · isteğe bağlı)",
+      "noPackaging": "Tanımlı ambalaj kalemi yok. İsterseniz Stok → Kalem kartları'ndan ekleyip burada seçin.",
+      "perBottle": "Şişe başına ({vol} ml)",
+      "perBatch": "{size} adet için",
+      "needsApproval": "Formül onaylama yetkiniz yok; kurulum onaya gönderilecek.",
+      "save": "Formül ve reçeteyi oluştur",
+      "update": "Yeni sürümle güncelle",
+      "saving": "Kaydediliyor…",
+      "doneApproved": "{code} v{version} onaylandı ve ürüne bağlandı. Artık parti açabilirsiniz.",
+      "doneReview": "{code} v{version} onaya gönderildi.",
+      "nextProduct": "Sıradaki ürün: {name}"
+    },
+    "setupProgress": {
+      "title": "Üretim kurulumu",
+      "intro": "Parti açabilmek için her ürüne formül ve reçete kurulur. Siyah olan sıradaki ürün; tıklayıp kurun.",
+      "count": "{ready} / {total} ürün hazır",
+      "more": "ve {count} ürün daha"
+    },
+    "next": {
+      "title": "Şimdi ne yapmalı?",
+      "default": "Partiyi bir sonraki aşamaya geçirin.",
+      "FORMULA_APPROVAL": "Malzeme tablosunu kontrol edin. Eksik yoksa 'Sonraki aşamaya geç' ile tartıma geçin; esans ve baz stoktan ayrılır.",
+      "WEIGHING_MIXING": "Esansı ve bazı yukarıdaki miktarlarda tartıp karıştırın. Bitince sonraki aşamaya geçin; malzemeler stoktan düşülür.",
+      "MACERATION": "Karışım demleniyor. Süre dolunca sonraki aşamaya geçin (erken geçiş gerekçe ve yönetici onayı ister).",
+      "CHILL_FILTER": "Soğutup filtreleyin. Bitince dolum aşamasına geçin.",
+      "FILLING": "Şişeleri doldurun, sonra aşağıdaki 'Dolum çıktısı' formuna satılacak adedi, testeri ve fireyi girin.",
+      "LABEL_PACK": "Etiketleyip paketleyin. Bitince kalite kontrole geçin.",
+      "QUALITY_CONTROL": "Dolum dağılımı girilmediyse önce aşağıdaki formu doldurun. Sonra kalite onayı listesindeki testleri işaretleyip 'Kaliteyi onayla, satışa aç' deyin.",
+      "RELEASED": "Parti tamamlandı; ürün stokta ve satışta.",
+      "CANCELLED": "Bu parti iptal edildi.",
+      "fillingBlocked": "Önce aşağıdaki 'Dolum çıktısı' formunu kaydedin."
+    },
+    "existing": {
+      "toggle": "Devam eden bir üretimi kaydediyorum",
+      "toggleHint": "Örn. şu an demlenmede olan bir parti. Doğrudan o aşamada, geçmiş tarihle açılır.",
+      "stage": "Şu an hangi aşamada?",
+      "startedAt": "Bu aşamaya giriş tarihi",
+      "macerationStartedAt": "Demlenmeye başladığı tarih",
+      "macerationStart": "Demlenme başlangıcı (biliniyorsa)",
+      "stockNote": "Bu partinin geçmişte kullanılan malzemeleri stoktan düşülmez. Sonraki aşamalar normal işler.",
+      "create": "Mevcut üretimi kaydet"
+    }
   },
   "orders": {
     "title": "Siparişler",
@@ -1424,12 +1536,30 @@
     "back": "Kaliteye dön",
     "queue": "Lot serbest bırakma kuyruğu",
     "empty": "Muayene bekleyen lot yok.",
-    "col": { "lot": "Lot", "item": "Kalem", "status": "Durum", "action": "İşlem" },
-    "status": { "PENDING": "Bekliyor", "TESTING": "Test ediliyor", "PASSED": "Geçti", "FAILED": "Kaldı" },
-    "lotQc": { "QUARANTINE": "Karantina", "RELEASED": "Serbest", "REJECTED": "Reddedildi" },
+    "col": {
+      "lot": "Lot",
+      "item": "Kalem",
+      "status": "Durum",
+      "action": "İşlem"
+    },
+    "status": {
+      "PENDING": "Bekliyor",
+      "TESTING": "Test ediliyor",
+      "PASSED": "Geçti",
+      "FAILED": "Kaldı"
+    },
+    "lotQc": {
+      "QUARANTINE": "Karantina",
+      "RELEASED": "Serbest",
+      "REJECTED": "Reddedildi"
+    },
     "open": "Aç",
     "tests": "Testler",
-    "test": { "pass": "Geçti", "fail": "Kaldı", "pending": "Bekliyor" },
+    "test": {
+      "pass": "Geçti",
+      "fail": "Kaldı",
+      "pending": "Bekliyor"
+    },
     "recordResults": "Sonuçları kaydet",
     "recorded": "Sonuçlar kaydedildi.",
     "release": "Lotu serbest bırak",

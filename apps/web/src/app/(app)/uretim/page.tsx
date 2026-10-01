@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Topbar } from "@/components/Topbar";
 import { apiGet, getMe } from "@/lib/api-server";
+import { fmtQty } from "@/lib/format";
 import { canView } from "@/lib/modules";
-import { NewBatchForm } from "./NewBatchForm";
+import { type BatchProductOption, NewBatchForm } from "./NewBatchForm";
 import { StageBadge } from "./StageBadge";
 
 interface BatchRow {
@@ -11,6 +12,7 @@ interface BatchRow {
   number: string;
   stage: string;
   plannedQty: number;
+  plannedMl: string | null;
   essencePct: number | null;
   bottleType: string | null;
   macerationDays: number | null;
@@ -22,7 +24,14 @@ interface ProductRow {
   id: string;
   name: string;
   sku: string;
-  formula: { status: string } | null;
+  volumeMl: number;
+  formula: { id: string; status: string } | null;
+}
+
+interface FormulaRow {
+  id: string;
+  status: string;
+  concentrationPct: string;
 }
 
 /** Üretim partileri (F3-01). Görsel karışım + demlenme takibi. */
@@ -41,18 +50,60 @@ export default async function ProductionPage() {
     );
   }
   const canCreate = me.permissions.includes("production:CREATE");
-  const [batches, products] = await Promise.all([
+  const [batches, products, formulas] = await Promise.all([
     apiGet<BatchRow[]>("/production/batches"),
     canCreate ? apiGet<ProductRow[]>("/catalog/products") : Promise.resolve([]),
+    canCreate ? apiGet<FormulaRow[]>("/formulas") : Promise.resolve([]),
   ]);
-  const eligible = products.filter((p) => p.formula?.status === "APPROVED").map((p) => ({ id: p.id, label: `${p.name} · ${p.sku}` }));
+  // Konsantrasyon üretim yetkisiyle görülen formül listesinden gelir (satış ucuna açılmaz).
+  const concByFormula = new Map(formulas.filter((f) => f.status === "APPROVED").map((f) => [f.id, f.concentrationPct]));
+  const eligible: BatchProductOption[] = products.flatMap((p) => {
+    const conc = p.formula ? concByFormula.get(p.formula.id) : undefined;
+    return conc ? [{ id: p.id, label: `${p.name} · ${p.sku}`, volumeMl: p.volumeMl, concentrationPct: conc }] : [];
+  });
 
   const days = (ms: number) => Math.max(0, Math.ceil(ms / 86_400_000));
+  // Üretim kurulumu ilerlemesi: onaylı formülü olmayan ürünler sırayla kurulur.
+  const pending = products.filter((p) => p.formula?.status !== "APPROVED").sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  const readyCount = products.length - pending.length;
+  const SHOW = 12;
 
   return (
     <>
       <Topbar heading={t("title")} sub={t("subtitle")} />
       <div className="flex flex-col gap-4 px-4 py-5 sm:px-8">
+        {canCreate && pending.length > 0 && (
+          <section className="flex flex-col gap-3 rounded-[16px] border border-gold-2/60 bg-surface p-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div className="flex flex-col gap-0.5">
+                <h2 className="m-0 font-display text-[17px] font-semibold">{t("setupProgress.title")}</h2>
+                <p className="m-0 text-[12.5px] text-muted">{t("setupProgress.intro")}</p>
+              </div>
+              <span className="num text-[13px] font-semibold">{t("setupProgress.count", { ready: readyCount, total: products.length })}</span>
+            </div>
+            <span className="block h-2 overflow-hidden rounded-full bg-surface-soft">
+              <span className="block h-full rounded-full bg-gold" style={{ width: `${products.length ? (readyCount / products.length) * 100 : 0}%` }} />
+            </span>
+            <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+              {pending.slice(0, SHOW).map((p, i) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/urunler/${p.id}#uretim-kurulumu`}
+                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold no-underline transition-colors ${
+                      i === 0 ? "border-ink bg-ink text-on-ink" : "border-line bg-surface text-text hover:border-gold-2"
+                    }`}
+                  >
+                    {i === 0 && <span aria-hidden>▶</span>}
+                    {p.name}
+                  </Link>
+                </li>
+              ))}
+              {pending.length > SHOW && (
+                <li className="self-center text-[12px] text-muted">{t("setupProgress.more", { count: pending.length - SHOW })}</li>
+              )}
+            </ul>
+          </section>
+        )}
         <span className="text-xs text-muted">{t("count", { count: batches.length })}</span>
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex flex-col gap-3">
@@ -76,7 +127,8 @@ export default async function ProductionPage() {
                       </div>
                       <div className="flex items-center justify-between text-[12px] text-text-2">
                         <span>
-                          {b.plannedQty} adet · {b.bottleType ? t(`bottle.${b.bottleType}`) : "—"}
+                          {b.plannedMl ? `${fmtQty(b.plannedMl)} ml · ` : ""}
+                          {t("units", { count: b.plannedQty })} · {b.bottleType ? t(`bottle.${b.bottleType}`) : "—"}
                         </span>
                         {b.stage === "MACERATION" && b.maceration ? (
                           <span className={`num font-semibold ${b.maceration.done ? "text-ok" : "text-gold-hover"}`}>

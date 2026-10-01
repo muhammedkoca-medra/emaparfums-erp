@@ -1,3 +1,4 @@
+import { recordMovement, reserveFefo } from "@atelier/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createUser, loginAgent, resetRateLimit, setupTestApp, type TestContext } from "./helpers.js";
 
@@ -127,7 +128,11 @@ describe("izlenebilirlik ve geri çağırma (F3-04, KAL-06)", () => {
     const customer = await ctx.prisma.customer.create({ data: { type: "INDIVIDUAL", fullName: "Geri Çağrı Müşteri" } });
     const order = await ctx.prisma.salesOrder.create({ data: { number: `OR-${sfx}`, channelId: channel.id, customerId: customer.id, status: "CONFIRMED", netTotal: "100", otvTotal: "0", kdvTotal: "0", grandTotal: "100" } });
     const line = await ctx.prisma.salesOrderLine.create({ data: { orderId: order.id, productId: product.id, qty: 1, unitPriceGross: "100", netAmount: "100", otvRate: "0", otvAmount: "0", kdvRate: "0.20", kdvAmount: "0" } });
-    await ctx.prisma.stockReservation.create({ data: { itemId: it.id, lotId: outLot.id, locationId: loc.id, orderLineId: line.id, refType: "SalesOrderLine", refId: line.id, qty: "1" } });
+    // Stok ve rezervasyon stok servisiyle yazılır (kural 2): bakiye ↔ hareket ↔ rezervasyon tutarlı kalır.
+    await ctx.prisma.$transaction(async (tx) => {
+      await recordMovement(tx, { type: "RECEIPT", itemId: it.id, lotId: outLot.id, qty: "1", toLocationId: loc.id, refType: "Test", refId: "recall-chain" });
+      await reserveFefo(tx, { itemId: it.id, qty: "1", refType: "SalesOrderLine", refId: line.id, orderLineId: line.id, warehouseId: wh.id });
+    });
     return { outLot, customer };
   }
 

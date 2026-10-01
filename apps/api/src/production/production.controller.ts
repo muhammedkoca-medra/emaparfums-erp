@@ -1,9 +1,26 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { availableForItem, consumeBatchReservations, createLot, emit, getSetting, Prisma, recordMovement, reserveFefo, StockError, type Tx, writeAudit } from "@atelier/db";
+import {
+  applicableTests,
+  consumeBatchReservations,
+  createLot,
+  emit,
+  getSetting,
+  openInspectionForLot,
+  Prisma,
+  recordMovement,
+  reservableForItem,
+  reserveFefo,
+  setLotQcStatus,
+  StockError,
+  type Tx,
+  writeAudit,
+} from "@atelier/db";
 import {
   type BatchAdvanceRequest,
   batchAdvanceSchema,
+  type BatchQualityReleaseRequest,
+  batchQualityReleaseSchema,
   type BatchCreateRequest,
   batchCreateSchema,
   type BatchOutputRequest,
@@ -14,10 +31,15 @@ import {
   type BatchUpdateRequest,
   batchUpdateSchema,
   costComponentForItem,
+  effectiveUnits,
+  expectedUnits,
+  fillingBalance,
   hourlyCost,
   intervalsOverlap,
+  liquidCostPerMl,
   productionHours,
   scaleRequirement,
+  splitByConcentration,
   type ScheduleSlotRequest,
   scheduleSlotSchema,
   type ScheduleUpdateRequest,
@@ -46,6 +68,8 @@ interface RequirementLine {
   uom: string;
   requiredQty: string;
   availableQty: string;
+  /** Eldeki ama kalite onayı bekleyen (karantina) miktar; üretimde kullanılamaz. */
+  quarantineQty: string;
   shortageQty: string;
 }
 
@@ -65,16 +89,25 @@ export class ProductionController {
     producedQty: number;
     essenceGr: { toString(): string } | null;
     baseGr: { toString(): string } | null;
+    plannedMl: { toString(): string } | null;
+    essenceMl: { toString(): string } | null;
+    baseMl: { toString(): string } | null;
+    testerMl: { toString(): string };
+    scrapMl: { toString(): string };
     macerationStart: Date | null;
     macerationDays: number | null;
     macerationPlace: string | null;
     bottleType: string | null;
     createdAt: Date;
-    product: { id: string; name: string; sku: string; item: { code: string } };
-    formula: { id: string; code: string; version: number };
+    product: { id: string; name: string; sku: string; volumeMl: number; item: { code: string } };
+    formula: { id: string; code: string; version: number; concentrationPct: { toString(): string } };
   }) {
-    const essence = b.essenceGr ? Number(b.essenceGr.toString()) : 0;
-    const base = b.baseGr ? Number(b.baseGr.toString()) : 0;
+    // Yeni partiler hacimle (ml); eski partiler gramajla. Görselleştirme hangisi varsa onu kullanır.
+    const byVolume = b.essenceMl != null && b.baseMl != null;
+    const essenceSrc = byVolume ? b.essenceMl : b.essenceGr;
+    const baseSrc = byVolume ? b.baseMl : b.baseGr;
+    const essence = essenceSrc ? Number(essenceSrc.toString()) : 0;
+    const base = baseSrc ? Number(baseSrc.toString()) : 0;
     const total = essence + base;
     // Maserasyon: geçen/kalan gün.
     let maceration: { start: string; days: number; elapsedMs: number; remainingMs: number; done: boolean } | null = null;
@@ -97,22 +130,32 @@ export class ProductionController {
       producedQty: b.producedQty,
       essenceGr: b.essenceGr?.toString() ?? null,
       baseGr: b.baseGr?.toString() ?? null,
+      plannedMl: b.plannedMl?.toString() ?? null,
+      essenceMl: b.essenceMl?.toString() ?? null,
+      baseMl: b.baseMl?.toString() ?? null,
+      testerMl: b.testerMl.toString(),
+      scrapMl: b.scrapMl.toString(),
+      /** Karışım birimi: "ml" (hacimle parti) ya da "gr" (eski gramajlı parti). */
+      mixUnit: byVolume ? "ml" : "gr",
+      mixEssence: essenceSrc?.toString() ?? null,
+      mixBase: baseSrc?.toString() ?? null,
       essencePct: total > 0 ? Number(((essence / total) * 100).toFixed(2)) : null,
       basePct: total > 0 ? Number(((base / total) * 100).toFixed(2)) : null,
       totalGr: total || null,
+      concentrationPct: b.formula.concentrationPct.toString(),
       macerationDays: b.macerationDays,
       macerationPlace: b.macerationPlace,
       bottleType: b.bottleType,
       maceration,
       createdAt: b.createdAt.toISOString(),
-      product: { id: b.product.id, name: b.product.name, sku: b.product.sku, itemCode: b.product.item.code },
-      formula: b.formula,
+      product: { id: b.product.id, name: b.product.name, sku: b.product.sku, itemCode: b.product.item.code, volumeMl: b.product.volumeMl },
+      formula: { id: b.formula.id, code: b.formula.code, version: b.formula.version },
     };
   }
 
   private static readonly INCLUDE = {
-    product: { select: { id: true, name: true, sku: true, item: { select: { code: true } } } },
-    formula: { select: { id: true, code: true, version: true } },
+    product: { select: { id: true, name: true, sku: true, volumeMl: true, item: { select: { code: true } } } },
+    formula: { select: { id: true, code: true, version: true, concentrationPct: true } },
   };
 
   @Get("batches")
@@ -147,7 +190,10 @@ export class ProductionController {
   @Get("batches/:id/materials")
   @RequirePermission("production", "VIEW")
   async materials(@Param("id") id: string) {
-    const batch = await this.prisma.productionBatch.findUnique({ where: { id }, select: { id: true, plannedQty: true, productId: true, formulaId: true } });
+    const batch = await this.prisma.productionBatch.findUnique({
+      where: { id },
+      select: { id: true, plannedQty: true, plannedMl: true, productId: true, formulaId: true },
+    });
     if (!batch) throw new NotFoundException({ message: "Parti bulunamadı" });
     const req = await this.computeRequirements(this.prisma, batch);
     return {
@@ -161,27 +207,39 @@ export class ProductionController {
         uom: l.uom,
         requiredQty: l.requiredQty,
         availableQty: l.availableQty,
+        quarantineQty: l.quarantineQty,
         shortageQty: l.shortageQty,
         ok: l.shortageQty === "0",
       })),
     };
   }
 
-  /** Aktif BOM'u parti adedine ölçekler ve her kalem için kullanılabilir stoku karşılaştırır. */
+  /**
+   * Aktif BOM'u parti büyüklüğüne ölçekler ve her kalem için kullanılabilir stoku karşılaştırır.
+   * Hacimle açılan partide etkin adet = ml ÷ şişe ml (kesirli; sıvı tam karşılanır); adet birimli
+   * (ambalaj) satırlar yukarı tam sayıya yuvarlanır.
+   */
   private async computeRequirements(
     db: Tx | PrismaService,
-    batch: { id: string; plannedQty: number; productId: string; formulaId: string },
+    batch: { id: string; plannedQty: number; plannedMl?: { toString(): string } | null; productId: string; formulaId: string },
   ) {
     const bom = await db.billOfMaterials.findFirst({
       where: { productId: batch.productId, formulaId: batch.formulaId, isActive: true },
       include: { lines: { include: { item: { select: { id: true, code: true, name: true, type: true } } } } },
     });
     if (!bom) return { batchSize: 0, hasBom: false, hasShortage: false, lines: [] as RequirementLine[] };
+    let units: number | string = batch.plannedQty;
+    if (batch.plannedMl != null) {
+      const product = await db.product.findUnique({ where: { id: batch.productId }, select: { volumeMl: true } });
+      if (product) units = effectiveUnits(batch.plannedMl.toString(), product.volumeMl);
+    }
     const lines: RequirementLine[] = [];
     let hasShortage = false;
     for (const l of bom.lines) {
-      const requiredQty = scaleRequirement(l.qty.toString(), l.scrapPct.toString(), batch.plannedQty, bom.batchSize);
-      const available = await availableForItem(db as Tx, l.itemId);
+      const scaled = scaleRequirement(l.qty.toString(), l.scrapPct.toString(), units, bom.batchSize);
+      const requiredQty = l.uom === "PCS" ? new Prisma.Decimal(scaled).ceil().toString() : scaled;
+      // Kural 3: yalnızca serbest ve süresi geçmemiş lotlar (rezervasyonla aynı koşul).
+      const { reservable: available, quarantine } = await reservableForItem(db as Tx, l.itemId);
       const shortage = new Prisma.Decimal(requiredQty).minus(available);
       const shortageQty = shortage.greaterThan(0) ? shortage.toDecimalPlaces(4).toString() : "0";
       if (shortageQty !== "0") hasShortage = true;
@@ -193,6 +251,7 @@ export class ProductionController {
         uom: l.uom,
         requiredQty,
         availableQty: available.toDecimalPlaces(4).toString(),
+        quarantineQty: quarantine.toDecimalPlaces(4).toString(),
         shortageQty,
       });
     }
@@ -205,12 +264,27 @@ export class ProductionController {
   async create(@Body(new ZodPipe(batchCreateSchema)) body: BatchCreateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
     const product = await this.prisma.product.findUnique({
       where: { id: body.productId },
-      include: { formula: { select: { id: true, status: true } } },
+      include: { formula: { select: { id: true, status: true, concentrationPct: true } } },
     });
     if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
-    if (!product.formula) throw new BadRequestException({ message: "Ürünün bağlı formülü yok" });
+    if (!product.formula)
+      throw new BadRequestException({ message: "Ürünün bağlı formülü yok. Önce ürün sayfasında 'Üretim kurulumu' yapın." });
     if (product.formula.status !== "APPROVED")
       throw new BadRequestException({ message: "Parti yalnızca onaylı formülle açılabilir (URT-01)" });
+    // Hacimle parti: esans/baz formül konsantrasyonundan bölünür; adet = ⌊ml ÷ şişe ml⌋.
+    const plannedQty = expectedUnits(body.plannedMl, product.volumeMl);
+    if (plannedQty < 1)
+      throw new BadRequestException({ message: `Hacim en az bir şişe (${product.volumeMl} ml) kadar olmalı` });
+    const split = splitByConcentration(body.plannedMl, product.formula.concentrationPct.toString());
+    // URT-14: devam eden üretim doğrudan bir aşamada, geçmiş tarihle kaydedilebilir.
+    const stage = body.startStage ?? "FORMULA_APPROVAL";
+    const stageIdx = STAGE_FLOW.indexOf(stage);
+    const startedAt = body.startedAt ?? new Date();
+    const macerationStart =
+      stageIdx >= STAGE_FLOW.indexOf("MACERATION")
+        ? (body.macerationStart ?? (stage === "MACERATION" ? startedAt : null))
+        : null;
+    const isExisting = stage !== "FORMULA_APPROVAL";
 
     const id = await this.prisma.$transaction(async (tx) => {
       const year = new Date().getFullYear() % 100;
@@ -221,23 +295,40 @@ export class ProductionController {
           number,
           productId: product.id,
           formulaId: product.formula!.id,
-          plannedQty: body.plannedQty,
-          essenceGr: body.essenceGr,
-          baseGr: body.baseGr,
+          plannedQty,
+          plannedMl: body.plannedMl,
+          essenceMl: split.essenceMl,
+          baseMl: split.baseMl,
           macerationDays: body.macerationDays,
           macerationPlace: body.macerationPlace ?? null,
           bottleType: body.bottleType,
-          stage: "FORMULA_APPROVAL",
+          stage,
+          macerationStart,
           ownerId: auth.userId,
         },
       });
-      await tx.productionStageLog.create({ data: { batchId: batch.id, stage: "FORMULA_APPROVAL", startedAt: new Date(), userId: auth.userId } });
+      await tx.productionStageLog.create({
+        data: { batchId: batch.id, stage, startedAt, userId: auth.userId, note: isExisting ? "mevcut üretim kaydı" : null },
+      });
       await writeAudit(tx, {
         userId: auth.userId,
         action: "batch.create",
         entity: "ProductionBatch",
         entityId: batch.id,
-        after: { number, product: product.sku, plannedQty: body.plannedQty, essenceGr: body.essenceGr, baseGr: body.baseGr, bottleType: body.bottleType },
+        after: {
+          number,
+          product: product.sku,
+          plannedMl: body.plannedMl,
+          plannedQty,
+          concentrationPct: product.formula!.concentrationPct.toString(),
+          essenceMl: split.essenceMl,
+          baseMl: split.baseMl,
+          bottleType: body.bottleType,
+          startStage: stage,
+          startedAt: startedAt.toISOString(),
+          macerationStart: macerationStart?.toISOString() ?? null,
+          existingProduction: isExisting,
+        },
         ...clientInfo(req),
       });
       return batch.id;
@@ -256,12 +347,27 @@ export class ProductionController {
     @Req() req: AuthedRequest,
   ) {
     await this.prisma.$transaction(async (tx) => {
-      const b = await tx.productionBatch.findUnique({ where: { id } });
+      const b = await tx.productionBatch.findUnique({
+        where: { id },
+        include: { product: { select: { volumeMl: true } }, formula: { select: { concentrationPct: true } } },
+      });
       if (!b) throw new NotFoundException({ message: "Parti bulunamadı" });
       const data: Record<string, unknown> = {};
       for (const k of ["plannedQty", "producedQty", "essenceGr", "baseGr", "macerationDays", "bottleType"] as const) {
         if (body[k] !== undefined) data[k] = body[k];
       }
+      // Hacim düzeltmesi: adet ve esans/baz bölünmesi yeniden hesaplanır (açıkça verilen esans/baz önceliklidir).
+      if (body.plannedMl !== undefined) {
+        const units = expectedUnits(body.plannedMl, b.product.volumeMl);
+        if (units < 1) throw new BadRequestException({ message: `Hacim en az bir şişe (${b.product.volumeMl} ml) kadar olmalı` });
+        const split = splitByConcentration(body.plannedMl, b.formula.concentrationPct.toString());
+        data.plannedMl = body.plannedMl;
+        data.plannedQty = units;
+        data.essenceMl = split.essenceMl;
+        data.baseMl = split.baseMl;
+      }
+      if (body.essenceMl !== undefined) data.essenceMl = body.essenceMl;
+      if (body.baseMl !== undefined) data.baseMl = body.baseMl;
       if (body.macerationPlace !== undefined) data.macerationPlace = body.macerationPlace;
       if (body.macerationStart !== undefined) data.macerationStart = body.macerationStart;
       if (Object.keys(data).length === 0) return;
@@ -271,7 +377,17 @@ export class ProductionController {
         action: "batch.update",
         entity: "ProductionBatch",
         entityId: id,
-        before: { essenceGr: b.essenceGr?.toString() ?? null, baseGr: b.baseGr?.toString() ?? null, macerationDays: b.macerationDays, macerationPlace: b.macerationPlace, bottleType: b.bottleType, plannedQty: b.plannedQty },
+        before: {
+          essenceGr: b.essenceGr?.toString() ?? null,
+          baseGr: b.baseGr?.toString() ?? null,
+          plannedMl: b.plannedMl?.toString() ?? null,
+          essenceMl: b.essenceMl?.toString() ?? null,
+          baseMl: b.baseMl?.toString() ?? null,
+          macerationDays: b.macerationDays,
+          macerationPlace: b.macerationPlace,
+          bottleType: b.bottleType,
+          plannedQty: b.plannedQty,
+        },
         after: { fields: Object.keys(data) },
         ...clientInfo(req),
       });
@@ -293,7 +409,8 @@ export class ProductionController {
       const b = await tx.productionBatch.findUnique({ where: { id } });
       if (!b) throw new NotFoundException({ message: "Parti bulunamadı" });
       if (b.stage === body.stage) return;
-      const now = new Date();
+      // Geçmiş üretimi işlerken aşamaya giriş tarihi geriye dönük girilebilir (URT-14).
+      const now = body.startedAt ?? new Date();
       await tx.productionStageLog.updateMany({ where: { batchId: id, stage: b.stage, endedAt: null }, data: { endedAt: now } });
       await tx.productionBatch.update({
         where: { id },
@@ -309,7 +426,7 @@ export class ProductionController {
         entity: "ProductionBatch",
         entityId: id,
         before: { stage: b.stage },
-        after: { stage: body.stage, note: body.note ?? null },
+        after: { stage: body.stage, note: body.note ?? null, startedAt: now.toISOString() },
         ...clientInfo(req),
       });
       await emit(tx, { type: "batch.stage_changed", batchId: id, stage: body.stage });
@@ -335,6 +452,15 @@ export class ProductionController {
       if (idx < 0 || idx >= STAGE_FLOW.length - 1)
         throw new BadRequestException({ message: "Bu aşamadan ileri geçilemez" });
       const next = STAGE_FLOW[idx + 1]!;
+
+      // URT-06: serbest bırakma yalnızca kalite onayıyla (lotlar serbest kalınca parti RELEASED olur).
+      if (b.stage === "QUALITY_CONTROL")
+        throw new BadRequestException({ message: "Parti kalite onayıyla serbest bırakılır; 'Kaliteyi onayla, satışa aç' bölümünü kullanın" });
+      // URT-05: dolum dağılımı (stok/tester/fire) kaydedilmeden dolumdan çıkılmaz.
+      if (b.stage === "FILLING") {
+        const outputs = await tx.lot.count({ where: { batchId: b.id } });
+        if (outputs === 0) throw new BadRequestException({ message: "Önce dolum dağılımını kaydedin (stoğa giden adet / tester / fire)" });
+      }
 
       // URT-04: maserasyon kilidi
       if (b.stage === "MACERATION") {
@@ -378,7 +504,11 @@ export class ProductionController {
   }
 
   /** URT-02/03: partinin hammaddelerini FEFO ile rezerve eder. Eksik varsa geçişi engeller; tekrar çağrıda idempotenttir. */
-  private async reserveMaterials(tx: Tx, batch: { id: string; plannedQty: number; productId: string; formulaId: string }, userId?: string | null) {
+  private async reserveMaterials(
+    tx: Tx,
+    batch: { id: string; plannedQty: number; plannedMl?: { toString(): string } | null; productId: string; formulaId: string },
+    userId?: string | null,
+  ) {
     const req = await this.computeRequirements(tx, batch);
     // Aktif BOM yoksa (yalnızca esans/baz karışım kartıyla çalışılan parti) rezervasyon/tüketim atlanır.
     if (!req.hasBom) return;
@@ -424,8 +554,12 @@ export class ProductionController {
   }
 
   /**
-   * URT-05: dolum çıktısı. FILLING aşamasında üretilen adet girilir; mamul lotu QUARANTINE açılır
-   * (batch.completed olayı ile, lot.received değil). Lot no: L-<YYAA>-<harf>. PRODUCTION_OUTPUT hareketi yazılır.
+   * URT-05: dolum çıktısı (FILLING). Üç dağılım girilir:
+   *  - `producedQty`: satılabilir stoğa giden adet → mamul lotu (QUARANTINE).
+   *  - `testerMl`: testere ayrılan hacim → ürünün ayrı tester kalemine (SAMPLE · ML) kendi lotuyla (QUARANTINE).
+   *    Tester satılamaz; satılabilir stoğa karışmaz. Birim maliyeti partinin ml başına sıvı maliyetidir.
+   *  - `scrapMl`: fire hacmi (kayıt; stoğa girmez).
+   * Lotlar `batch.completed` ile açılır (lot.received değil). Lot no: L-<YYAA>-<harf>.
    */
   @Post("batches/:id/output")
   @RequirePermission("production", "EDIT")
@@ -434,15 +568,21 @@ export class ProductionController {
     return this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "ProductionBatch" WHERE id = ${id} FOR UPDATE`;
       if (!rows[0]) throw new NotFoundException({ message: "Parti bulunamadı" });
-      const b = await tx.productionBatch.findUniqueOrThrow({ where: { id }, include: { product: { select: { itemId: true, sku: true } } } });
-      if (b.stage !== "FILLING") throw new BadRequestException({ message: "Çıktı yalnızca Dolum (FILLING) aşamasında girilir" });
-      if (b.producedQty > 0) throw new BadRequestException({ message: "Bu parti için çıktı zaten girildi" });
+      const b = await tx.productionBatch.findUniqueOrThrow({
+        where: { id },
+        include: { product: { select: { id: true, itemId: true, sku: true, name: true, volumeMl: true, testerItemId: true } } },
+      });
+      // Dolumda girilir; mevcut üretim sonraki aşamada kaydedildiyse etiket/kalite aşamasında da girilebilir (URT-14).
+      if (!["FILLING", "LABEL_PACK", "QUALITY_CONTROL"].includes(b.stage))
+        throw new BadRequestException({ message: "Çıktı dolum, etiket/paket ya da kalite kontrol aşamasında girilir" });
+      // Tekrar girişi engeli: adet 0 olsa da (yalnızca tester) bu partiye ait çıktı lotu varsa girilmiştir.
+      const existingOutput = await tx.lot.count({ where: { batchId: b.id } });
+      if (b.producedQty > 0 || existingOutput > 0) throw new BadRequestException({ message: "Bu parti için çıktı zaten girildi" });
 
       const location = await this.finishedGoodsLocation(tx);
       const now = new Date();
-      const lotNo = await this.nextOutputLotNo(tx, b.product.itemId, now);
-      const lot = await createLot(tx, { itemId: b.product.itemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
-      await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
+      const testerMl = new Prisma.Decimal(body.testerMl);
+      const scrapMl = new Prisma.Decimal(body.scrapMl);
 
       // MLY-02: parti kapanışında işçilik ve genel gider bileşenleri eklenir (aşama sürelerinden).
       const stages = await tx.productionStageLog.findMany({ where: { batchId: b.id }, select: { startedAt: true, endedAt: true } });
@@ -460,31 +600,244 @@ export class ProductionController {
         });
       }
       // Mamul birim maliyeti = toplam tüketim maliyeti / üretilen adet (BatchCost bileşen toplamı).
-      const costs = await tx.batchCost.findMany({ where: { batchId: b.id }, select: { actual: true } });
+      const costs = await tx.batchCost.findMany({ where: { batchId: b.id }, select: { component: true, actual: true } });
       const unitCost = costs.reduce((s, c) => s.plus(c.actual), new Prisma.Decimal(0));
 
-      await recordMovement(tx, {
-        type: "PRODUCTION_OUTPUT",
-        itemId: b.product.itemId,
-        lotId: lot.id,
-        qty: body.producedQty,
-        toLocationId: location.id,
-        unitCost: unitCost.greaterThan(0) ? unitCost : null,
-        refType: "ProductionBatch",
-        refId: b.id,
-        userId: auth.userId,
+      // 1) Satılabilir stok: mamul lotu
+      let stockLot: { id: string; lotNo: string } | null = null;
+      if (body.producedQty > 0) {
+        const lotNo = await this.nextOutputLotNo(tx, b.product.itemId, now);
+        const lot = await createLot(tx, { itemId: b.product.itemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
+        await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
+        await recordMovement(tx, {
+          type: "PRODUCTION_OUTPUT",
+          itemId: b.product.itemId,
+          lotId: lot.id,
+          qty: body.producedQty,
+          toLocationId: location.id,
+          unitCost: unitCost.greaterThan(0) ? unitCost : null,
+          refType: "ProductionBatch",
+          refId: b.id,
+          userId: auth.userId,
+          note: "Dolum · satılabilir stok",
+        });
+        stockLot = { id: lot.id, lotNo };
+      }
+
+      // 2) Tester stoğu: ürünün ayrı tester kalemi (satılamaz)
+      let testerLot: { id: string; lotNo: string; unitCostPerMl: string | null } | null = null;
+      if (testerMl.greaterThan(0)) {
+        const testerItemId = await this.ensureTesterItem(tx, b.product, auth.userId, req);
+        // Sıvı maliyeti (esans + alkol/su) toplamı ÷ parti hacmi = ml başına tester maliyeti.
+        const liquidPerUnit = costs
+          .filter((c) => c.component === "ESSENCE" || c.component === "ALCOHOL_WATER")
+          .reduce((s, c) => s.plus(c.actual), new Prisma.Decimal(0));
+        const perMl = liquidCostPerMl(liquidPerUnit.times(b.plannedQty).toString(), b.plannedMl?.toString() ?? null);
+        const lotNo = await this.nextOutputLotNo(tx, testerItemId, now);
+        const lot = await createLot(tx, { itemId: testerItemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
+        await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
+        await recordMovement(tx, {
+          type: "PRODUCTION_OUTPUT",
+          itemId: testerItemId,
+          lotId: lot.id,
+          qty: testerMl.toString(),
+          toLocationId: location.id,
+          unitCost: perMl && new Prisma.Decimal(perMl).greaterThan(0) ? perMl : null,
+          refType: "ProductionBatch",
+          refId: b.id,
+          userId: auth.userId,
+          note: "Dolum · tester (satılamaz)",
+        });
+        testerLot = { id: lot.id, lotNo, unitCostPerMl: perMl };
+      }
+
+      const balance = b.plannedMl
+        ? fillingBalance({
+            plannedMl: b.plannedMl.toString(),
+            volumeMl: b.product.volumeMl,
+            producedQty: body.producedQty,
+            testerMl: testerMl.toString(),
+            scrapMl: scrapMl.toString(),
+          })
+        : null;
+
+      await tx.productionBatch.update({
+        where: { id },
+        data: { producedQty: body.producedQty, testerMl: testerMl.toString(), scrapMl: scrapMl.toString() },
       });
-      await tx.productionBatch.update({ where: { id }, data: { producedQty: body.producedQty } });
       await writeAudit(tx, {
         userId: auth.userId,
         action: "batch.output",
         entity: "ProductionBatch",
         entityId: id,
-        after: { lotNo, producedQty: body.producedQty, scrapQty: body.scrapQty, unitCost: unitCost.toString() },
+        after: {
+          stockLotNo: stockLot?.lotNo ?? null,
+          producedQty: body.producedQty,
+          testerLotNo: testerLot?.lotNo ?? null,
+          testerMl: testerMl.toString(),
+          scrapMl: scrapMl.toString(),
+          scrapQty: body.scrapQty,
+          unitCost: unitCost.toString(),
+          testerCostPerMl: testerLot?.unitCostPerMl ?? null,
+          differenceMl: balance?.differenceMl ?? null,
+          note: body.note ?? null,
+        },
         ...clientInfo(req),
       });
-      await emit(tx, { type: "batch.completed", batchId: b.id, outputLotId: lot.id });
-      return { id, lotId: lot.id, lotNo, producedQty: body.producedQty, unitCost: unitCost.toFixed(4) };
+      const firstLot = stockLot ?? testerLot!;
+      await emit(tx, { type: "batch.completed", batchId: b.id, outputLotId: firstLot.id });
+
+      const warnings: string[] = [];
+      if (balance && balance.differenceMl !== "0.00") {
+        const diff = new Prisma.Decimal(balance.differenceMl);
+        warnings.push(
+          diff.greaterThan(0)
+            ? `Partide ${balance.differenceMl} ml kayıt dışı kaldı (dağıtılan ${balance.distributedMl} ml / parti ${b.plannedMl!.toString()} ml).`
+            : `Dağıtılan hacim partiden ${diff.abs().toFixed(2)} ml fazla (dağıtılan ${balance.distributedMl} ml / parti ${b.plannedMl!.toString()} ml).`,
+        );
+      }
+      return {
+        id,
+        lotId: stockLot?.id ?? null,
+        lotNo: stockLot?.lotNo ?? null,
+        producedQty: body.producedQty,
+        unitCost: unitCost.toFixed(4),
+        tester: testerLot ? { lotId: testerLot.id, lotNo: testerLot.lotNo, ml: testerMl.toFixed(2), unitCostPerMl: testerLot.unitCostPerMl } : null,
+        scrapMl: scrapMl.toFixed(2),
+        warnings,
+      };
+    });
+  }
+
+  /**
+   * Ürünün tester kalemi (SAMPLE · ML) yoksa açar ve ürüne bağlar. Kod: TS-<SKU> (çakışırsa sıra eki).
+   * Testerler satılamaz; satılabilir mamul stoğundan ayrı tutulur.
+   */
+  private async ensureTesterItem(
+    tx: Tx,
+    product: { id: string; sku: string; name: string; testerItemId: string | null },
+    userId: string,
+    req: AuthedRequest,
+  ): Promise<string> {
+    if (product.testerItemId) return product.testerItemId;
+    const base = product.sku.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) || "URUN";
+    let code = `TS-${base.length >= 2 ? base : `${base}00`}`;
+    for (let n = 2; await tx.item.findUnique({ where: { code }, select: { id: true } }); n++) {
+      const suffix = String(n);
+      code = `TS-${base.slice(0, 10 - suffix.length)}${suffix}`;
+    }
+    const item = await tx.item.create({
+      data: { code, name: `Tester · ${product.name}`.slice(0, 120), type: "SAMPLE", uom: "ML" },
+      select: { id: true },
+    });
+    await tx.product.update({ where: { id: product.id }, data: { testerItemId: item.id } });
+    await writeAudit(tx, {
+      userId,
+      action: "product.tester_item",
+      entity: "Product",
+      entityId: product.id,
+      after: { testerItemCode: code },
+      ...clientInfo(req),
+    });
+    return item.id;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Parti kalite onayı (tek adım, KAL-02 korunur)
+  // ---------------------------------------------------------------------------------------------
+
+  /** Partinin çıktı lotları (mamul + tester) ve her lota uygulanan kalite testleri. */
+  @Get("batches/:id/quality")
+  @RequirePermission("production", "VIEW")
+  async quality(@Param("id") id: string) {
+    const b = await this.prisma.productionBatch.findUnique({ where: { id }, select: { id: true, stage: true } });
+    if (!b) throw new NotFoundException({ message: "Parti bulunamadı" });
+    const lots = await this.prisma.lot.findMany({
+      where: { batchId: id },
+      orderBy: { lotNo: "asc" },
+      select: {
+        id: true,
+        lotNo: true,
+        qcStatus: true,
+        item: { select: { code: true, name: true, type: true } },
+        inspections: { select: { status: true, results: { select: { testId: true, passed: true } } } },
+      },
+    });
+    const out = [];
+    for (const lot of lots) {
+      const tests = await applicableTests(this.prisma as unknown as Tx, lot.id);
+      const passed = new Set(lot.inspections.flatMap((i) => i.results.filter((r) => r.passed).map((r) => r.testId)));
+      out.push({
+        lotId: lot.id,
+        lotNo: lot.lotNo,
+        qcStatus: lot.qcStatus,
+        item: lot.item,
+        tests: tests.map((t) => ({ id: t.id, code: t.code, name: t.name, passed: passed.has(t.id) })),
+      });
+    }
+    return { stage: b.stage, lots: out };
+  }
+
+  /**
+   * QUALITY_CONTROL aşamasında partinin karantinadaki lotlarını tek adımda serbest bırakır.
+   * Her lotun uygulanabilir tüm testleri `passedTestIds` içinde olmalı (KAL-02); sonuçlar kaydedilir,
+   * muayene PASSED, lot RELEASED olur → `lot.released` (worker partiyi RELEASED yapar, URT-06).
+   * Kalan bir test varsa bu yol kullanılmaz; Kalite modülünde sonuç girilip DÖF açılır.
+   */
+  @Post("batches/:id/quality-release")
+  @RequirePermission("quality", "APPROVE")
+  @ApiZodBody(batchQualityReleaseSchema)
+  async qualityRelease(
+    @Param("id") id: string,
+    @Body(new ZodPipe(batchQualityReleaseSchema)) body: BatchQualityReleaseRequest,
+    @CurrentUser() auth: AuthContext,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const b = await tx.productionBatch.findUnique({ where: { id }, select: { id: true, number: true, stage: true } });
+      if (!b) throw new NotFoundException({ message: "Parti bulunamadı" });
+      if (b.stage !== "QUALITY_CONTROL")
+        throw new BadRequestException({ message: "Kalite onayı yalnızca Kalite kontrol aşamasında verilir" });
+      const lots = await tx.lot.findMany({ where: { batchId: id, qcStatus: "QUARANTINE" }, select: { id: true, lotNo: true } });
+      if (lots.length === 0) throw new BadRequestException({ message: "Serbest bırakılacak karantina lotu yok (önce dolum çıktısı girilmeli)" });
+      const confirmed = new Set(body.passedTestIds);
+
+      // Önce tüm lotlar doğrulanır: eksik onay varsa hiçbir lot serbest bırakılmaz.
+      const plan: { lotId: string; lotNo: string; tests: { id: string; code: string }[] }[] = [];
+      for (const lot of lots) {
+        const tests = await applicableTests(tx, lot.id);
+        const missing = tests.filter((t) => !confirmed.has(t.id));
+        if (missing.length > 0)
+          throw new BadRequestException({
+            message: `${lot.lotNo}: tüm testler onaylanmadan serbest bırakılamaz (KAL-02). Eksik: ${missing.map((t) => t.code).join(", ")}`,
+          });
+        const failed = await tx.qcInspection.findFirst({ where: { lotId: lot.id, status: "FAILED" }, select: { id: true } });
+        if (failed) throw new BadRequestException({ message: `${lot.lotNo}: başarısız muayene var; Kalite modülünden DÖF ile ilerleyin` });
+        plan.push({ lotId: lot.id, lotNo: lot.lotNo, tests });
+      }
+
+      const now = new Date();
+      for (const p of plan) {
+        if (p.tests.length > 0) {
+          const inspectionId =
+            (await tx.qcInspection.findFirst({ where: { lotId: p.lotId }, select: { id: true } }))?.id ??
+            (await openInspectionForLot(tx, p.lotId));
+          if (inspectionId) {
+            const testIds = p.tests.map((t) => t.id);
+            await tx.qcResult.deleteMany({ where: { inspectionId, testId: { in: testIds } } });
+            await tx.qcResult.createMany({ data: testIds.map((testId) => ({ inspectionId, testId, passed: true, testedById: auth.userId })) });
+            await tx.qcInspection.update({ where: { id: inspectionId }, data: { status: "PASSED", releasedById: auth.userId, releasedAt: now } });
+          }
+        }
+        await setLotQcStatus(tx, {
+          lotId: p.lotId,
+          status: "RELEASED",
+          reason: body.note ?? `Parti ${b.number} kalite onayı: ${p.tests.map((t) => t.code).join(", ") || "test gerektirmeyen lot"}`,
+          userId: auth.userId,
+          ...clientInfo(req),
+        });
+      }
+      return { id, released: plan.map((p) => p.lotNo) };
     });
   }
 

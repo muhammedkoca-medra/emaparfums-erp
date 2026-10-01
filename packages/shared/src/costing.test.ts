@@ -20,7 +20,7 @@ describe("maliyet yardımcıları", () => {
   it("costVariance sapmayı ve eşik aşımını hesaplar (MLY-04)", () => {
     const v = costVariance([{ component: "ESSENCE", standard: "305", actual: "318" }], 3);
     expect(v[0]).toMatchObject({ variance: "13", warn: true });
-    expect(Number(v[0].variancePct)).toBeCloseTo(4.26, 1);
+    expect(Number(v[0]!.variancePct)).toBeCloseTo(4.26, 1);
   });
 
   it("simulateUnitCost esans/kur/parti çarpanlarını uygular (MLY-05)", () => {

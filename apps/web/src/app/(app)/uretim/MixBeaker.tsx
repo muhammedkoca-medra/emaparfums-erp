@@ -2,22 +2,25 @@ import { useTranslations } from "next-intl";
 
 /**
  * Karışım görseli: beher içinde parfüm bazı (alt) + esans (üst, altın) katmanları,
- * gramaja orantılı yükseklikte. Tüp/beher metaforu (docs/06 görsellik).
+ * miktara orantılı yükseklikte. Yeni partiler ml, eski partiler gr. Tüp/beher metaforu (docs/06 görsellik).
  */
 export function MixBeaker({
-  essenceGr,
-  baseGr,
+  essence,
+  base,
+  unit,
   essencePct,
   basePct,
 }: {
-  essenceGr: string | null;
-  baseGr: string | null;
+  essence: string | null;
+  base: string | null;
+  unit: "ml" | "gr";
   essencePct: number | null;
   basePct: number | null;
 }) {
   const t = useTranslations("production.mix");
-  const e = Number(essenceGr ?? 0);
-  const b = Number(baseGr ?? 0);
+  const e = Number(essence ?? 0);
+  const b = Number(base ?? 0);
+  const u = unit === "ml" ? "ml" : t("gram");
   const total = e + b;
   // Beher iç yüksekliği 150 (y 40→190). Sıvı toplam %85 dolu.
   const fillH = 150 * 0.85;
@@ -76,7 +79,7 @@ export function MixBeaker({
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#d9a94a" }} /> {t("essence")}
           </dt>
           <dd className="num m-0 font-semibold">
-            {essenceGr ?? "—"} {t("gram")} {essencePct != null && <span className="text-muted">· %{essencePct}</span>}
+            {essence ? e.toLocaleString("tr-TR") : "—"} {u} {essencePct != null && <span className="text-muted">· %{essencePct}</span>}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5 rounded-[10px] bg-surface-soft px-2 py-2">
@@ -84,13 +87,13 @@ export function MixBeaker({
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#cdbf9f" }} /> {t("base")}
           </dt>
           <dd className="num m-0 font-semibold">
-            {baseGr ?? "—"} {t("gram")} {basePct != null && <span className="text-muted">· %{basePct}</span>}
+            {base ? b.toLocaleString("tr-TR") : "—"} {u} {basePct != null && <span className="text-muted">· %{basePct}</span>}
           </dd>
         </div>
       </dl>
       {total > 0 && (
         <p className="num m-0 text-[12px] text-muted">
-          {t("total")}: {total.toLocaleString("tr-TR")} {t("gram")}
+          {t("total")}: {total.toLocaleString("tr-TR")} {u}
         </p>
       )}
     </div>

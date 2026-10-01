@@ -127,6 +127,29 @@ async function decreaseOnHand(tx: Tx, itemId: string, lotId: string, locationId:
 }
 
 /** Kalemin tüm lokasyonlardaki kullanılabilir toplamı. */
+/**
+ * Üretim/satış için FEFO ile ayrılabilir miktar: yalnızca serbest (RELEASED), süresi geçmemiş lotların
+ * boştaki miktarı (`reserveFefo` ile aynı koşul, kural 3). Karantinadaki eldeki miktar ayrıca döner;
+ * böylece "stok var ama kalite onayı bekliyor" durumu ekranda ayırt edilir.
+ */
+export async function reservableForItem(tx: Tx, itemId: string, now = new Date()): Promise<{ reservable: Dec; quarantine: Dec }> {
+  const rows = await tx.stockBalance.findMany({
+    where: { itemId },
+    select: { qtyOnHand: true, qtyReserved: true, lot: { select: { qcStatus: true, expiryDate: true } } },
+  });
+  let reservable = new D(0);
+  let quarantine = new D(0);
+  for (const r of rows) {
+    if (r.lot.qcStatus === "RELEASED" && (!r.lot.expiryDate || r.lot.expiryDate > now)) {
+      const free = new D(r.qtyOnHand).minus(r.qtyReserved);
+      if (free.greaterThan(0)) reservable = reservable.plus(free);
+    } else if (r.lot.qcStatus === "QUARANTINE") {
+      quarantine = quarantine.plus(r.qtyOnHand);
+    }
+  }
+  return { reservable, quarantine };
+}
+
 export async function availableForItem(tx: Tx, itemId: string): Promise<Dec> {
   const r = await tx.stockBalance.aggregate({
     where: { itemId },
