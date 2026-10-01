@@ -26,7 +26,8 @@
     "test": "vitest run",
     "typecheck": "prisma generate && tsc --noEmit",
     "test:coverage": "vitest run --coverage",
-    "import:showcase": "tsx prisma/import-showcase.ts"
+    "import:showcase": "tsx prisma/import-showcase.ts",
+    "set-admin": "tsx prisma/set-admin-password.ts"
   },
   "dependencies": {
     "@atelier/shared": "workspace:*",

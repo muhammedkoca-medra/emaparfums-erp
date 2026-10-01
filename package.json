@@ -22,7 +22,8 @@
     "db:studio": "pnpm --filter @atelier/db studio",
     "db:validate": "pnpm --filter @atelier/db validate",
     "test:e2e": "turbo run build --filter=@atelier/api --filter=@atelier/worker && pnpm --filter @atelier/web test:e2e",
-    "db:import:showcase": "pnpm --filter @atelier/db import:showcase"
+    "db:import:showcase": "pnpm --filter @atelier/db import:showcase",
+    "db:set-admin": "pnpm --filter @atelier/db set-admin"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
