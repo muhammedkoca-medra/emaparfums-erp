@@ -929,39 +929,53 @@ async function qcTests() {
   }
 }
 
+/**
+ * SEED_CLEAN=1 → ÜRETİM "temiz tohum": yalnızca yönetici + işletmenin çalışması için gereken
+ * REFERANS veri (roller/yetki, depolar, entegrasyonlar/kanallar/kargo/ödeme, vergi kuralları, sadakat
+ * seviyeleri, kalite test şablonları, üretim kaynakları, vergi takvimi). Demo veri EKLENMEZ
+ * (örnek ürün/müşteri/stok/parti yok). Kendi ürünlerini sonra `pnpm db:import:showcase` ile eklersin.
+ */
 async function main() {
-  console.log("Tohum verisi yükleniyor…");
+  const clean = ["1", "true", "yes"].includes((process.env.SEED_CLEAN ?? "").toLowerCase());
+  console.log(clean ? "Temiz üretim tohumu yükleniyor (yalnızca yönetici + referans)…" : "Tohum verisi yükleniyor…");
   const roleIds = await roles();
   console.log("  ✓ roller ve yetki matrisi");
   await adminUser(roleIds.ADMIN!);
   await warehouses();
   console.log("  ✓ depolar ve lokasyonlar");
-  const itemIds = await items();
-  console.log("  ✓ kalemler");
-  await stock(itemIds);
-  console.log("  ✓ stok (lotlar, hareketler, rezervasyonlar)");
-  await products(itemIds);
-  console.log("  ✓ ürünler, formüller, notalar, akorlar, reçete");
+  if (!clean) {
+    const itemIds = await items();
+    console.log("  ✓ kalemler");
+    await stock(itemIds);
+    console.log("  ✓ stok (lotlar, hareketler, rezervasyonlar)");
+    await products(itemIds);
+    console.log("  ✓ ürünler, formüller, notalar, akorlar, reçete");
+  }
   await commerce();
   console.log("  ✓ entegrasyonlar, satış kanalları, kargo firmaları, ödeme sağlayıcıları");
   await taxRules();
   console.log("  ✓ vergi kuralları (teyit bekliyor)");
   await loyalty();
   console.log("  ✓ sadakat seviyeleri ve abonelik planı");
-  await bottles();
-  console.log("  ✓ şişe ambalaj kalemleri (stok girişi için)");
-  await customers();
-  console.log("  ✓ örnek müşteriler (KVKK rıza kayıtlı, PII şifreli)");
-  await batches();
-  console.log("  ✓ örnek üretim partileri (karışım + demlenme)");
+  if (!clean) {
+    await bottles();
+    console.log("  ✓ şişe ambalaj kalemleri (stok girişi için)");
+    await customers();
+    console.log("  ✓ örnek müşteriler (KVKK rıza kayıtlı, PII şifreli)");
+    await batches();
+    console.log("  ✓ örnek üretim partileri (karışım + demlenme)");
+  }
   await qcTests();
   console.log("  ✓ kalite test şablonları (KAL-01)");
   await resources();
   console.log("  ✓ üretim kaynakları (hat planı, URT-07)");
   await taxCalendar();
   console.log("  ✓ vergi takvimi (beyan tarihleri)");
-  await socialAccounts();
-  console.log("  ✓ sosyal medya hesapları (F4-09)");
+  if (!clean) {
+    await socialAccounts();
+    console.log("  ✓ sosyal medya hesapları (F4-09)");
+  }
+  if (clean) console.log("Temiz tohum tamam. Kendi ürünlerini ekle: pnpm db:import:showcase");
 }
 
 /** F4-09: örnek sosyal medya hesapları (yayın mock adaptörle). */

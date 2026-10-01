@@ -41,42 +41,31 @@ git clone <REPO_URL> /opt/emaparfums
 cd /opt/emaparfums
 ```
 
-## 5. Ortam değişkenleri
+## 5–7. Tek komutla kurulum (önerilen)
+Repo kökünde:
 ```bash
-cp deploy/env.prod.example deploy/.env
+bash deploy/bootstrap.sh
 ```
-`deploy/.env` içini doldur. Gizli anahtarları üret:
-```bash
-echo "AUTH_SECRET=$(openssl rand -base64 32)"
-echo "PII_ENC_KEYS=k1:$(openssl rand -base64 32)"
-echo "PII_HASH_KEY=$(openssl rand -base64 32)"
-echo "PAYMENT_WEBHOOK_SECRET=$(openssl rand -base64 24)"
-echo "EINVOICE_WEBHOOK_SECRET=$(openssl rand -base64 24)"
-echo "DB_PASSWORD=$(openssl rand -base64 24)"
-```
-Çıktıları `deploy/.env` içine yapıştır. `DOMAIN=erp.alanadiniz.com` ve güçlü bir `SEED_ADMIN_PASSWORD` ayarla.
+Script şunları yapar: 3 soru sorar (alan adı, yönetici e-postası, yönetici parolası) → tüm gizli
+anahtarları üretip `deploy/.env` yazar → derler → şemayı kurar (`prisma migrate deploy`) → **temiz
+tohum** atar (yalnızca yönetici + referans veri; demo müşteri/ürün yok) → her şeyi ayağa kaldırır.
 
-## 6. Başlat (derle + ayağa kaldır)
-```bash
-cd /opt/emaparfums/deploy
-docker compose -f docker-compose.prod.yml up -d --build
-```
-- `migrate` servisi önce şemayı kurar (`prisma migrate deploy`), sonra api/web/worker başlar.
-- İlk derleme birkaç dakika sürer.
-
-## 7. İlk yönetici + referans veri (yalnızca ilk kurulumda)
-```bash
-docker compose -f docker-compose.prod.yml run --rm migrate pnpm db:seed
-```
-Bu, `SEED_ADMIN_EMAIL` ile yönetici hesabını ve referans verileri (vergi kuralları, sadakat
-seviyeleri, kalite test şablonları, kaynaklar vb.) oluşturur. **Not:** tohum örnek müşteri/ürün de
-ekler; tamamen temiz başlamak istersen bu adımı atlayıp yöneticiyi elle oluşturmayı tercih edebilirsin
-(gerekirse birlikte "yalnızca-admin" tohumu ekleyebiliriz).
+> Elle yapmak istersen: `cp deploy/env.prod.example deploy/.env`, anahtarları `openssl rand -base64 32`
+> ile doldur, sonra `cd deploy && docker compose -f docker-compose.prod.yml up -d --build` ve
+> `docker compose -f docker-compose.prod.yml run --rm migrate pnpm db:seed` (SEED_CLEAN=1 ile temiz).
 
 ## 8. Giriş ve doğrulama
 - `https://erp.alanadiniz.com` → giriş: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 - İlk girişte **TOTP (iki adımlı doğrulama)** kurulur (Google Authenticator vb.). Parolayı değiştir.
 - Telefon/PC'den aynı adresle erişilir.
+
+## 8b. Kendi ürünlerini ekle (temiz başlangıç)
+Temiz tohumda demo ürün yoktur. Kendi ürün kataloğunu içe aktar:
+```bash
+cd /opt/emaparfums/deploy
+docker compose -f docker-compose.prod.yml run --rm migrate pnpm db:import:showcase
+```
+(Vitrin/koku profili verisi `pnpm db:import:showcase` ile gelir — bkz. [[vitrin-showcase]].)
 
 ## 9. Güncelleme (kullanıcılar kullanırken geliştirme)
 Kodda değişiklik yaptıktan sonra:
