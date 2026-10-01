@@ -99,14 +99,6 @@ export default async function VitrinPage({ searchParams }: { searchParams: Promi
                   <span className="absolute top-3 right-3 rounded-full bg-ink/80 px-2.5 py-0.5 text-[10.5px] font-semibold text-on-ink backdrop-blur">
                     {t(`gender.${p.gender}`)}
                   </span>
-                  <span
-                    className={`absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold backdrop-blur ${
-                      p.inStock ? "bg-surface/85 text-ok" : "bg-surface/85 text-muted"
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${p.inStock ? "bg-ok" : "bg-muted"}`} />
-                    {t(p.inStock ? "inStock" : "outStock")}
-                  </span>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-ink/85 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     <span className="text-[13px] font-semibold text-on-ink">{t("detail")} →</span>
                     <span className="flex gap-1">
@@ -116,9 +108,19 @@ export default async function VitrinPage({ searchParams }: { searchParams: Promi
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 px-4 py-3">
+                <div className="flex flex-col gap-1.5 px-4 py-3">
                   <span className="truncate font-display text-[16px] font-semibold text-text">{p.name}</span>
-                  <span className="shrink-0 text-[11px] text-muted">{t("concVol", { conc: p.concentration, vol: p.volumeMl })}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-muted">{t("concVol", { conc: p.concentration, vol: p.volumeMl })}</span>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
+                        p.inStock ? "bg-ok-bg text-ok" : "bg-surface-soft text-muted"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${p.inStock ? "bg-ok" : "bg-muted"}`} />
+                      {t(p.inStock ? "inStock" : "outStock")}
+                    </span>
+                  </div>
                 </div>
               </Link>
             </li>

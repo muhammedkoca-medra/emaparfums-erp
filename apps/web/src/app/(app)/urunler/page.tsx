@@ -81,16 +81,6 @@ export default async function ProductsPage() {
                   ) : (
                     <div className="flex h-full items-center justify-center font-display text-[20px] text-muted">{p.name}</div>
                   )}
-                  <span className="absolute top-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold backdrop-blur ${
-                        p.inStock ? "bg-ok-bg/90 text-ok" : "bg-bad-bg/90 text-bad"
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${p.inStock ? "bg-ok" : "bg-bad"}`} />
-                      {t(p.inStock ? "stock.in" : "stock.out")}
-                    </span>
-                  </span>
                   <span className="absolute top-3 right-3">
                     <Pill tone={PRODUCT_TONE[p.status] ?? "neu"}>{t(`status.${p.status}`)}</Pill>
                   </span>
@@ -106,9 +96,19 @@ export default async function ProductsPage() {
                       </Link>
                       <span className="ml-2 text-[11.5px] text-muted">{p.item.code}</span>
                     </div>
-                    <span className="shrink-0 text-[11px] text-muted">
-                      {t(`concentration.${p.concentration}`)} · {p.volumeMl}ml
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <span className="text-[11px] text-muted">
+                        {t(`concentration.${p.concentration}`)} · {p.volumeMl}ml
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
+                          p.inStock ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${p.inStock ? "bg-ok" : "bg-bad"}`} />
+                        {t(p.inStock ? "stock.in" : "stock.out")}
+                      </span>
+                    </div>
                   </div>
                   <ProductActions itemId={p.item.id} />
                 </div>
