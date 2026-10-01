@@ -5,6 +5,7 @@ import { Pill, PRODUCT_TONE } from "@/components/Pill";
 import { Topbar } from "@/components/Topbar";
 import { apiGet, getMe } from "@/lib/api-server";
 import { canView } from "@/lib/modules";
+import { DeleteProductButton } from "./_components/DeleteProductButton";
 import { ProductActions } from "./ProductActions";
 
 interface ProductRow {
@@ -40,6 +41,7 @@ export default async function ProductsPage() {
     );
   }
   const canCreate = me.permissions.includes("sales:CREATE");
+  const canDelete = me.permissions.includes("sales:DELETE");
   const products = await apiGet<ProductRow[]>("/catalog/products");
 
   return (
@@ -110,7 +112,10 @@ export default async function ProductsPage() {
                       </span>
                     </div>
                   </div>
-                  <ProductActions itemId={p.item.id} />
+                  <div className="flex items-end justify-between gap-2">
+                    <ProductActions itemId={p.item.id} />
+                    {canDelete && <DeleteProductButton productId={p.id} productName={p.name} compact />}
+                  </div>
                 </div>
               </li>
             ))}

@@ -544,11 +544,12 @@
     },
     "delete": {
       "zone": "Tehlikeli bölge",
-      "zoneHint": "Ürünü kalıcı olarak siler. Satış, üretim, fiyat veya uyum kaydı varsa silinmez; bunun yerine durumu 'Üretimden kalktı' yapın.",
+      "zoneHint": "Ürünü kalıcı olarak siler; reçetesi ve fiyatı da kaldırılır. Satış, üretim partisi ya da uyum belgesi varsa silinmez; bunun yerine durumu 'Üretimden kalktı' yapın.",
       "delete": "Ürünü sil",
       "deleting": "Siliniyor…",
       "confirm": "\"{name}\" ürünü kalıcı olarak silinecek. Emin misiniz?",
-      "failed": "Ürün silinemedi."
+      "failed": "Ürün silinemedi.",
+      "deleteShort": "Sil"
     },
     "col": {
       "sku": "SKU",
@@ -690,7 +691,23 @@
       },
       "gridView": "Vitrin",
       "tableView": "Liste",
-      "bottle": "Şişe"
+      "bottle": "Şişe",
+      "stockIn": "+ Stok gir",
+      "stockMoves": "Hareketler →",
+      "edit": "Düzenle",
+      "setUp": "Kur"
+    },
+    "price": {
+      "label": "Satış fiyatı",
+      "none": "Fiyat tanımlı değil",
+      "edit": "Düzenle",
+      "set": "Fiyat gir",
+      "save": "Kaydet",
+      "saving": "Kaydediliyor…",
+      "cancel": "Vazgeç",
+      "hint": "KDV dahil satış fiyatı (₺)",
+      "inclTax": "KDV dahil",
+      "failed": "Fiyat kaydedilemedi."
     }
   },
   "formulas": {
@@ -1157,7 +1174,8 @@
       "title": "Üretim kurulumu",
       "intro": "Parti açabilmek için her ürüne formül ve reçete kurulur. Siyah olan sıradaki ürün; tıklayıp kurun.",
       "count": "{ready} / {total} ürün hazır",
-      "more": "ve {count} ürün daha"
+      "more": "ve {count} ürün daha",
+      "showAll": "Tümünü göster (+{count} ürün)"
     },
     "next": {
       "title": "Şimdi ne yapmalı?",
@@ -1182,6 +1200,14 @@
       "macerationStart": "Demlenme başlangıcı (biliniyorsa)",
       "stockNote": "Bu partinin geçmişte kullanılan malzemeleri stoktan düşülmez. Sonraki aşamalar normal işler.",
       "create": "Mevcut üretimi kaydet"
+    },
+    "delete": {
+      "zone": "Partiyi sil",
+      "hint": "Yanlış ya da deneme kaydını kaldırır; ayrılmış malzeme stoğa geri döner. Malzemesi tüketilmiş ya da dolumu yapılmış parti silinmez; onu Elle düzenle → Aşama: İptal ile kapatın.",
+      "delete": "Partiyi sil",
+      "deleting": "Siliniyor…",
+      "confirm": "{number} partisi kalıcı olarak silinecek. Emin misiniz?",
+      "failed": "Parti silinemedi."
     }
   },
   "orders": {

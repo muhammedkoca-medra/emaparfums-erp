@@ -173,3 +173,16 @@ export const catalogQuerySchema = z.object({
   type: z.enum(ITEM_TYPES).optional(),
   search: z.string().trim().max(60).optional(),
 });
+
+/**
+ * Ürün satış fiyatı (KDV dahil, brüt). Para `number` ile taşınmaz (kural 5): metin, en çok 2 ondalık.
+ * Yazım WEB kanalının fiyat listesine yeni geçerlilik satırı ekler; geçmiş fiyatlar korunur.
+ */
+export const productPriceSchema = z.object({
+  price: z
+    .string()
+    .trim()
+    .regex(/^\d{1,9}(\.\d{1,2})?$/, "Fiyat sayı olmalı (ör. 1250 ya da 1250.50)")
+    .refine((v) => Number(v) > 0, "Fiyat 0'dan büyük olmalı"),
+});
+export type ProductPriceRequest = z.infer<typeof productPriceSchema>;

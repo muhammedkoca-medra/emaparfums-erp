@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import {
   applicableTests,
@@ -9,6 +9,7 @@ import {
   openInspectionForLot,
   Prisma,
   recordMovement,
+  releaseReservation,
   reservableForItem,
   reserveFefo,
   setLotQcStatus,
@@ -432,6 +433,48 @@ export class ProductionController {
       await emit(tx, { type: "batch.stage_changed", batchId: id, stage: body.stage });
     });
     return { id, stage: body.stage };
+  }
+
+  /**
+   * Partiyi siler (yanlış/deneme kaydı). Stoğa dokunmuş parti (malzeme tüketimi ya da çıktı lotu) silinmez;
+   * bunun yerine aşaması "İptal" yapılır (lot/hareket izlenebilirliği korunur). Açık malzeme rezervasyonları
+   * stoğa geri bırakılır. Silme AuditLog'a yazılır.
+   */
+  @Delete("batches/:id")
+  @RequirePermission("production", "DELETE")
+  async remove(@Param("id") id: string, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "ProductionBatch" WHERE id = ${id} FOR UPDATE`;
+      if (!rows[0]) throw new NotFoundException({ message: "Parti bulunamadı" });
+      const b = await tx.productionBatch.findUniqueOrThrow({ where: { id }, include: { product: { select: { sku: true } } } });
+      const [consumed, outputs] = await Promise.all([
+        tx.batchConsumption.count({ where: { batchId: id } }),
+        tx.lot.count({ where: { batchId: id } }),
+      ]);
+      if (consumed + outputs > 0)
+        throw new BadRequestException({
+          message: "Bu partiden stok hareketi oluştu (malzeme tüketimi ya da dolum çıktısı); silinemez. Elle düzenle → Aşama: İptal yapın.",
+        });
+      const open = await tx.stockReservation.findMany({
+        where: { refType: "ProductionBatch", refId: id, releasedAt: null, consumedAt: null },
+        select: { id: true },
+      });
+      for (const r of open) await releaseReservation(tx, r.id);
+      await tx.productionStageLog.deleteMany({ where: { batchId: id } });
+      await tx.scheduleSlot.deleteMany({ where: { batchId: id } });
+      await tx.batchCost.deleteMany({ where: { batchId: id } });
+      await tx.productionBatch.delete({ where: { id } });
+      await writeAudit(tx, {
+        userId: auth.userId,
+        action: "batch.delete",
+        entity: "ProductionBatch",
+        entityId: id,
+        before: { number: b.number, product: b.product.sku, stage: b.stage, plannedQty: b.plannedQty, plannedMl: b.plannedMl?.toString() ?? null },
+        after: { releasedReservations: open.length },
+        ...clientInfo(req),
+      });
+      return { id, deleted: true, releasedReservations: open.length };
+    });
   }
 
   /** Sonraki aşamaya geçer. Maserasyona girişte sayaç başlar; süre dolmadan çıkış yönetici gerekçesiyle. */

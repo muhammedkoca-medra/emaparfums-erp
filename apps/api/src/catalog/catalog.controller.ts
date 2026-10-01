@@ -26,6 +26,8 @@ import {
   productCreateSchema,
   type ProductFullCreateRequest,
   productFullCreateSchema,
+  type ProductPriceRequest,
+  productPriceSchema,
   type ProductScentRequest,
   productScentSchema,
   type ProductUpdateRequest,
@@ -428,8 +430,9 @@ export class CatalogController {
   }
 
   /**
-   * Ürün kartını siler. Satış/üretim/fiyat/uyum kaydı varsa silinmez; bunun yerine durumu
-   * "Üretimden kalktı" yapılması önerilir (geçmiş kayıtların bütünlüğü için).
+   * Ürün kartını siler. Satış, üretim partisi, kanal ilanı ya da uyum belgesi varsa silinmez (geçmiş
+   * kayıtların bütünlüğü); bunun yerine durumu "Üretimden kalktı" yapılması önerilir. Reçete (BOM) ve
+   * fiyat satırları ürünün kendi tanımıdır; ürünle birlikte kaldırılır (fiyat değişimleri AuditLog'da kalır).
    */
   @Delete("products/:id")
   @RequirePermission("sales", "DELETE")
@@ -440,20 +443,23 @@ export class CatalogController {
   ) {
     const product = await loadProduct(this.prisma, id);
     if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
-    const [orders, batches, boms, prices, listings, compliance] = await Promise.all([
+    const [orders, batches, listings, compliance] = await Promise.all([
       this.prisma.salesOrderLine.count({ where: { productId: id } }),
       this.prisma.productionBatch.count({ where: { productId: id } }),
-      this.prisma.billOfMaterials.count({ where: { productId: id } }),
-      this.prisma.priceListItem.count({ where: { productId: id } }),
       this.prisma.channelListing.count({ where: { productId: id } }),
       this.prisma.complianceDocument.count({ where: { productId: id } }),
     ]);
-    if (orders + batches + boms + prices + listings + compliance > 0) {
+    if (orders + batches + listings + compliance > 0) {
+      const why = [orders && "satış", batches && "üretim partisi", listings && "kanal ilanı", compliance && "uyum belgesi"].filter(Boolean).join(", ");
       throw new BadRequestException({
-        message: "Bu ürünün satış, üretim, fiyat veya uyum kaydı var. Silmek yerine durumunu 'Üretimden kalktı' yapın.",
+        message: `Bu ürünün ${why} kaydı var; silinemez. Silmek yerine durumunu 'Üretimden kalktı' yapın.`,
       });
     }
     await this.prisma.$transaction(async (tx) => {
+      // Ürünün kendi tanımları: reçete satırları + reçeteler, fiyat satırları
+      await tx.bomLine.deleteMany({ where: { bom: { productId: id } } });
+      await tx.billOfMaterials.deleteMany({ where: { productId: id } });
+      await tx.priceListItem.deleteMany({ where: { productId: id } });
       await tx.productNote.deleteMany({ where: { productId: id } });
       await tx.productAccord.deleteMany({ where: { productId: id } });
       await tx.productContent.deleteMany({ where: { productId: id } });
@@ -472,6 +478,49 @@ export class CatalogController {
     });
     await removeProductImages(this.config.UPLOADS_DIR, id);
     return { id, deleted: true };
+  }
+
+  /**
+   * Satış fiyatını belirler (KDV dahil brüt). WEB kanalının fiyat listesine yeni geçerlilik satırı eklenir;
+   * önceki fiyat korunur. Fiyat değişimi AuditLog (kural 7) ve price.changed olayı yazar.
+   */
+  @Put("products/:id/price")
+  @RequirePermission("sales", "EDIT")
+  @ApiZodBody(productPriceSchema)
+  async setPrice(
+    @Param("id") id: string,
+    @Body(new ZodPipe(productPriceSchema)) body: ProductPriceRequest,
+    @CurrentUser() auth: AuthContext,
+    @Req() req: AuthedRequest,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id }, select: { id: true, sku: true } });
+      if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
+      const channel = await tx.salesChannel.findFirst({ where: { OR: [{ code: "WEB" }, { type: "WEBSITE" }] }, orderBy: { code: "asc" } });
+      if (!channel) throw new BadRequestException({ message: "Web satış kanalı tanımlı değil" });
+      const priceList =
+        (await tx.priceList.findFirst({ where: { channelId: channel.id } })) ??
+        (await tx.priceList.create({ data: { channelId: channel.id, currency: "TRY", pricesIncludeTax: true } }));
+      const now = new Date();
+      const before = await tx.priceListItem.findFirst({
+        where: { productId: id, validFrom: { lte: now } },
+        orderBy: { validFrom: "desc" },
+        select: { price: true },
+      });
+      const price = new Prisma.Decimal(body.price).toDecimalPlaces(2);
+      await tx.priceListItem.create({ data: { priceListId: priceList.id, productId: id, price, validFrom: now } });
+      await writeAudit(tx, {
+        userId: auth.userId,
+        action: "price.update",
+        entity: "Product",
+        entityId: id,
+        before: { price: before?.price.toString() ?? null },
+        after: { price: price.toString(), channel: channel.code, includesTax: priceList.pricesIncludeTax },
+        ...clientInfo(req),
+      });
+      await emit(tx, { type: "price.changed", productId: id, channelCode: channel.code });
+      return { id, price: price.toFixed(2), currency: priceList.currency, includesTax: priceList.pricesIncludeTax };
+    });
   }
 
   /** Ticari kart değişikliği; vergi kategorisi/GTİP değişirse VRG-04 kontrolü, product.updated olayı. */

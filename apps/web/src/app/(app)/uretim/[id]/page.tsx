@@ -5,7 +5,9 @@ import { BottleViewer } from "@/components/BottleViewer";
 import { Topbar } from "@/components/Topbar";
 import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { fmtQty } from "@/lib/format";
+import { HashOpener } from "@/components/HashOpener";
 import { AdvanceButton } from "../AdvanceButton";
+import { DeleteBatchButton } from "../DeleteBatchButton";
 import { BatchEditor } from "../BatchEditor";
 import { MacerationClock } from "../MacerationClock";
 import { type Materials, MaterialsPanel } from "../MaterialsPanel";
@@ -71,7 +73,21 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Topbar heading={`${b.number} · ${b.product.name}`} sub={`${b.product.sku} · ${b.formula.code} v${b.formula.version}`} action={<StageBadge stage={b.stage} />} />
+      <Topbar
+        heading={`${b.number} · ${b.product.name}`}
+        sub={`${b.product.sku} · ${b.formula.code} v${b.formula.version}`}
+        action={
+          <span className="flex items-center gap-3">
+            {canEdit && (
+              <a href="#duzenle" className="text-[13px] font-semibold text-gold-text no-underline hover:underline">
+                ✎ {t("edit.title")}
+              </a>
+            )}
+            <StageBadge stage={b.stage} />
+          </span>
+        }
+      />
+      <HashOpener ids={["duzenle"]} />
       <div className="flex flex-col gap-5 px-4 py-5 sm:px-8">
         <Link href="/uretim" className="self-start text-[13px] font-semibold">
           ← {t("back")}
@@ -151,6 +167,8 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         {quality && quality.lots.length > 0 && <QualityReleasePanel batchId={b.id} lots={quality.lots} canApprove={canQuality} />}
 
         {canEdit && <BatchEditor batch={b} />}
+
+        {me.permissions.includes("production:DELETE") && <DeleteBatchButton batchId={b.id} batchNumber={b.number} />}
 
         {/* Aşama geçmişi */}
         {b.stageLogs.length > 0 && (

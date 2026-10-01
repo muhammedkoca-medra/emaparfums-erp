@@ -7,7 +7,16 @@ import { alertErr } from "@/components/ui";
 import { ClientApiError, errorText } from "@/lib/api-client";
 
 /** Ürün kartını siler. Satış/üretim kaydı olan ürünü API güvenlik için reddeder (durum değiştirmeyi önerir). */
-export function DeleteProductButton({ productId, productName }: { productId: string; productName: string }) {
+export function DeleteProductButton({
+  productId,
+  productName,
+  compact = false,
+}: {
+  productId: string;
+  productName: string;
+  /** Liste kartında küçük düğme; silince liste yenilenir. */
+  compact?: boolean;
+}) {
   const t = useTranslations("catalog.delete");
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -25,12 +34,28 @@ export function DeleteProductButton({ productId, productName }: { productId: str
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) throw new ClientApiError(res.status, body.message ?? "", body);
-      router.push("/urunler");
+      if (!compact) router.push("/urunler");
       router.refresh();
     } catch (err) {
       setError(errorText(err, t("failed")));
       setBusy(false);
     }
+  }
+
+  if (compact) {
+    return (
+      <span className="flex flex-col items-end gap-1">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void onDelete()}
+          className="rounded-[8px] border border-bad/30 px-2.5 py-1 text-[11.5px] font-semibold text-bad transition-colors hover:bg-bad hover:text-white disabled:opacity-50"
+        >
+          {busy ? t("deleting") : t("deleteShort")}
+        </button>
+        {error && <span role="alert" className="max-w-[220px] text-right text-[11px] text-bad">{error}</span>}
+      </span>
+    );
   }
 
   return (

@@ -98,10 +98,26 @@ export default async function ProductionPage() {
                   </Link>
                 </li>
               ))}
-              {pending.length > SHOW && (
-                <li className="self-center text-[12px] text-muted">{t("setupProgress.more", { count: pending.length - SHOW })}</li>
-              )}
             </ul>
+            {pending.length > SHOW && (
+              <details className="group">
+                <summary className="cursor-pointer text-[12.5px] font-semibold text-gold-text">
+                  {t("setupProgress.showAll", { count: pending.length - SHOW })}
+                </summary>
+                <ul className="m-0 mt-2 flex list-none flex-wrap gap-2 p-0">
+                  {pending.slice(SHOW).map((p) => (
+                    <li key={p.id}>
+                      <Link
+                        href={`/urunler/${p.id}#uretim-kurulumu`}
+                        className="inline-flex min-h-9 items-center rounded-full border border-line bg-surface px-3.5 text-[12.5px] font-semibold text-text no-underline transition-colors hover:border-gold-2"
+                      >
+                        {p.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </section>
         )}
         <span className="text-xs text-muted">{t("count", { count: batches.length })}</span>

@@ -68,11 +68,15 @@ docker compose -f docker-compose.prod.yml run --rm migrate pnpm db:import:showca
 (Vitrin/koku profili verisi `pnpm db:import:showcase` ile gelir — bkz. [[vitrin-showcase]].)
 
 ## 9. Güncelleme (kullanıcılar kullanırken geliştirme)
-Kodda değişiklik yaptıktan sonra:
+Kodu `git push` ettikten sonra **kendi bilgisayarından tek komut** (sunucuya girmeye gerek yok):
 ```bash
-cd /opt/emaparfums && git pull
-cd deploy && docker compose -f docker-compose.prod.yml up -d --build
+ssh root@<sunucu> "cd /opt/emaparfums && git pull --ff-only && bash deploy/update.sh"
 ```
+Durum (derleme bitti mi, servisler ayakta mı):
+```bash
+ssh root@<sunucu> "bash /opt/emaparfums/deploy/status.sh"
+```
+- `update.sh` derlemeyi oturumdan bağımsız (`setsid nohup`) başlatır; SSH bağlantısı kopsa da sürer. Log: `/tmp/deploy.log`.
 - İmaj yeniden derlenir, container'lar yenilenir (kısa bir kesinti olur — en ucuz kurulumda beklenen).
 - Şema değişikliği varsa `migrate` otomatik `prisma migrate deploy` çalıştırır.
 - Kesintisiz güncelleme (mavi/yeşil) ileride ayrı bir iyileştirmedir.

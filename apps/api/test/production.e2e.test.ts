@@ -379,6 +379,36 @@ describe("BOM'lu üretim: malzeme, FEFO tüketim, maliyet, çıktı (URT-02/03/0
     expect(qc.body.message).toContain("kalite onayıyla");
   });
 
+  it("parti silinir: rezerve malzeme stoğa geri bırakılır; stoğa dokunmuş parti silinmez", async () => {
+    const admin = await loginAgent(ctx, await createUser(ctx, ["ADMIN"]));
+    // Yeni parti → doğrudan silinir
+    const fresh = await admin.post("/production/batches").send(bomBatch()).expect(201);
+    await admin.delete(`/production/batches/${fresh.body.id}`).expect(200);
+    expect(await ctx.prisma.productionBatch.count({ where: { id: fresh.body.id } })).toBe(0);
+
+    // Tartıma alınmış (rezervasyonlu) parti → silinince rezervasyon serbest kalır
+    const reserved = await admin.post("/production/batches").send(bomBatch()).expect(201);
+    await admin.post(`/production/batches/${reserved.body.id}/advance`).send({}).expect(201);
+    expect(await ctx.prisma.stockReservation.count({ where: { refId: reserved.body.id, releasedAt: null, consumedAt: null } })).toBe(2);
+    const del = await admin.delete(`/production/batches/${reserved.body.id}`).expect(200);
+    expect(del.body.releasedReservations).toBe(2);
+    expect(await ctx.prisma.stockReservation.count({ where: { refId: reserved.body.id, releasedAt: null, consumedAt: null } })).toBe(0);
+    const check = await admin.get("/stock/consistency").expect(200);
+    expect(check.body.mismatches).toEqual([]);
+
+    // Malzemesi tüketilmiş parti → 400 (iptal önerilir)
+    const used = await admin.post("/production/batches").send(bomBatch()).expect(201);
+    await admin.post(`/production/batches/${used.body.id}/advance`).send({}).expect(201);
+    await admin.post(`/production/batches/${used.body.id}/advance`).send({}).expect(201);
+    const blocked = await admin.delete(`/production/batches/${used.body.id}`).expect(400);
+    expect(blocked.body.message).toContain("İptal");
+
+    // DELETE yetkisi olmayan rol silemez
+    const prod = await loginAgent(ctx, await createUser(ctx, ["PRODUCTION"]));
+    const other = await prod.post("/production/batches").send(bomBatch()).expect(201);
+    await prod.delete(`/production/batches/${other.body.id}`).expect(403);
+  });
+
   it("kalite onayı quality:APPROVE ister", async () => {
     const prod = await loginAgent(ctx, await createUser(ctx, ["PRODUCTION"]));
     const { body } = await prod.post("/production/batches").send(bomBatch()).expect(201);

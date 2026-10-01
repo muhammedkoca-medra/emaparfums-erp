@@ -127,27 +127,54 @@ describe("ürün yönetimi (tam oluşturma, görsel, silme)", () => {
     await admin.delete(`/catalog/products/${id}`).expect(404);
   });
 
-  it("fiyat/satış kaydı olan ürün silinmez (400), durum değiştirmesi önerilir", async () => {
+  it("fiyat belirlenir (KDV dahil), en yeni fiyat geçerli olur ve denetime yazılır", async () => {
     const admin = await loginAgent(ctx, await createUser(ctx, ["ADMIN"]));
     const created = await admin
       .post("/catalog/products/full")
-      .send({
-        itemCode: "EM-DEL02",
-        itemName: "Fiyatlı Kalem",
-        sku: "DEL-02",
-        name: "Fiyatlı Ürün",
-        concentration: "EDP",
-        volumeMl: 50,
-        gtip: "3303.00",
-        taxCategory: "PERFUME",
-        status: "ACTIVE",
-      })
+      .send({ itemCode: "EM-PRC01", itemName: "Fiyat Kalemi", sku: "PRC-01", name: "Fiyat Ürünü", concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status: "ACTIVE" })
       .expect(201);
     const id = created.body.id as string;
+    // WEB kanalı (canlıda tohumdan gelir)
+    if (!(await ctx.prisma.salesChannel.findUnique({ where: { code: "WEB" } })))
+      await ctx.prisma.salesChannel.create({ data: { code: "WEB", name: "Kendi web sitesi", type: "WEBSITE" } });
+    await admin.put(`/catalog/products/${id}/price`).send({ price: "abc" }).expect(400);
+    const p1 = await admin.put(`/catalog/products/${id}/price`).send({ price: "1250" }).expect(200);
+    expect(p1.body).toMatchObject({ price: "1250.00", currency: "TRY", includesTax: true });
+    await new Promise((r) => setTimeout(r, 5));
+    await admin.put(`/catalog/products/${id}/price`).send({ price: "1399.90" }).expect(200);
+    const ov = await admin.get(`/catalog/products/${id}/overview`).expect(200);
+    expect(ov.body.price.amount).toBe("1399.9");
+    const audits = await ctx.prisma.auditLog.count({ where: { entityId: id, action: "price.update" } });
+    expect(audits).toBe(2);
+    // Satış yetkisi olmayan fiyat değiştiremez
+    const q = await loginAgent(ctx, await createUser(ctx, ["QUALITY"]));
+    await q.put(`/catalog/products/${id}/price`).send({ price: "1" }).expect(403);
+  });
+
+  it("fiyatı ve reçetesi olan ürün silinebilir (birlikte kaldırılır); uyum belgesi olan silinmez", async () => {
+    const admin = await loginAgent(ctx, await createUser(ctx, ["ADMIN"]));
+    const mk = async (code: string, sku: string) =>
+      (
+        await admin
+          .post("/catalog/products/full")
+          .send({ itemCode: code, itemName: `K ${sku}`, sku, name: `Ürün ${sku}`, concentration: "EDP", volumeMl: 50, gtip: "3303.00", taxCategory: "PERFUME", status: "ACTIVE" })
+          .expect(201)
+      ).body.id as string;
+    const id = await mk("EM-DEL02", "DEL-02");
     const channel = await ctx.prisma.salesChannel.create({ data: { code: "T-WEB", name: "Test Web", type: "WEBSITE" } });
     const list = await ctx.prisma.priceList.create({ data: { channelId: channel.id, currency: "TRY" } });
     await ctx.prisma.priceListItem.create({ data: { priceListId: list.id, productId: id, price: "1000" } });
-    await admin.delete(`/catalog/products/${id}`).expect(400);
+    const formula = await ctx.prisma.formula.create({ data: { code: "F-DEL02", version: 1, name: "F", concentrationPct: "20", status: "APPROVED" } });
+    const raw = await ctx.prisma.item.create({ data: { code: "ES-DEL02", name: "Esans", type: "RAW_MATERIAL", uom: "L" } });
+    await ctx.prisma.billOfMaterials.create({ data: { productId: id, formulaId: formula.id, batchSize: 1000, lines: { create: [{ itemId: raw.id, qty: "10", uom: "L", scrapPct: "0" }] } } });
+    await admin.delete(`/catalog/products/${id}`).expect(200);
+    expect(await ctx.prisma.priceListItem.count({ where: { productId: id } })).toBe(0);
+    expect(await ctx.prisma.billOfMaterials.count({ where: { productId: id } })).toBe(0);
+
+    const locked = await mk("EM-DEL03", "DEL-03");
+    await ctx.prisma.complianceDocument.create({ data: { productId: locked, type: "PIF", status: "VALID" } });
+    const r = await admin.delete(`/catalog/products/${locked}`).expect(400);
+    expect(r.body.message).toContain("uyum belgesi");
   });
 
   it("stokta olan ürün vitrinde inStock=true döner", async () => {

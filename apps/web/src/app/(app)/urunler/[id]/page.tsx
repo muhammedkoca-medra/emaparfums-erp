@@ -8,8 +8,10 @@ import { BottleViewer } from "@/components/BottleViewer";
 import { Pill, PRODUCT_TONE } from "@/components/Pill";
 import { Topbar } from "@/components/Topbar";
 import { ApiError, apiGet, getMe } from "@/lib/api-server";
-import { fmtMoney, fmtQty } from "@/lib/format";
+import { fmtQty } from "@/lib/format";
 import { DeleteProductButton } from "../_components/DeleteProductButton";
+import { HashOpener } from "@/components/HashOpener";
+import { PriceEditor } from "../_components/PriceEditor";
 import { ProductImageManager } from "../_components/ProductImageManager";
 import { ProductionSetupPanel, type SetupData } from "../_components/ProductionSetupPanel";
 import { type ScentProfileForm } from "../_components/ScentProfileFields";
@@ -75,6 +77,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const bottle = BOTTLE_MODELS.find((b) => b.code === (ov?.bottleModel ?? p.bottleModel)) ?? null;
   const canEditSales = me.permissions.includes("sales:EDIT");
   const canDelete = me.permissions.includes("sales:DELETE");
+  const canStockIn = me.permissions.includes("stock:CREATE");
+  const canStockView = me.permissions.includes("stock:VIEW");
   // Üretim kurulumu (formül + reçete): üretim yetkisiyle görünür.
   const setup = me.permissions.includes("production:VIEW")
     ? await apiGet<SetupData>(`/production/setup/${encodeURIComponent(id)}`).catch(() => null)
@@ -103,9 +107,16 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       }
     : null;
 
-  const metric = (label: string, value: string, tone = "text-text") => (
+  const metric = (label: string, value: string, tone = "text-text", action?: { href: string; label: string } | null) => (
     <div className="flex flex-col gap-0.5 rounded-[12px] bg-surface-soft px-3 py-2.5">
-      <span className="text-[11px] text-muted">{label}</span>
+      <span className="flex items-center justify-between gap-2 text-[11px] text-muted">
+        {label}
+        {action && (
+          <Link href={action.href} className="font-semibold text-gold-text no-underline hover:underline">
+            {action.label}
+          </Link>
+        )}
+      </span>
       <span className={`num font-display text-[19px] font-semibold ${tone}`}>{value}</span>
     </div>
   );
@@ -134,12 +145,12 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {metric(th("available"), ov ? `${fmtQty(ov.stock.available)} ${uom(ov.stock.uom)}` : "—", "text-ok")}
-              {metric(th("onHand"), ov ? `${fmtQty(ov.stock.onHand)} ${uom(ov.stock.uom)}` : "—")}
+              {metric(th("available"), ov ? `${fmtQty(ov.stock.available)} ${uom(ov.stock.uom)}` : "—", "text-ok", canStockIn ? { href: "/stok/giris", label: th("stockIn") } : null)}
+              {metric(th("onHand"), ov ? `${fmtQty(ov.stock.onHand)} ${uom(ov.stock.uom)}` : "—", "text-text", canStockView ? { href: `/stok/kalem/${p.item.id}`, label: th("stockMoves") } : null)}
               {metric(th("reserved"), ov ? `${fmtQty(ov.stock.reserved)} ${uom(ov.stock.uom)}` : "—", "text-text-2")}
-              {metric(th("price"), ov?.price ? fmtMoney(ov.price.amount) : th("noPrice"), ov?.price ? "text-text" : "text-muted")}
-              {metric(t("col.concentration"), `${t(`concentration.${p.concentration}`)} · ${p.volumeMl}ml`)}
-              {metric(th("formula"), p.formula ? `${p.formula.code} v${p.formula.version}` : "—", p.formula ? "text-text" : "text-muted")}
+              <PriceEditor productId={p.id} amount={ov?.price?.amount ?? null} includesTax={ov?.price?.includesTax ?? true} canEdit={canEditSales} />
+              {metric(t("col.concentration"), `${t(`concentration.${p.concentration}`)} · ${p.volumeMl}ml`, "text-text", canEditSales ? { href: "#kart-duzenleme", label: `✎ ${th("edit")}` } : null)}
+              {metric(th("formula"), p.formula ? `${p.formula.code} v${p.formula.version}` : "—", p.formula ? "text-text" : "text-muted", setup ? { href: "#uretim-kurulumu", label: `✎ ${p.formula ? th("edit") : th("setUp")}` } : null)}
             </div>
             <div>
               <h2 className="mb-2 text-[11px] font-bold tracking-[0.1em] text-muted uppercase">{th("actions")}</h2>
@@ -254,8 +265,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         {setup && <ProductionSetupPanel data={setup} canCreate={me.permissions.includes("production:CREATE")} nextProduct={nextProduct} />}
 
         {/* Kart düzenleme (yetkiye göre) */}
-        <details className="rounded-[18px] border border-line bg-surface">
-          <summary className="cursor-pointer px-5 py-4 font-display text-[17px] font-semibold">{th("editArea")}</summary>
+        <HashOpener ids={["kart-duzenleme", "uretim-kurulumu"]} />
+        <details id="kart-duzenleme" className="scroll-mt-20 rounded-[18px] border border-line bg-surface">
+          <summary className="cursor-pointer px-5 py-4 font-display text-[17px] font-semibold">✎ {th("editArea")}</summary>
           <div className="flex flex-col gap-4 border-t border-line-soft p-5">
             <div className="grid gap-4 xl:grid-cols-2">
               <ProductForm product={p} categories={categories} canEdit={canEditSales} />

@@ -96,8 +96,8 @@ export function BatchEditor({ batch }: { batch: Batch }) {
   const startLocal = batch.maceration?.start ? new Date(batch.maceration.start).toISOString().slice(0, 16) : "";
 
   return (
-    <details className="rounded-[18px] border border-line bg-surface">
-      <summary className="cursor-pointer px-5 py-4 font-display text-[17px] font-semibold">{t("edit.title")}</summary>
+    <details id="duzenle" className="scroll-mt-20 rounded-[18px] border border-line bg-surface">
+      <summary className="cursor-pointer px-5 py-4 font-display text-[17px] font-semibold">✎ {t("edit.title")}</summary>
       <div className="grid gap-5 border-t border-line-soft p-5 lg:grid-cols-2">
         {/* Değerler */}
         <form onSubmit={saveValues} aria-label={t("edit.values")} className="flex flex-col gap-3">
