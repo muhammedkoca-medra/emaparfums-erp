@@ -1,0 +1,127 @@
+# EMAPARFUMS ERP — üretim yığını. Mevcut (Hetzner) kurulumundan TAMAMEN bağımsız:
+# kendi ağı (emaparfums_net), kendi hacimleri, kendi portları. Yalnızca Caddy 80/443 dışa açık;
+# web/api/worker/postgres/redis/s3 iç ağda kalır. Çalıştırma: bkz. docs/08-dagitim.md
+name: emaparfums
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://emaparfums:${DB_PASSWORD}@postgres:5432/emaparfums
+  REDIS_URL: redis://redis:6379
+  API_PORT: "4000"
+  API_URL: http://api:4000
+  WEB_ORIGIN: https://${DOMAIN}
+  COOKIE_SECURE: "true"
+  MFA_REQUIRED: "true"
+  INTEGRATIONS_MODE: ${INTEGRATIONS_MODE:-mock}
+  TOTP_ISSUER: "EMA Parfums"
+  AUTH_SECRET: ${AUTH_SECRET}
+  PII_ENC_KEYS: ${PII_ENC_KEYS}
+  PII_ENC_ACTIVE_KEY: ${PII_ENC_ACTIVE_KEY:-k1}
+  PII_HASH_KEY: ${PII_HASH_KEY}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+  EINVOICE_WEBHOOK_SECRET: ${EINVOICE_WEBHOOK_SECRET}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@emaparfums.local}
+  SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: emaparfums
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: emaparfums
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [emaparfums_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emaparfums -d emaparfums"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes: [redisdata:/data]
+    networks: [emaparfums_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  s3:
+    image: chrislusf/seaweedfs:latest
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.port=8333 -master.volumeSizeLimitMB=1024
+    volumes: [s3data:/data]
+    networks: [emaparfums_net]
+
+  # Tek seferlik: şema migrasyonları (prisma migrate deploy). Uygulamadan önce çalışır.
+  # İmaj `api` servisinde derlenir; burada yalnızca aynı imaj kullanılır.
+  migrate:
+    image: emaparfums-app:latest
+    command: ["pnpm", "db:deploy"]
+    environment: *app-env
+    networks: [emaparfums_net]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    image: emaparfums-app:latest
+    build: { context: .., dockerfile: Dockerfile, args: { API_URL: http://api:4000 } }
+    command: ["pnpm", "--filter", "@atelier/api", "start"]
+    environment: *app-env
+    networks: [emaparfums_net]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  worker:
+    image: emaparfums-app:latest
+    command: ["pnpm", "--filter", "@atelier/worker", "start"]
+    environment: *app-env
+    networks: [emaparfums_net]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  web:
+    image: emaparfums-app:latest
+    command: ["pnpm", "--filter", "@atelier/web", "start"]
+    environment: *app-env
+    networks: [emaparfums_net]
+    depends_on:
+      api: { condition: service_started }
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    networks: [emaparfums_net]
+    depends_on:
+      web: { condition: service_started }
+
+networks:
+  emaparfums_net:
+    name: emaparfums_net
+
+volumes:
+  pgdata:
+  redisdata:
+  s3data:
+  caddydata:
+  caddyconfig:

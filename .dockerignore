@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+*.log
+Ürünler
+docs/marka
+**/.vitest
+**/test-results

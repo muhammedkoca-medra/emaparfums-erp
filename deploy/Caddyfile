@@ -1,0 +1,6 @@
+# EMAPARFUMS ERP — otomatik HTTPS (Let's Encrypt). {$DOMAIN} compose'tan gelir.
+# Tarayıcı yalnızca web'e gider; web /api'yi sunucu tarafında api servisine proxy'ler.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
