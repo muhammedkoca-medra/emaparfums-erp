@@ -1,12 +1,14 @@
 import { Controller, Get, NotFoundException, Param } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import { Prisma } from "@atelier/db";
 import { type Gender, type ScentProfile, type ShowcaseProduct, scentProfileSchema } from "@atelier/shared";
 import { Public } from "../permissions/decorators.js";
 import { PrismaService } from "../prisma.service.js";
 
 /**
  * Vitrin (herkese açık, oturumsuz). Yalnızca ACTIVE ürünlerin güvenli koku profilini döndürür.
- * İç veri (fiyat, stok, maliyet, formül) ve referans marka ASLA dönmez (docs/07-guvenlik-kvkk.md).
+ * İç veri (fiyat, stok adedi, maliyet, formül) ve referans marka ASLA dönmez (docs/07-guvenlik-kvkk.md).
+ * Stok yalnızca var/yok (boolean) olarak gösterilir; adet/rezerve dışarı sızmaz.
  */
 @ApiTags("showcase")
 @Controller("showcase")
@@ -14,15 +16,18 @@ export class ShowcaseController {
   constructor(private readonly prisma: PrismaService) {}
 
   /** scentProfile Json alanını güvenli vitrin görünümüne indirger; referans marka/ad çıkarılır. */
-  private toShowcase(p: {
-    id: string;
-    sku: string;
-    name: string;
-    concentration: string;
-    volumeMl: number;
-    scentProfile: unknown;
-    media: { url: string }[];
-  }): ShowcaseProduct | null {
+  private toShowcase(
+    p: {
+      id: string;
+      sku: string;
+      name: string;
+      concentration: string;
+      volumeMl: number;
+      scentProfile: unknown;
+      media: { url: string }[];
+    },
+    inStock: boolean,
+  ): ShowcaseProduct | null {
     const parsed = scentProfileSchema.safeParse(p.scentProfile);
     if (!parsed.success) return null;
     const profile: ScentProfile = parsed.data;
@@ -37,6 +42,7 @@ export class ShowcaseController {
       dayPct: profile.dayPct,
       seasons: profile.seasons,
       imageUrl: p.media[0]?.url ?? null,
+      inStock,
     };
   }
 
@@ -46,9 +52,27 @@ export class ShowcaseController {
     name: true,
     concentration: true,
     volumeMl: true,
+    itemId: true,
     scentProfile: true,
     media: { where: { role: "NOTES_CARD" as const }, orderBy: { sortOrder: "asc" as const }, select: { url: true }, take: 1 },
   };
+
+  /** Mamul kalemin kullanılabilir (eldeki − rezerve) miktarı > 0 ise stokta sayılır. */
+  private async inStockByItem(itemIds: string[]): Promise<Map<string, boolean>> {
+    if (itemIds.length === 0) return new Map();
+    const sums = await this.prisma.stockBalance.groupBy({
+      by: ["itemId"],
+      where: { itemId: { in: itemIds } },
+      _sum: { qtyOnHand: true, qtyReserved: true },
+    });
+    return new Map(
+      sums.map((s) => {
+        const onHand = s._sum.qtyOnHand ?? new Prisma.Decimal(0);
+        const reserved = s._sum.qtyReserved ?? new Prisma.Decimal(0);
+        return [s.itemId, onHand.minus(reserved).greaterThan(0)] as const;
+      }),
+    );
+  }
 
   @Get("products")
   @Public()
@@ -58,7 +82,10 @@ export class ShowcaseController {
       orderBy: { name: "asc" },
       select: ShowcaseController.SELECT,
     });
-    return rows.map((r) => this.toShowcase(r)).filter((p): p is ShowcaseProduct => p !== null);
+    const stock = await this.inStockByItem(rows.map((r) => r.itemId));
+    return rows
+      .map((r) => this.toShowcase(r, stock.get(r.itemId) ?? false))
+      .filter((p): p is ShowcaseProduct => p !== null);
   }
 
   @Get("products/:slug")
@@ -68,7 +95,8 @@ export class ShowcaseController {
       where: { sku: slug.toUpperCase(), status: "ACTIVE" },
       select: ShowcaseController.SELECT,
     });
-    const view = p && this.toShowcase(p);
+    const stock = p ? (await this.inStockByItem([p.itemId])).get(p.itemId) ?? false : false;
+    const view = p && this.toShowcase(p, stock);
     if (!view) throw new NotFoundException({ message: "Ürün bulunamadı" });
     return view;
   }

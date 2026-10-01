@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { emit, Prisma, writeAudit } from "@atelier/db";
+import { Prisma, writeAudit } from "@atelier/db";
 import { checkContentCompliance, type SocialPostRequest, socialPostSchema } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";

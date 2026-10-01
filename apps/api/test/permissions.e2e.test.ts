@@ -52,8 +52,10 @@ describe("yetki (F0-05, YTK-01)", () => {
       .sort();
     // RequestMethod: GET = 0, POST = 1. Vitrin uçları herkese açıktır (yalnızca güvenli
     // koku profili döner; referans marka/iç veri sızmaz — bkz. showcase.e2e.test.ts).
+    // /media/products/:file yüklenen ürün görsellerini servis eder (herkese açık, salt okunur).
     // Ödeme webhook'u herkese açıktır ama imza doğrulanır (ODM-04 · payments.e2e.test.ts).
     expect(pub).toEqual([
+      "0 /media/products/:file",
       "0 /showcase/products",
       "0 /showcase/products/:slug",
       "0 /system/health",

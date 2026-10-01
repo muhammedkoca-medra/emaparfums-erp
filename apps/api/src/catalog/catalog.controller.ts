@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -22,6 +24,8 @@ import {
   itemUpdateSchema,
   type ProductCreateRequest,
   productCreateSchema,
+  type ProductFullCreateRequest,
+  productFullCreateSchema,
   type ProductScentRequest,
   productScentSchema,
   type ProductUpdateRequest,
@@ -31,9 +35,15 @@ import { z } from "zod";
 import { Audited } from "../audit/audited.decorator.js";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ApiZodQuery, ZodPipe } from "../common/zod.js";
+import { APP_CONFIG, type AppConfig } from "../config.js";
 import { RequirePermission } from "../permissions/decorators.js";
 import { PermissionService } from "../permissions/permission.service.js";
 import { PrismaService } from "../prisma.service.js";
+import { decodeImageDataUrl, removeProductImages, saveProductImage } from "./product-image.js";
+
+/** Görsel yükleme gövdesi: base64 data URL (JSON içinde). */
+const productImageSchema = z.object({ dataUrl: z.string().trim().min(1).max(6_000_000) });
+type ProductImageRequest = z.infer<typeof productImageSchema>;
 
 /**
  * VRG-04: vergi kategorisi TaxRule'da tanımlı olmalı; GTİP öneki kuralla uyuşmuyorsa uyarı.
@@ -75,6 +85,7 @@ export class CatalogController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   // ---- Kalemler ----
@@ -182,12 +193,35 @@ export class CatalogController {
         gtip: true,
         taxCategory: true,
         status: true,
+        itemId: true,
         item: { select: { id: true, code: true } },
         formula: { select: { id: true, code: true, version: true, status: true } },
         media: { where: { role: "NOTES_CARD" }, orderBy: { sortOrder: "asc" }, select: { url: true }, take: 1 },
       },
     });
-    return rows.map(({ media, ...r }) => ({ ...r, imageUrl: media[0]?.url ?? null }));
+    const availableByItem = await this.availableByItem(rows.map((r) => r.itemId));
+    return rows.map(({ media, itemId, ...r }) => ({
+      ...r,
+      imageUrl: media[0]?.url ?? null,
+      inStock: (availableByItem.get(itemId) ?? 0) > 0,
+    }));
+  }
+
+  /** Verilen mamul kalemler için kullanılabilir (eldeki − rezerve) miktarı toplar. Stok var/yok rozeti için. */
+  private async availableByItem(itemIds: string[]): Promise<Map<string, number>> {
+    if (itemIds.length === 0) return new Map();
+    const sums = await this.prisma.stockBalance.groupBy({
+      by: ["itemId"],
+      where: { itemId: { in: itemIds } },
+      _sum: { qtyOnHand: true, qtyReserved: true },
+    });
+    return new Map(
+      sums.map((s) => {
+        const onHand = s._sum.qtyOnHand ?? new Prisma.Decimal(0);
+        const reserved = s._sum.qtyReserved ?? new Prisma.Decimal(0);
+        return [s.itemId, onHand.minus(reserved).toNumber()] as const;
+      }),
+    );
   }
 
   @Get("products/:id")
@@ -325,6 +359,121 @@ export class CatalogController {
     return { ...product, warnings };
   }
 
+  /**
+   * Tek adımda tam ürün kartı (yönetim ekranı): mamul kalem + ürün + vitrin koku profili birlikte açılır.
+   * Kolay ekleme için kalem kodu/adı burada verilir; ayrı kalem oluşturma adımı gerekmez.
+   */
+  @Post("products/full")
+  @RequirePermission("sales", "CREATE")
+  @Audited({ action: "product.create", entity: "Product", load: loadProduct })
+  @ApiZodBody(productFullCreateSchema)
+  async createFullProduct(@Body(new ZodPipe(productFullCreateSchema)) body: ProductFullCreateRequest) {
+    const { itemCode, itemName, scentProfile, status, ...rest } = body;
+    const codeTaken = await this.prisma.item.findUnique({ where: { code: itemCode }, select: { id: true } });
+    if (codeTaken) throw new BadRequestException({ message: `Kalem kodu zaten kullanılıyor: ${itemCode}` });
+    const skuTaken = await this.prisma.product.findUnique({ where: { sku: rest.sku }, select: { id: true } });
+    if (skuTaken) throw new BadRequestException({ message: `SKU zaten kullanılıyor: ${rest.sku}` });
+    const warnings = await taxCategoryCheck(this.prisma, rest.taxCategory, rest.gtip);
+    const product = await this.prisma.$transaction(async (tx) => {
+      const item = await tx.item.create({
+        data: { code: itemCode, name: itemName, type: "FINISHED_GOOD", uom: "PCS" },
+        select: { id: true },
+      });
+      const p = await tx.product.create({
+        data: {
+          ...rest,
+          itemId: item.id,
+          status,
+          ...(scentProfile ? { scentProfile: scentProfile as Prisma.InputJsonValue } : {}),
+        },
+        select: { id: true, sku: true },
+      });
+      await emit(tx, { type: "product.updated", productId: p.id, fields: ["created"] });
+      return p;
+    });
+    return { ...product, warnings };
+  }
+
+  /** Ürün kart görselini yükler/değiştirir (vitrin ve yönetim kartı). Görsel diske yazılır, ProductMedia güncellenir. */
+  @Put("products/:id/image")
+  @RequirePermission("sales", "EDIT")
+  @Audited({ action: "product.image", entity: "Product", idParam: "id", load: loadProduct })
+  @ApiZodBody(productImageSchema)
+  async setImage(@Param("id") id: string, @Body(new ZodPipe(productImageSchema)) body: ProductImageRequest) {
+    const product = await this.prisma.product.findUnique({ where: { id }, select: { id: true } });
+    if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
+    let url: string;
+    try {
+      url = await saveProductImage(this.config.UPLOADS_DIR, id, decodeImageDataUrl(body.dataUrl));
+    } catch (e) {
+      throw new BadRequestException({ message: e instanceof Error ? e.message : "Görsel yüklenemedi" });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.productMedia.deleteMany({ where: { productId: id, role: "NOTES_CARD" } });
+      await tx.productMedia.create({ data: { productId: id, role: "NOTES_CARD", url, sortOrder: 0 } });
+    });
+    return { id, imageUrl: url };
+  }
+
+  /** Ürün kart görselini kaldırır. */
+  @Delete("products/:id/image")
+  @RequirePermission("sales", "EDIT")
+  @Audited({ action: "product.image", entity: "Product", idParam: "id", load: loadProduct })
+  async removeImage(@Param("id") id: string) {
+    const product = await this.prisma.product.findUnique({ where: { id }, select: { id: true } });
+    if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
+    await this.prisma.productMedia.deleteMany({ where: { productId: id, role: "NOTES_CARD" } });
+    await removeProductImages(this.config.UPLOADS_DIR, id);
+    return { id, imageUrl: null };
+  }
+
+  /**
+   * Ürün kartını siler. Satış/üretim/fiyat/uyum kaydı varsa silinmez; bunun yerine durumu
+   * "Üretimden kalktı" yapılması önerilir (geçmiş kayıtların bütünlüğü için).
+   */
+  @Delete("products/:id")
+  @RequirePermission("sales", "DELETE")
+  async deleteProduct(
+    @Param("id") id: string,
+    @CurrentUser() auth: AuthContext,
+    @Req() req: AuthedRequest,
+  ) {
+    const product = await loadProduct(this.prisma, id);
+    if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
+    const [orders, batches, boms, prices, listings, compliance] = await Promise.all([
+      this.prisma.salesOrderLine.count({ where: { productId: id } }),
+      this.prisma.productionBatch.count({ where: { productId: id } }),
+      this.prisma.billOfMaterials.count({ where: { productId: id } }),
+      this.prisma.priceListItem.count({ where: { productId: id } }),
+      this.prisma.channelListing.count({ where: { productId: id } }),
+      this.prisma.complianceDocument.count({ where: { productId: id } }),
+    ]);
+    if (orders + batches + boms + prices + listings + compliance > 0) {
+      throw new BadRequestException({
+        message: "Bu ürünün satış, üretim, fiyat veya uyum kaydı var. Silmek yerine durumunu 'Üretimden kalktı' yapın.",
+      });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.productNote.deleteMany({ where: { productId: id } });
+      await tx.productAccord.deleteMany({ where: { productId: id } });
+      await tx.productContent.deleteMany({ where: { productId: id } });
+      await tx.recommendation.deleteMany({ where: { productId: id } });
+      await tx.productMedia.deleteMany({ where: { productId: id } });
+      await tx.product.delete({ where: { id } });
+      await writeAudit(tx, {
+        userId: auth.userId,
+        action: "product.delete",
+        entity: "Product",
+        entityId: id,
+        before: product,
+        after: null,
+        ...clientInfo(req),
+      });
+    });
+    await removeProductImages(this.config.UPLOADS_DIR, id);
+    return { id, deleted: true };
+  }
+
   /** Ticari kart değişikliği; vergi kategorisi/GTİP değişirse VRG-04 kontrolü, product.updated olayı. */
   @Patch("products/:id")
   @RequirePermission("sales", "EDIT")
@@ -345,8 +494,13 @@ export class CatalogController {
           )
         : [];
     const fields = Object.keys(body);
+    const { scentProfile, ...rest } = body;
+    const data: Prisma.ProductUpdateInput = {
+      ...rest,
+      ...(scentProfile !== undefined ? { scentProfile: scentProfile as Prisma.InputJsonValue } : {}),
+    };
     await this.prisma.$transaction(async (tx) => {
-      await tx.product.update({ where: { id }, data: body });
+      await tx.product.update({ where: { id }, data });
       if (fields.length) await emit(tx, { type: "product.updated", productId: id, fields });
     });
     return { id, warnings };

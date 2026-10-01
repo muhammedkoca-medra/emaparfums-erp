@@ -56,42 +56,6 @@ export const gtipSchema = z
   .trim()
   .regex(/^\d{4}(\.\d{2}){0,4}$/, "GTİP biçimi: 3303.00 veya 3303.00.90.00.00");
 
-export const productCreateSchema = z.object({
-  itemId: z.string().min(1),
-  sku: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z0-9-]{3,30}$/, "SKU yalnızca harf, rakam ve tire içerebilir"),
-  barcode: barcodeSchema.nullable().optional(),
-  name: z.string().trim().min(2).max(120),
-  concentration: z.enum(CONCENTRATIONS),
-  volumeMl: z.number().int().min(1).max(5000),
-  gtip: gtipSchema,
-  taxCategory: z.string().trim().toUpperCase().min(2).max(40),
-  bottleModel: z.enum(BOTTLE_MODEL_CODES).nullable().optional(),
-});
-export type ProductCreateRequest = z.infer<typeof productCreateSchema>;
-
-export const productUpdateSchema = productCreateSchema
-  .omit({ itemId: true })
-  .partial()
-  .extend({ status: z.enum(PRODUCT_STATUSES).optional() });
-export type ProductUpdateRequest = z.infer<typeof productUpdateSchema>;
-
-export const NOTE_TIERS = ["TOP", "HEART", "BASE"] as const;
-export const ACCORDS = ["amber", "woody", "spicy", "floral", "fresh", "sweet"] as const;
-export const NOTE_FAMILIES = [
-  "citrus",
-  "floral",
-  "woody",
-  "amber",
-  "spicy",
-  "gourmand",
-  "musky",
-  "fresh",
-] as const;
-
 export const GENDERS = ["women", "men", "unisex"] as const;
 export type Gender = (typeof GENDERS)[number];
 
@@ -123,7 +87,59 @@ export const scentProfileSchema = z.object({
 });
 export type ScentProfile = z.infer<typeof scentProfileSchema>;
 
-/** Vitrinde (herkese açık) gösterilen güvenli ürün görünümü: iç veri (fiyat, stok, referans marka) yok. */
+export const productCreateSchema = z.object({
+  itemId: z.string().min(1),
+  sku: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9-]{3,30}$/, "SKU yalnızca harf, rakam ve tire içerebilir"),
+  barcode: barcodeSchema.nullable().optional(),
+  name: z.string().trim().min(2).max(120),
+  concentration: z.enum(CONCENTRATIONS),
+  volumeMl: z.number().int().min(1).max(5000),
+  gtip: gtipSchema,
+  taxCategory: z.string().trim().toUpperCase().min(2).max(40),
+  bottleModel: z.enum(BOTTLE_MODEL_CODES).nullable().optional(),
+});
+export type ProductCreateRequest = z.infer<typeof productCreateSchema>;
+
+/**
+ * Tek adımda tam ürün kartı (yönetim ekranı): mamul kalem + ürün + vitrin koku profili birlikte.
+ * Kalem, verilen `itemCode`/`itemName` ile mamul (FINISHED_GOOD · PCS) olarak açılır.
+ */
+export const productFullCreateSchema = productCreateSchema.omit({ itemId: true }).extend({
+  itemCode: itemCodeSchema,
+  itemName: z.string().trim().min(2).max(120),
+  status: z.enum(PRODUCT_STATUSES).default("DRAFT"),
+  scentProfile: scentProfileSchema.optional(),
+});
+export type ProductFullCreateRequest = z.infer<typeof productFullCreateSchema>;
+
+export const productUpdateSchema = productCreateSchema
+  .omit({ itemId: true })
+  .partial()
+  .extend({
+    status: z.enum(PRODUCT_STATUSES).optional(),
+    /** Vitrin koku profili (Product.scentProfile): cinsiyet, akorlar, gündüz/gece, mevsim. */
+    scentProfile: scentProfileSchema.optional(),
+  });
+export type ProductUpdateRequest = z.infer<typeof productUpdateSchema>;
+
+export const NOTE_TIERS = ["TOP", "HEART", "BASE"] as const;
+export const ACCORDS = ["amber", "woody", "spicy", "floral", "fresh", "sweet"] as const;
+export const NOTE_FAMILIES = [
+  "citrus",
+  "floral",
+  "woody",
+  "amber",
+  "spicy",
+  "gourmand",
+  "musky",
+  "fresh",
+] as const;
+
+/** Vitrinde (herkese açık) gösterilen güvenli ürün görünümü: iç veri (fiyat, stok adedi, referans marka) yok. */
 export interface ShowcaseProduct {
   id: string;
   slug: string;
@@ -135,6 +151,8 @@ export interface ShowcaseProduct {
   dayPct: number;
   seasons: { winter: number; spring: number; summer: number; autumn: number };
   imageUrl: string | null;
+  /** Yalnızca stokta var/yok bilgisi — adet/rezerve gibi iç veri gösterilmez. */
+  inStock: boolean;
 }
 
 export const productScentSchema = z.object({

@@ -201,7 +201,6 @@ export class ShippingController {
       if (rr.status !== "INSPECTING") throw new BadRequestException({ message: "Önce iade muayeneye alınmalı" });
       const lines = rr.lines as { orderLineId: string; qty: number }[];
       const location = await this.returnsLocation(tx);
-      const now = new Date();
       let movements = 0;
       for (const l of lines) {
         const ol = await tx.salesOrderLine.findUnique({ where: { id: l.orderLineId }, select: { productId: true, product: { select: { itemId: true } } } });

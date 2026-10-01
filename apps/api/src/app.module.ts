@@ -18,6 +18,7 @@ import { IntegrationsService } from "./common/integrations.service.js";
 import { PiiService } from "./common/pii.service.js";
 import { PrismaService } from "./prisma.service.js";
 import { CatalogController } from "./catalog/catalog.controller.js";
+import { MediaController } from "./catalog/media.controller.js";
 import { CustomersController } from "./customers/customers.controller.js";
 import { DashboardController } from "./dashboard/dashboard.controller.js";
 import { FormulasController } from "./formulas/formulas.controller.js";
@@ -56,6 +57,7 @@ export class AppModule {
         StockController,
         CountsController,
         CatalogController,
+        MediaController,
         FormulasController,
         TaxController,
         PermissionsAdminController,

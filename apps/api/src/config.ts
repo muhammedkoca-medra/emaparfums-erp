@@ -26,6 +26,8 @@ const schema = z
     INTEGRATIONS_MODE: z.enum(["mock", "auto"]).default("mock"),
     LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
     LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
+    /** Yüklenen ürün görsellerinin kalıcı disk konumu (üretimde Docker volume). Yerelde repo altı .uploads. */
+    UPLOADS_DIR: z.string().min(1).default(".uploads"),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
     /**
      * İki adımlı doğrulama (YTK-04). Yerel geliştirmede kapatılabilir; üretimde kapatılamaz.

@@ -44,7 +44,17 @@ export default async function VitrinDetail({ params }: { params: Promise<{ slug:
               <h1 className="m-0 font-display text-[30px] leading-tight font-semibold sm:text-[38px]">{p.name}</h1>
               <span className="rounded-full bg-neu-bg px-2.5 py-0.5 text-[11px] font-semibold text-neu">{t(`gender.${p.gender}`)}</span>
             </div>
-            <span className="text-[13px] text-muted">{t("concVol", { conc: p.concentration, vol: p.volumeMl })}</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[13px] text-muted">{t("concVol", { conc: p.concentration, vol: p.volumeMl })}</span>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${
+                  p.inStock ? "bg-ok-bg text-ok" : "bg-surface-soft text-muted"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${p.inStock ? "bg-ok" : "bg-muted"}`} />
+                {t(p.inStock ? "inStock" : "outStock")}
+              </span>
+            </div>
           </header>
 
           <section className="flex flex-col gap-3 rounded-[18px] border border-line bg-surface p-5">

@@ -13,6 +13,7 @@ x-app-env: &app-env
   COOKIE_SECURE: "true"
   MFA_REQUIRED: "true"
   INTEGRATIONS_MODE: ${INTEGRATIONS_MODE:-mock}
+  UPLOADS_DIR: /app/uploads
   TOTP_ISSUER: "EMA Parfums"
   AUTH_SECRET: ${AUTH_SECRET}
   PII_ENC_KEYS: ${PII_ENC_KEYS}
@@ -76,6 +77,8 @@ services:
     command: ["pnpm", "--filter", "@atelier/api", "start"]
     environment: *app-env
     networks: [emaparfums_net]
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -124,5 +127,6 @@ volumes:
   pgdata:
   redisdata:
   s3data:
+  uploads:
   caddydata:
   caddyconfig:

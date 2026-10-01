@@ -9,6 +9,10 @@ import { Pill, PRODUCT_TONE } from "@/components/Pill";
 import { Topbar } from "@/components/Topbar";
 import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { fmtMoney, fmtQty } from "@/lib/format";
+import { DeleteProductButton } from "../_components/DeleteProductButton";
+import { ProductImageManager } from "../_components/ProductImageManager";
+import { type ScentProfileForm } from "../_components/ScentProfileFields";
+import { VitrinProfileEditor } from "../_components/VitrinProfileEditor";
 import { ProductActions } from "../ProductActions";
 import { ProductForm } from "./ProductForm";
 import { ScentEditor } from "./ScentEditor";
@@ -35,7 +39,12 @@ interface ProductDetail {
 interface Overview {
   imageUrl: string | null;
   bottleModel: string | null;
-  scentProfile: { accords?: { label: string; strength: number }[]; dayPct?: number; seasons?: Record<string, number> } | null;
+  scentProfile: {
+    gender?: string;
+    accords?: { label: string; strength: number }[];
+    dayPct?: number;
+    seasons?: Record<string, number>;
+  } | null;
   stock: { onHand: string; reserved: string; available: string; uom: string };
   price: { amount: string; currency: string; includesTax: boolean } | null;
   rawMaterials: { code: string; name: string; uom: string; onHand: string; minStock: string | null; belowMin: boolean; pct: string }[] | null;
@@ -63,6 +72,22 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const uom = (u: string) => (ts.has(`uom.${u}`) ? ts(`uom.${u}`) : u);
   const sp = ov?.scentProfile ?? null;
   const bottle = BOTTLE_MODELS.find((b) => b.code === (ov?.bottleModel ?? p.bottleModel)) ?? null;
+  const canEditSales = me.permissions.includes("sales:EDIT");
+  const canDelete = me.permissions.includes("sales:DELETE");
+  const GENDERS = ["women", "men", "unisex"] as const;
+  const initialProfile: ScentProfileForm | null = sp
+    ? {
+        gender: (GENDERS as readonly string[]).includes(sp.gender ?? "") ? (sp.gender as ScentProfileForm["gender"]) : "unisex",
+        accords: sp.accords ?? [],
+        dayPct: sp.dayPct ?? 50,
+        seasons: {
+          winter: sp.seasons?.winter ?? 50,
+          spring: sp.seasons?.spring ?? 50,
+          summer: sp.seasons?.summer ?? 50,
+          autumn: sp.seasons?.autumn ?? 50,
+        },
+      }
+    : null;
 
   const metric = (label: string, value: string, tone = "text-text") => (
     <div className="flex flex-col gap-0.5 rounded-[12px] bg-surface-soft px-3 py-2.5">
@@ -203,12 +228,29 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           )}
         </section>
 
+        {/* Vitrin yönetimi: görsel + müşteriye görünen koku profili (satış düzenleme yetkisi) */}
+        {canEditSales && (
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+            <ProductImageManager productId={p.id} initialUrl={ov?.imageUrl ?? null} canEdit={canEditSales} />
+            <VitrinProfileEditor productId={p.id} initial={initialProfile} canEdit={canEditSales} />
+          </section>
+        )}
+
         {/* Kart düzenleme (yetkiye göre) */}
         <details className="rounded-[18px] border border-line bg-surface">
           <summary className="cursor-pointer px-5 py-4 font-display text-[17px] font-semibold">{th("editArea")}</summary>
-          <div className="grid gap-4 border-t border-line-soft p-5 xl:grid-cols-2">
-            <ProductForm product={p} categories={categories} canEdit={me.permissions.includes("sales:EDIT")} />
-            <ScentEditor productId={p.id} notes={p.notes} accords={p.accords} canEdit={p.canEditScent} />
+          <div className="flex flex-col gap-4 border-t border-line-soft p-5">
+            <div className="grid gap-4 xl:grid-cols-2">
+              <ProductForm product={p} categories={categories} canEdit={canEditSales} />
+              <ScentEditor productId={p.id} notes={p.notes} accords={p.accords} canEdit={p.canEditScent} />
+            </div>
+            {canDelete && (
+              <div className="flex flex-col gap-2 rounded-[14px] border border-bad/30 bg-bad-bg/40 p-4">
+                <h3 className="m-0 text-[13px] font-bold text-bad">{t("delete.zone")}</h3>
+                <p className="m-0 text-[12px] text-text-2">{t("delete.zoneHint")}</p>
+                <DeleteProductButton productId={p.id} productName={p.name} />
+              </div>
+            )}
           </div>
         </details>
       </div>

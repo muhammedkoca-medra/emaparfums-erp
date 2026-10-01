@@ -16,7 +16,11 @@ export async function createApp(config: AppConfig, logger: Logger): Promise<Nest
   const app = await NestFactory.create<NestExpressApplication>(AppModule.register(config, logger), {
     logger: new NestPinoLogger(logger),
     bufferLogs: false,
+    bodyParser: false,
   });
+  // Gövde ayrıştırıcıları: ürün görselleri JSON içinde base64 data URL olarak geldiği için sınır yükseltilir.
+  app.useBodyParser("json", { limit: "6mb" });
+  app.useBodyParser("urlencoded", { extended: true, limit: "6mb" });
   app.set("trust proxy", "loopback");
   app.disable("x-powered-by");
   app.use(requestIdMiddleware(logger));

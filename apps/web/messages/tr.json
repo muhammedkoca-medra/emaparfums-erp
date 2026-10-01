@@ -496,8 +496,60 @@
     "itemsSubtitle": "Stokta tutulan her şey: hammadde, ambalaj, yarı mamul, mamul",
     "itemsLink": "Kalem kartları",
     "newItem": "Yeni kalem",
-    "newProduct": "Yeni ürün kartı",
+    "newProduct": "Yeni ürün",
     "empty": "Henüz ürün kartı yok.",
+    "createTitle": "Yeni ürün ekle",
+    "createSub": "Görsel, ticari bilgi ve vitrin koku profilini tek ekranda tanımlayın",
+    "createCta": "Ürünü oluştur",
+    "stock": {
+      "in": "Stokta var",
+      "out": "Stokta yok"
+    },
+    "image": {
+      "title": "Ürün görseli",
+      "none": "Görsel yok",
+      "upload": "Görsel yükle",
+      "replace": "Görseli değiştir",
+      "remove": "Görseli kaldır",
+      "removeConfirm": "Görsel kaldırılsın mı?",
+      "uploading": "Yükleniyor…",
+      "hint": "JPEG, PNG veya WEBP. Büyük fotoğraflar otomatik küçültülür.",
+      "failed": "Görsel işlemi başarısız."
+    },
+    "profile": {
+      "title": "Vitrin koku profili",
+      "intro": "Müşteriye vitrinde görünen akor karakteri, gündüz/gece ve mevsim uyumu.",
+      "genderLabel": "Cinsiyet",
+      "gender": {
+        "women": "Kadın",
+        "men": "Erkek",
+        "unisex": "Unisex"
+      },
+      "accords": "Akorlar",
+      "accordsEmpty": "Henüz akor eklenmedi.",
+      "accordAdd": "Akor ekle",
+      "accordLabel": "Akor adı (ör. amber, odunsu, vanilya)",
+      "accordRemove": "Akoru kaldır",
+      "dayNight": "Gündüz / Gece",
+      "day": "Gündüz",
+      "night": "Gece",
+      "seasons": "Mevsim uyumu",
+      "season": {
+        "winter": "Kış",
+        "spring": "İlkbahar",
+        "summer": "Yaz",
+        "autumn": "Sonbahar"
+      },
+      "save": "Vitrin profilini kaydet"
+    },
+    "delete": {
+      "zone": "Tehlikeli bölge",
+      "zoneHint": "Ürünü kalıcı olarak siler. Satış, üretim, fiyat veya uyum kaydı varsa silinmez; bunun yerine durumu 'Üretimden kalktı' yapın.",
+      "delete": "Ürünü sil",
+      "deleting": "Siliniyor…",
+      "confirm": "\"{name}\" ürünü kalıcı olarak silinecek. Emin misiniz?",
+      "failed": "Ürün silinemedi."
+    },
     "col": {
       "sku": "SKU",
       "name": "Ürün",
@@ -543,6 +595,10 @@
       "status": "Durum",
       "code": "Kalem kodu (ör. HM-0104)",
       "itemName": "Kalem adı",
+      "identity": "Ticari bilgi",
+      "itemCode": "Kalem kodu",
+      "itemAdvanced": "Stok kalemi (gelişmiş)",
+      "itemAdvancedHint": "Her ürüne bir mamul stok kalemi bağlanır. Kod ve ad SKU'dan otomatik türetilir; gerekirse değiştirin.",
       "type": "Tür",
       "uom": "Birim",
       "minStock": "Min. stok (isteğe bağlı)",
@@ -782,6 +838,8 @@
     "intro": "İmza kokularımızı keşfedin. Her parfümün nota karakteri, gün içi kullanımı ve mevsim uyumu aşağıda.",
     "count": "{count, plural, one {# koku} other {# koku}}",
     "filterAll": "Tümü",
+    "inStock": "Stokta var",
+    "outStock": "Stokta yok",
     "gender": {
       "women": "Kadın",
       "men": "Erkek",
