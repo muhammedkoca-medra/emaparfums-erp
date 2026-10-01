@@ -38,6 +38,14 @@ else
   echo "ℹ deploy/.env zaten var; dokunulmadı."
 fi
 
+# Küçük sunucuda (4GB) derleme sırasında bellek yetmezse diye 2GB takas (swap) ekle.
+if [ ! -f /swapfile ] && [ "$(id -u)" = "0" ]; then
+  echo "== 2GB swap ekleniyor (derleme belleği için) =="
+  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 echo "== Derleniyor ve ayağa kaldırılıyor (ilk sefer birkaç dakika sürebilir) =="
 $COMPOSE up -d --build
 
