@@ -1,10 +1,16 @@
 import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
-import { emit, Prisma, writeAudit } from "@atelier/db";
+import { createLot, emit, Prisma, recordMovement, writeAudit } from "@atelier/db";
 import {
   type CargoWebhookPayload,
   cargoWebhookSchema,
+  type DispatchNoteCreateRequest,
+  dispatchNoteCreateSchema,
+  type ReturnCreateRequest,
+  returnCreateSchema,
+  type ReturnInspectRequest,
+  returnInspectSchema,
   type ShipmentCreateRequest,
   shipmentCreateSchema,
   type ShipmentQuery,
@@ -141,6 +147,115 @@ export class ShippingController {
     const r = await adapter.track(ctx, s.trackingNo);
     await this.applyStatus(id, r.status as ShipmentStatus, "Takip sorgusu", undefined);
     return { id, status: r.status };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // İade (KRG-06)
+  // ---------------------------------------------------------------------------------------------
+
+  @Get("shipping/returns")
+  @RequirePermission("shipping", "VIEW")
+  async returns(@Query("status") status?: string) {
+    const rows = await this.prisma.returnRequest.findMany({ where: status ? { status: status as "REQUESTED" | "IN_TRANSIT" | "INSPECTING" | "APPROVED" | "REJECTED" | "REFUNDED" } : {}, orderBy: { createdAt: "desc" }, take: 100, include: { order: { select: { number: true } } } });
+    return rows.map((r) => ({ id: r.id, orderNumber: r.order.number, reason: r.reason, status: r.status, lines: r.lines, createdAt: r.createdAt.toISOString() }));
+  }
+
+  /** KRG-06: iade talebi oluşturur; iade kodu üretir ve return.requested yayınlar. */
+  @Post("shipping/returns")
+  @RequirePermission("shipping", "CREATE")
+  @ApiZodBody(returnCreateSchema)
+  async createReturn(@Body(new ZodPipe(returnCreateSchema)) body: ReturnCreateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    const order = await this.prisma.salesOrder.findUnique({ where: { id: body.orderId }, select: { id: true } });
+    if (!order) throw new NotFoundException({ message: "Sipariş bulunamadı" });
+    return this.prisma.$transaction(async (tx) => {
+      const rr = await tx.returnRequest.create({ data: { orderId: body.orderId, reason: body.reason, status: "REQUESTED", lines: body.lines } });
+      await writeAudit(tx, { userId: auth.userId, action: "return.create", entity: "ReturnRequest", entityId: rr.id, after: { orderId: body.orderId, lines: body.lines.length }, ...clientInfo(req) });
+      await emit(tx, { type: "return.requested", returnId: rr.id });
+      // İade kodu/etiketi (mock): iade no.
+      return { id: rr.id, returnCode: `IADE-${rr.id.slice(-8).toUpperCase()}`, status: "REQUESTED" };
+    });
+  }
+
+  /** KRG-06: iade paketi geldi → muayeneye alınır. */
+  @Post("shipping/returns/:id/receive")
+  @RequirePermission("shipping", "EDIT")
+  async receiveReturn(@Param("id") id: string) {
+    const rr = await this.prisma.returnRequest.findUnique({ where: { id } });
+    if (!rr) throw new NotFoundException({ message: "İade bulunamadı" });
+    if (rr.status !== "REQUESTED" && rr.status !== "IN_TRANSIT") throw new BadRequestException({ message: "İade muayeneye uygun değil" });
+    await this.prisma.returnRequest.update({ where: { id }, data: { status: "INSPECTING" } });
+    return { id, status: "INSPECTING" };
+  }
+
+  /**
+   * KRG-06: muayene sonucu. Hasarsız → mamul karantinaya stok girişi (RETURN hareketi, QUARANTINE lot);
+   * hasarlı → fire (SCRAP). Durum APPROVED/REJECTED olur.
+   */
+  @Post("shipping/returns/:id/inspect")
+  @RequirePermission("shipping", "EDIT")
+  @ApiZodBody(returnInspectSchema)
+  async inspectReturn(@Param("id") id: string, @Body(new ZodPipe(returnInspectSchema)) body: ReturnInspectRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    return this.prisma.$transaction(async (tx) => {
+      const rr = await tx.returnRequest.findUnique({ where: { id } });
+      if (!rr) throw new NotFoundException({ message: "İade bulunamadı" });
+      if (rr.status !== "INSPECTING") throw new BadRequestException({ message: "Önce iade muayeneye alınmalı" });
+      const lines = rr.lines as { orderLineId: string; qty: number }[];
+      const location = await this.returnsLocation(tx);
+      const now = new Date();
+      let movements = 0;
+      for (const l of lines) {
+        const ol = await tx.salesOrderLine.findUnique({ where: { id: l.orderLineId }, select: { productId: true, product: { select: { itemId: true } } } });
+        if (!ol) continue;
+        if (body.damaged) {
+          // Fire: karantinaya al, sonra SCRAP. Mock: yalnızca SCRAP hareketi için bir lot gerekir.
+          const lot = await createLot(tx, { itemId: ol.product.itemId, lotNo: `IADE-FIRE-${id.slice(-6)}-${movements}`, qcStatus: "QUARANTINE" });
+          await recordMovement(tx, { type: "RETURN", itemId: ol.product.itemId, lotId: lot.id, qty: l.qty, toLocationId: location.id, refType: "ReturnRequest", refId: id, userId: auth.userId });
+          await recordMovement(tx, { type: "SCRAP", itemId: ol.product.itemId, lotId: lot.id, qty: l.qty, fromLocationId: location.id, refType: "ReturnRequest", refId: id, userId: auth.userId, note: "iade hasarlı" });
+        } else {
+          const lot = await createLot(tx, { itemId: ol.product.itemId, lotNo: `IADE-${id.slice(-6)}-${movements}`, qcStatus: "QUARANTINE" });
+          await recordMovement(tx, { type: "RETURN", itemId: ol.product.itemId, lotId: lot.id, qty: l.qty, toLocationId: location.id, refType: "ReturnRequest", refId: id, userId: auth.userId });
+        }
+        movements++;
+      }
+      const status = body.damaged ? "REJECTED" : "APPROVED";
+      await tx.returnRequest.update({ where: { id }, data: { status } });
+      await writeAudit(tx, { userId: auth.userId, action: "return.inspect", entity: "ReturnRequest", entityId: id, after: { damaged: body.damaged, status, lines: lines.length }, ...clientInfo(req) });
+      return { id, status, damaged: body.damaged };
+    });
+  }
+
+  /** İade/mamul girişi için depo lokasyonu (ANA → herhangi). */
+  private async returnsLocation(tx: Prisma.TransactionClient) {
+    const loc = (await tx.location.findFirst({ where: { warehouse: { code: "ANA" } }, orderBy: { pickSequence: "asc" } })) ?? (await tx.location.findFirst({ orderBy: { pickSequence: "asc" } }));
+    if (!loc) throw new BadRequestException({ message: "İade için lokasyon bulunamadı" });
+    return loc;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // e-İrsaliye (FTR-07)
+  // ---------------------------------------------------------------------------------------------
+
+  @Get("dispatch-notes")
+  @RequirePermission("shipping", "VIEW")
+  async dispatchNotes() {
+    const rows = await this.prisma.dispatchNote.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+    return rows.map((d) => ({ id: d.id, number: d.number, ettn: d.ettn, status: d.status, orderId: d.orderId, shipmentId: d.shipmentId, issueDate: d.issueDate.toISOString(), lines: d.lines }));
+  }
+
+  /** FTR-07: e-İrsaliye oluşturur ve entegratöre (mock) gönderir; numara/ETTN entegratörden gelir. */
+  @Post("dispatch-notes")
+  @RequirePermission("shipping", "CREATE")
+  @ApiZodBody(dispatchNoteCreateSchema)
+  async createDispatchNote(@Body(new ZodPipe(dispatchNoteCreateSchema)) body: DispatchNoteCreateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
+    if (!body.orderId && !body.shipmentId) throw new BadRequestException({ message: "orderId veya shipmentId gerekli" });
+    const created = await this.prisma.dispatchNote.create({ data: { orderId: body.orderId ?? null, shipmentId: body.shipmentId ?? null, status: "DRAFT", issueDate: new Date(), lines: body.lines } });
+    const { adapter, ctx } = await this.integrations.einvoice();
+    const r = await adapter.send(ctx, { invoiceId: created.id, type: "E_IRSALIYE", taxNo: null });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.dispatchNote.update({ where: { id: created.id }, data: { number: r.number, ettn: r.ettn, status: "SENT" } });
+      await writeAudit(tx, { userId: auth.userId, action: "dispatch.create", entity: "DispatchNote", entityId: created.id, after: { number: r.number, ettn: r.ettn }, ...clientInfo(req) });
+    });
+    return { id: created.id, number: r.number, ettn: r.ettn, status: "SENT" };
   }
 
   /** KRG-03: taşıyıcı webhook'u — takip no ile durum + olay. */
