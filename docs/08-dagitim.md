@@ -68,6 +68,12 @@ docker compose -f docker-compose.prod.yml run --rm migrate pnpm db:import:showca
 (Vitrin/koku profili verisi `pnpm db:import:showcase` ile gelir — bkz. [[vitrin-showcase]].)
 
 ## 9. Güncelleme (kullanıcılar kullanırken geliştirme)
+**Otomatik (önerilen):** Sunucuda bir kez `deploy/install-autodeploy.sh` kurulur; cron her 2 dakikada GitHub `main`'e bakar, yeni commit varsa `update.sh` ile derleyip canlıya alır (kayıt `/var/log/emaparfums-deploy.log`). Sonrasında güncelleme = yalnızca `git push` (Windows masaüstünde `Canliya-Al.bat` çift tıklama). Dikkat: `main`'e giden her commit canlıya çıkar; yalnızca testi geçmiş commit push edilir.
+```bash
+ssh root@<sunucu> "cd /opt/emaparfums && git pull --ff-only && bash deploy/install-autodeploy.sh"
+```
+
+**Elle:**
 Kodu `git push` ettikten sonra **kendi bilgisayarından tek komut** (sunucuya girmeye gerek yok):
 ```bash
 ssh root@<sunucu> "cd /opt/emaparfums && git pull --ff-only && bash deploy/update.sh"
