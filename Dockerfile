@@ -13,7 +13,7 @@ ARG API_URL=http://api:4000
 ENV API_URL=${API_URL}
 
 # Bağımlılıklar (lockfile ile tekrarlanabilir). Build için devDependencies de gerekir.
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json tsconfig.base.json eslint.config.mjs ./
 COPY packages ./packages
 COPY apps ./apps
 COPY scripts ./scripts
