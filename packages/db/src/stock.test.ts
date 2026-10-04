@@ -4,6 +4,7 @@ import { createPrismaClient, type Db, Prisma } from "./index.js";
 import { getSetting, setSetting } from "./settings.js";
 import {
   availableForItem,
+  reserveAvailableFefo,
   reservableForItem,
   checkConsistency,
   consumeReservation,
@@ -216,6 +217,19 @@ describe("STK-01 · recordMovement", () => {
     expect(r.quarantine.toString()).toBe("5");
     // Eski toplam hesap hepsini sayar (15) — üretim ihtiyacında kullanılmaz.
     expect((await tx((t) => availableForItem(t, item.id))).toString()).toBe("15");
+  });
+
+  it("kısmi FEFO rezervasyonu: karşılanabilen kadarını ayırır, eksikte hata vermez", async () => {
+    const item = await newItem();
+    await lotWith(item.id, 7, { status: "RELEASED" });
+    await lotWith(item.id, 5, { status: "QUARANTINE" });
+    const ref = randomUUID();
+    const got = await tx((t) => reserveAvailableFefo(t, { itemId: item.id, qty: "10", refType: "Test", refId: ref }));
+    expect(got.toString()).toBe("7");
+    expect((await tx((t) => reservableForItem(t, item.id))).reservable.toString()).toBe("0");
+    // Stok kalmadı: 0 döner, hata yok
+    const none = await tx((t) => reserveAvailableFefo(t, { itemId: item.id, qty: "3", refType: "Test", refId: ref }));
+    expect(none.toString()).toBe("0");
   });
 
   it("düzeltme artış ve azalış", async () => {

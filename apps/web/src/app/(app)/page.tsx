@@ -10,6 +10,7 @@ import { ALL_ITEMS, canView } from "@/lib/modules";
 interface Summary {
   stock: { criticalItems: number; expiringLots: number; expiryWarningDays: number } | null;
   production: { formulasInReview: number } | null;
+  sales?: { openOrders: number; awaitingStock: number; cancellationsPending: number } | null;
   tax: { pendingRules: number } | null;
   admin: { pendingApprovals: number } | null;
 }
@@ -40,6 +41,13 @@ export default async function DashboardPage() {
     canDash ? apiTry<Summary>("/dashboard/summary") : Promise.resolve(null),
   ]);
   const kpis: { key: string; value: number; note: string; href: string; alert: boolean }[] = [];
+  if (summary?.sales) {
+    kpis.push(
+      { key: "openOrders", value: summary.sales.openOrders, note: t("dashboard.kpi.openOrdersNote"), href: "/siparisler", alert: false },
+      { key: "awaitingStock", value: summary.sales.awaitingStock, note: t("dashboard.kpi.awaitingStockNote"), href: "/siparisler", alert: summary.sales.awaitingStock > 0 },
+      { key: "cancellations", value: summary.sales.cancellationsPending, note: t("dashboard.kpi.cancellationsNote"), href: "/siparisler?status=CANCELLED", alert: summary.sales.cancellationsPending > 0 },
+    );
+  }
   if (summary?.stock) {
     kpis.push(
       { key: "critical", value: summary.stock.criticalItems, note: t("dashboard.kpi.criticalNote"), href: "/stok", alert: summary.stock.criticalItems > 0 },

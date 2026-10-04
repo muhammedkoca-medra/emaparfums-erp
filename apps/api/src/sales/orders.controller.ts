@@ -26,6 +26,35 @@ import { PrismaService } from "../prisma.service.js";
  *  - SAL-03: DRAFT/SALES_LOCKED ürün siparişe eklenemez.
  *  - SAL-06/07: durum makinesi; iptal SHIPPED'den önce.
  */
+/** Rezervasyon beklenen (onaylanmış, sevk edilmemiş) sipariş durumları. */
+const STOCK_OPEN = ["CONFIRMED", "IN_PRODUCTION", "PICKING"];
+
+/** Satır bazında ayrılan (açık) ve sevk edilen (tüketilmiş) miktar. */
+async function stockByLine(db: PrismaService, lineIds: string[]) {
+  const out = new Map<string, { reserved: Prisma.Decimal; shipped: Prisma.Decimal }>();
+  if (lineIds.length === 0) return out;
+  const rows = await db.stockReservation.findMany({
+    where: { orderLineId: { in: lineIds }, releasedAt: null },
+    select: { orderLineId: true, qty: true, consumedAt: true },
+  });
+  for (const r of rows) {
+    const cur = out.get(r.orderLineId!) ?? { reserved: new Prisma.Decimal(0), shipped: new Prisma.Decimal(0) };
+    if (r.consumedAt) cur.shipped = cur.shipped.plus(r.qty);
+    else cur.reserved = cur.reserved.plus(r.qty);
+    out.set(r.orderLineId!, cur);
+  }
+  return out;
+}
+
+/** Sipariş stok durumu: FULL (tümü ayrıldı/sevk edildi), PARTIAL, WAITING (hiç ayrılmadı); açık değilse null. */
+function stockStatusOf(status: string, lines: { qty: number; reserved: Prisma.Decimal; shipped: Prisma.Decimal }[]) {
+  if (!STOCK_OPEN.includes(status) || lines.length === 0) return null;
+  const need = lines.reduce((a, l) => a.plus(l.qty), new Prisma.Decimal(0));
+  const covered = lines.reduce((a, l) => a.plus(l.reserved).plus(l.shipped), new Prisma.Decimal(0));
+  if (covered.greaterThanOrEqualTo(need)) return "FULL" as const;
+  return covered.greaterThan(0) ? ("PARTIAL" as const) : ("WAITING" as const);
+}
+
 @ApiTags("sales")
 @Controller("sales")
 export class OrdersController {
@@ -62,9 +91,17 @@ export class OrdersController {
         channel: { select: { code: true, name: true } },
         customer: { select: { id: true, fullName: true } },
         _count: { select: { lines: true } },
+        lines: { select: { id: true, qty: true } },
       },
     });
-    return orders.map((o) => ({ ...o, grandTotal: o.grandTotal.toFixed(2), lineCount: o._count.lines }));
+    const byLine = await stockByLine(this.prisma, orders.filter((o) => STOCK_OPEN.includes(o.status)).flatMap((o) => o.lines.map((l) => l.id)));
+    const zero = { reserved: new Prisma.Decimal(0), shipped: new Prisma.Decimal(0) };
+    return orders.map(({ lines, _count, ...o }) => ({
+      ...o,
+      grandTotal: o.grandTotal.toFixed(2),
+      lineCount: _count.lines,
+      stockStatus: stockStatusOf(o.status, lines.map((l) => ({ qty: l.qty, ...(byLine.get(l.id) ?? zero) }))),
+    }));
   }
 
   @Get("orders/:id")
@@ -79,6 +116,20 @@ export class OrdersController {
       },
     });
     if (!o) throw new NotFoundException({ message: "Sipariş bulunamadı" });
+    const byLine = await stockByLine(this.prisma, o.lines.map((l) => l.id));
+    const zero = { reserved: new Prisma.Decimal(0), shipped: new Prisma.Decimal(0) };
+    const open = STOCK_OPEN.includes(o.status);
+    // İptal/iade sonrası onay bekleyen para işlemleri: tahsil edilmiş ödemeler + iptal edilmemiş faturalar.
+    const closed = o.status === "CANCELLED" || o.status === "RETURNED";
+    const [refundable, cancellable] = closed
+      ? await Promise.all([
+          this.prisma.payment.findMany({ where: { orderId: id, status: "CAPTURED" }, select: { id: true, amount: true, provider: { select: { code: true, name: true } } } }),
+          this.prisma.invoice.findMany({
+            where: { orderId: id, status: { notIn: ["CANCELLED"] }, type: { notIn: ["RETURN"] } },
+            select: { id: true, number: true, status: true, type: true },
+          }),
+        ])
+      : [[], []];
     const money = (d: Prisma.Decimal) => d.toFixed(2);
     const rate = (d: Prisma.Decimal) => d.toString();
     return {
@@ -94,10 +145,23 @@ export class OrdersController {
       otvTotal: money(o.otvTotal),
       kdvTotal: money(o.kdvTotal),
       grandTotal: money(o.grandTotal),
-      lines: o.lines.map((l) => ({
+      stockStatus: stockStatusOf(o.status, o.lines.map((l) => ({ qty: l.qty, ...(byLine.get(l.id) ?? zero) }))),
+      pendingActions: closed
+        ? {
+            refunds: refundable.map((p) => ({ paymentId: p.id, amount: money(p.amount), provider: p.provider })),
+            invoices: cancellable.map((i) => ({ invoiceId: i.id, number: i.number, status: i.status, type: i.type })),
+          }
+        : null,
+      lines: o.lines.map((l) => {
+        const st = byLine.get(l.id) ?? zero;
+        const shortage = open ? Prisma.Decimal.max(new Prisma.Decimal(l.qty).minus(st.reserved).minus(st.shipped), 0) : new Prisma.Decimal(0);
+        return {
         id: l.id,
         product: l.product,
         qty: l.qty,
+        reservedQty: st.reserved.toString(),
+        shippedQty: st.shipped.toString(),
+        shortageQty: shortage.toString(),
         unitPriceGross: money(l.unitPriceGross),
         discount: money(l.discount),
         otvRate: rate(l.otvRate),
@@ -105,7 +169,8 @@ export class OrdersController {
         netAmount: money(l.netAmount),
         otvAmount: money(l.otvAmount),
         kdvAmount: money(l.kdvAmount),
-      })),
+        };
+      }),
     };
   }
 

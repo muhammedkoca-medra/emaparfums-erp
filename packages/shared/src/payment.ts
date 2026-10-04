@@ -92,3 +92,9 @@ export const paymentSimulateSchema = z.object({
 });
 export type PaymentSimulateRequest = z.infer<typeof paymentSimulateSchema>;
 
+
+/** Ödeme iadesi (iptal/iade sonrası tek tık onay). Gerekçe denetim kaydına yazılır. */
+export const paymentRefundSchema = z.object({
+  reason: z.string().trim().min(3, "İade gerekçesi en az 3 karakter olmalı").max(300),
+});
+export type PaymentRefundRequest = z.infer<typeof paymentRefundSchema>;

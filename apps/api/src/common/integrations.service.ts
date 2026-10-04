@@ -11,6 +11,8 @@ import {
   type IntegrationContext,
   type IntegrationRegistry,
   type MarketplaceCapabilities,
+  PAYMENT_CODES,
+  type PaymentCapabilities,
   resolveCredentials,
   type SocialCapabilities,
 } from "@atelier/integrations";
@@ -58,6 +60,12 @@ export class IntegrationsService {
   /** Pazaryeri entegratörü (mock). code: TRENDYOL / HEPSIBURADA. */
   marketplace(code: string, direction: "IN" | "OUT" = "OUT") {
     return this.resolve<IntegrationAdapter & MarketplaceCapabilities>(code, direction);
+  }
+
+  /** Ödeme sağlayıcısı (mock). Entegrasyonsuz sağlayıcı (havale, kapıda ödeme…) için null. */
+  async payment(code: string) {
+    if (!(PAYMENT_CODES as readonly string[]).includes(code)) return null;
+    return this.resolve<IntegrationAdapter & PaymentCapabilities>(code, "OUT");
   }
 
   /** Döviz kuru entegratörü (mock TCMB). */

@@ -341,6 +341,21 @@ async function decreaseReserved(tx: Tx, r: { itemId: string; lotId: string; loca
 }
 
 /** Rezervasyonu iptal eder (sipariş iptali, parti iptali). */
+/**
+ * Kısmi FEFO rezervasyonu: istenen miktarın serbest stokta karşılanabilen kadarını ayırır, kalanı
+ * hata vermeden bırakır (satış siparişi "stok bekliyor" akışı). Ayrılan miktarı döndürür (0 olabilir).
+ * Koşullar reserveFefo ile aynıdır (yalnızca RELEASED ve süresi geçmemiş lotlar, kural 3).
+ */
+export async function reserveAvailableFefo(tx: Tx, input: ReserveInput, now = new Date()): Promise<Dec> {
+  const want = new D(input.qty);
+  if (!want.isFinite() || want.lessThanOrEqualTo(0)) return new D(0);
+  const { reservable } = await reservableForItem(tx, input.itemId, now);
+  const take = D.min(want, reservable);
+  if (take.lessThanOrEqualTo(0)) return new D(0);
+  await reserveFefo(tx, { ...input, qty: take }, now);
+  return take;
+}
+
 export async function releaseReservation(tx: Tx, reservationId: string, now = new Date()) {
   const r = await lockOpenReservation(tx, reservationId);
   await decreaseReserved(tx, { ...r, qty: new D(r.qty) });

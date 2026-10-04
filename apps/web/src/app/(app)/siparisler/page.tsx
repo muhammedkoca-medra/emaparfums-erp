@@ -6,6 +6,7 @@ import { fmtDate, fmtMoney } from "@/lib/format";
 import { canView } from "@/lib/modules";
 import { NewOrderForm } from "./NewOrderForm";
 import { OrderStatusPill } from "./OrderStatusPill";
+import { StockStatusBadge } from "./StockStatusBadge";
 
 interface OrderRow {
   id: string;
@@ -17,6 +18,7 @@ interface OrderRow {
   channel: { code: string; name: string };
   customer: { id: string; fullName: string };
   lineCount: number;
+  stockStatus: string | null;
 }
 
 interface Ref {
@@ -83,7 +85,10 @@ export default async function OrdersPage() {
                       <td className={td}>{o.customer.fullName}</td>
                       <td className={`${td} text-text-2`}>{o.channel.name}</td>
                       <td className={td}>
-                        <OrderStatusPill status={o.status} />
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <OrderStatusPill status={o.status} />
+                          <StockStatusBadge status={o.stockStatus} />
+                        </span>
                       </td>
                       <td className={`${td} num text-right font-semibold`}>{fmtMoney(o.grandTotal)}</td>
                       <td className={`${td} num text-text-2`}>{fmtDate(o.createdAt)}</td>

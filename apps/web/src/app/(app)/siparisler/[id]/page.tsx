@@ -6,6 +6,8 @@ import { Topbar } from "@/components/Topbar";
 import { ApiError, apiGet, getMe } from "@/lib/api-server";
 import { fmtDate, fmtMoney } from "@/lib/format";
 import { OrderStatusPill } from "../OrderStatusPill";
+import { StockStatusBadge } from "../StockStatusBadge";
+import { CancellationActions, type PendingActions } from "./CancellationActions";
 import { OrderTransition } from "./OrderTransition";
 import { PaymentPanel } from "./PaymentPanel";
 
@@ -33,10 +35,15 @@ interface Order {
   otvTotal: string;
   kdvTotal: string;
   grandTotal: string;
+  stockStatus: string | null;
+  pendingActions: PendingActions | null;
   lines: {
     id: string;
     product: { id: string; sku: string; name: string };
     qty: number;
+    reservedQty: string;
+    shippedQty: string;
+    shortageQty: string;
     unitPriceGross: string;
     discount: string;
     otvRate: string;
@@ -69,7 +76,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <Topbar
         heading={`${o.number}`}
         sub={`${o.customer.fullName} · ${o.channel.name} · ${fmtDate(o.createdAt)}`}
-        action={<OrderStatusPill status={o.status} />}
+        action={
+          <span className="flex items-center gap-2">
+            <StockStatusBadge status={o.stockStatus} />
+            <OrderStatusPill status={o.status} />
+          </span>
+        }
       />
       <div className="flex flex-col gap-4 px-4 py-5 sm:px-8">
         <Link href="/siparisler" className="self-start text-[13px] font-semibold">
@@ -83,6 +95,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <tr>
                 <th className={th}>{t("line.product")}</th>
                 <th className={`${th} text-right`}>{t("line.qty")}</th>
+                <th className={th}>{t("line.stock")}</th>
                 <th className={`${th} text-right`}>{t("line.unit")}</th>
                 <th className={`${th} text-right`}>{t("line.net")}</th>
                 <th className={`${th} text-right`}>{t("line.otv")}</th>
@@ -99,6 +112,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                     <span className="num ml-2 text-[11.5px] text-muted">{l.product.sku}</span>
                   </td>
                   <td className={`${td} num text-right`}>{l.qty}</td>
+                  <td className={`${td} text-[12px]`}>
+                    {Number(l.shippedQty) > 0 && <span className="mr-2 font-semibold text-ok">{t("stock.shippedN", { n: l.shippedQty })}</span>}
+                    {Number(l.reservedQty) > 0 && <span className="mr-2 text-text-2">{t("stock.reservedN", { n: l.reservedQty })}</span>}
+                    {Number(l.shortageQty) > 0 && <span className="font-semibold text-bad">{t("stock.shortN", { n: l.shortageQty })}</span>}
+                    {Number(l.shippedQty) + Number(l.reservedQty) + Number(l.shortageQty) === 0 && <span className="text-muted">—</span>}
+                  </td>
                   <td className={`${td} num text-right`}>{money(l.unitPriceGross)}</td>
                   <td className={`${td} num text-right text-text-2`}>{money(l.netAmount)}</td>
                   <td className={`${td} num text-right text-text-2`}>{money(l.otvAmount)}</td>
@@ -142,6 +161,18 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             )}
           </section>
         </div>
+
+        {o.pendingActions && (
+          <CancellationActions
+            actions={o.pendingActions}
+            canRefund={me.permissions.includes("sales:APPROVE")}
+            canCancelInvoice={me.permissions.includes("invoicing:APPROVE")}
+          />
+        )}
+
+        {Number(o.lines.reduce((a, l) => a + Number(l.shortageQty), 0)) > 0 && (
+          <p className="m-0 rounded-[12px] bg-warn-bg px-4 py-3 text-[13px] text-warn">{t("stock.waitingHelp")}</p>
+        )}
 
         <PaymentPanel orderId={o.id} orderStatus={o.status} canPay={me.permissions.includes("sales:CREATE")} payments={payments} />
       </div>

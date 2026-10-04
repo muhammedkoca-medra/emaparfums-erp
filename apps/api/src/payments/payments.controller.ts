@@ -10,6 +10,8 @@ import {
   type CheckoutRequest,
   checkoutSchema,
   extractOrderTokens,
+  type PaymentRefundRequest,
+  paymentRefundSchema,
   type PaymentSimulateRequest,
   paymentSimulateSchema,
   type PaymentWebhookPayload,
@@ -22,6 +24,7 @@ import {
 import { paymentWebhookSignature } from "@atelier/shared/node";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";
+import { IntegrationsService } from "../common/integrations.service.js";
 import { APP_CONFIG, type AppConfig } from "../config.js";
 import { Public, RequirePermission } from "../permissions/decorators.js";
 import { PrismaService } from "../prisma.service.js";
@@ -38,6 +41,7 @@ export class PaymentsController {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly integrations: IntegrationsService,
   ) {}
 
   /** Aktif ödeme sağlayıcıları (F2-04: sağlayıcı seçimi + yedek). */
@@ -121,6 +125,49 @@ export class PaymentsController {
     if (!payment?.externalTxId) throw new NotFoundException({ message: "Ödeme bulunamadı" });
     const result = await this.prisma.$transaction((tx) => this.apply(tx, payment.externalTxId!, body.outcome, body.failureCode));
     return { id, status: result };
+  }
+
+  /**
+   * Ödeme iadesi (iptal/iade sonrası "para onayla" adımı). Yalnızca tahsil edilmiş ödeme; entegrasyonlu
+   * sağlayıcıda adaptör refund çağrılır, entegrasyonsuzda (havale, kapıda ödeme…) elle iade olarak kaydedilir.
+   * Sağlayıcı reddederse durum değişmez. AuditLog yazar.
+   */
+  @Post("payments/:id/refund")
+  @RequirePermission("sales", "APPROVE")
+  @ApiZodBody(paymentRefundSchema)
+  async refund(
+    @Param("id") id: string,
+    @Body(new ZodPipe(paymentRefundSchema)) body: PaymentRefundRequest,
+    @CurrentUser() auth: AuthContext,
+    @Req() req: AuthedRequest,
+  ) {
+    const payment = await this.prisma.payment.findUnique({ where: { id }, include: { provider: { select: { code: true } } } });
+    if (!payment) throw new NotFoundException({ message: "Ödeme bulunamadı" });
+    if (payment.status !== "CAPTURED")
+      throw new BadRequestException({ message: `Yalnızca tahsil edilmiş ödeme iade edilir (şu an: ${payment.status})` });
+    const integration = await this.integrations.payment(payment.provider.code);
+    let method: "PROVIDER" | "MANUAL" = "MANUAL";
+    if (integration && payment.externalTxId) {
+      try {
+        await integration.adapter.refund(integration.ctx, payment.externalTxId, payment.amount.toFixed(2));
+        method = "PROVIDER";
+      } catch (e) {
+        throw new BadRequestException({ message: `Sağlayıcı iadeyi reddetti: ${e instanceof Error ? e.message : "hata"}` });
+      }
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.update({ where: { id }, data: { status: "REFUNDED" } });
+      await writeAudit(tx, {
+        userId: auth.userId,
+        action: "payment.refund",
+        entity: "Payment",
+        entityId: id,
+        before: { status: payment.status },
+        after: { status: "REFUNDED", amount: payment.amount.toFixed(2), provider: payment.provider.code, method, reason: body.reason },
+        ...clientInfo(req),
+      });
+    });
+    return { id, status: "REFUNDED", method, amount: payment.amount.toFixed(2) };
   }
 
   @Get("payments/order/:orderId")

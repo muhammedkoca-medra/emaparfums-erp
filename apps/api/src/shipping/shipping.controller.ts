@@ -99,8 +99,22 @@ export class ShippingController {
   @RequirePermission("shipping", "CREATE")
   @ApiZodBody(shipmentCreateSchema)
   async create(@Body(new ZodPipe(shipmentCreateSchema)) body: ShipmentCreateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
-    const order = await this.prisma.salesOrder.findUnique({ where: { id: body.orderId }, select: { id: true, number: true } });
+    const order = await this.prisma.salesOrder.findUnique({
+      where: { id: body.orderId },
+      select: { id: true, number: true, status: true, lines: { select: { id: true, qty: true, product: { select: { sku: true } } } } },
+    });
     if (!order) throw new NotFoundException({ message: "Sipariş bulunamadı" });
+    // Sevkiyat yalnızca onaylanmış siparişe ve ayrılmış stokla yapılır (stok SALE ile sevkiyatta düşülür).
+    if (!["CONFIRMED", "IN_PRODUCTION", "PICKING", "SHIPPED"].includes(order.status))
+      throw new BadRequestException({ message: `Bu durumdaki siparişe gönderi açılamaz (${order.status})` });
+    const short: string[] = [];
+    for (const l of order.lines) {
+      const agg = await this.prisma.stockReservation.aggregate({ where: { orderLineId: l.id, releasedAt: null }, _sum: { qty: true } });
+      const missing = new Prisma.Decimal(l.qty).minus(agg._sum.qty ?? 0);
+      if (missing.greaterThan(0)) short.push(`${l.product.sku} (${missing.toString()} adet)`);
+    }
+    if (short.length)
+      throw new BadRequestException({ message: `Siparişte stok eksik: ${short.join(", ")}. Stok gelince otomatik ayrılır; sonra gönderi açın.` });
     const carrier = await this.prisma.carrier.findUnique({ where: { id: body.carrierId } });
     if (!carrier) throw new NotFoundException({ message: "Kargo firması bulunamadı" });
 

@@ -20,6 +20,7 @@ import { type IntegrationAdapter } from "./adapter.js";
 import { CargoMockAdapter } from "./cargo/mock.js";
 import { MessagingMockAdapter } from "./messaging/mock.js";
 import { MarketplaceMockAdapter } from "./marketplace/mock.js";
+import { PaymentMockAdapter } from "./payment/mock.js";
 import { FxMockAdapter } from "./fx/mock.js";
 import { SocialMockAdapter } from "./social/mock.js";
 import { EmbeddingsMockAdapter } from "./ai/mock.js";
@@ -31,6 +32,8 @@ export const CARGO_CODES = ["CARGO_YURTICI", "CARGO_ARAS", "CARGO_MNG", "CARGO_P
 export const MESSAGING_CODES = ["SMS", "WHATSAPP"] as const;
 // F4-07: pazaryeri adaptörleri (mock). Kimlik girilince gerçek moda geçer.
 export const MARKETPLACE_CODES = ["TRENDYOL", "HEPSIBURADA", "AMAZON_TR", "N11", "CICEKSEPETI"] as const;
+/** Entegrasyonlu ödeme sağlayıcıları (havale, kapıda ödeme ve pazaryeri tahsilatı entegrasyonsuzdur). */
+export const PAYMENT_CODES = ["IYZICO", "PAYTR", "STRIPE", "BANK_POS"] as const;
 // F4-09: sosyal medya adaptörleri (mock).
 export const SOCIAL_CODES = ["META", "TIKTOK", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "PINTEREST"] as const;
 
@@ -91,7 +94,19 @@ export function createDefaultRegistry(): IntegrationRegistry {
       createMock: () => new SocialMockAdapter(code),
     });
   }
+  for (const code of PAYMENT_CODES) {
+    reg.register<IntegrationAdapter>({
+      code,
+      kind: "PAYMENT",
+      requiredCredentials: ["apiKey"],
+      // Gerçek adaptör (hosted/3DS) canlı sözleşmeyle gelene kadar mock (F2-03).
+      create: () => new PaymentMockAdapter(code),
+      createMock: () => new PaymentMockAdapter(code),
+    });
+  }
   reg.register<IntegrationAdapter>({ code: "FX_TCMB", kind: "FX", requiredCredentials: [], create: () => new FxMockAdapter(), createMock: () => new FxMockAdapter() });
   reg.register<IntegrationAdapter>({ code: "EMBEDDINGS", kind: "AI", requiredCredentials: ["apiKey"], create: () => new EmbeddingsMockAdapter(), createMock: () => new EmbeddingsMockAdapter() });
   return reg;
 }
+
+export { PaymentMockAdapter } from "./payment/mock.js";

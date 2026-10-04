@@ -114,7 +114,13 @@
       "approvals": "Bekleyen onay",
       "approvalsNote": "Yetki değişikliği talepleri",
       "taxRules": "Onay bekleyen vergi kuralı",
-      "taxRulesNote": "Mali müşavir / yönetici onayı"
+      "taxRulesNote": "Mali müşavir / yönetici onayı",
+      "openOrders": "Açık sipariş",
+      "openOrdersNote": "Onaylanmış, sevk bekleyen",
+      "awaitingStock": "Stok bekleyen",
+      "awaitingStockNote": "Satırı tam ayrılamayan sipariş",
+      "cancellations": "İptal onayı",
+      "cancellationsNote": "İade / fatura iptali bekliyor"
     },
     "feedTitle": "Canlı olay akışı",
     "feedSubtitle": "Her olay ilgili modülleri tetikler · tek kayıt, zincirleme güncelleme",
@@ -1250,7 +1256,8 @@
       "discount": "İndirim",
       "net": "Net",
       "otv": "ÖTV",
-      "kdv": "KDV"
+      "kdv": "KDV",
+      "stock": "Stok"
     },
     "totals": {
       "net": "Net",
@@ -1277,6 +1284,32 @@
       "saved": "Kaydedildi.",
       "noCustomers": "Önce müşteri ekleyin.",
       "noProducts": "Satılabilir ürün yok."
+    },
+    "stock": {
+      "FULL": "Stok ayrıldı",
+      "PARTIAL": "Kısmi stok",
+      "WAITING": "Stok bekliyor",
+      "reservedN": "{n} ayrıldı",
+      "shippedN": "{n} gönderildi",
+      "shortN": "{n} bekliyor",
+      "waitingHelp": "Bu siparişin bir kısmı stok bekliyor. Stok girilip kalite onayı verilince eksik kısım otomatik ayrılır; tam ayrılınca kargo gönderisi açılabilir."
+    },
+    "cancellation": {
+      "title": "İptal sonrası onay bekleyen işlemler",
+      "subtitle": "Stok ve sadakat puanı otomatik geri alındı. Ödeme iadesi ve fatura iptalini burada onaylayın.",
+      "done": "Bekleyen para işlemi yok.",
+      "refundLine": "Ödeme iadesi · {provider}",
+      "invoiceLine": "Fatura iptali · {number}",
+      "refund": "İadeyi onayla",
+      "cancelInvoice": "Faturayı iptal et",
+      "working": "İşleniyor…",
+      "reasonPrompt": "Gerekçe (denetim kaydına yazılır):",
+      "refundReason": "Sipariş iptali",
+      "invoiceReason": "Sipariş iptali",
+      "refunded": "Ödeme iade edildi.",
+      "invoiceCancelled": "Fatura iptal edildi.",
+      "noPermission": "Onay yetkiniz yok",
+      "failed": "İşlem yapılamadı."
     }
   },
   "payments": {

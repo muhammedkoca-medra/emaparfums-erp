@@ -27,3 +27,23 @@ export const earnLoyaltyOnOrderConfirmed: EventHandler<"order.confirmed"> = asyn
     log.info({ eventId, orderId: order.id, points, tier: newTier.code }, "order.confirmed → sadakat puanı kazandırıldı");
   });
 };
+
+/**
+ * order.cancelled → siparişten kazanılan puan geri alınır (ORDER_CANCEL, eksi). Bakiye 0'ın altına
+ * inmez; seviye yeniden hesaplanır. Idempotent: aynı sipariş için bir kez yazılır.
+ */
+export const reverseLoyaltyOnOrderCancelled: EventHandler<"order.cancelled"> = async (event, { prisma, log, eventId }) => {
+  const earned = await prisma.loyaltyTransaction.findFirst({ where: { reason: "ORDER", refId: event.orderId } });
+  if (!earned || earned.points <= 0) return;
+  if (await prisma.loyaltyTransaction.findFirst({ where: { reason: "ORDER_CANCEL", refId: event.orderId } })) return;
+  const tiers = await prisma.loyaltyTier.findMany();
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.loyaltyAccount.findUniqueOrThrow({ where: { id: earned.accountId } });
+    const take = Math.min(earned.points, account.points);
+    await tx.loyaltyTransaction.create({ data: { accountId: account.id, points: -take, reason: "ORDER_CANCEL", refId: event.orderId } });
+    const balance = account.points - take;
+    const tier = selectTier(balance, tiers);
+    await tx.loyaltyAccount.update({ where: { id: account.id }, data: { points: balance, ...(tier ? { tierId: tier.id } : {}) } });
+    log.info({ eventId, orderId: event.orderId, points: -take }, "order.cancelled → sadakat puanı geri alındı");
+  });
+};

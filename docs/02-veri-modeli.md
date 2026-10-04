@@ -105,12 +105,12 @@ Modüller arası tüm tetiklemeler bu tablodaki olaylarla yapılır. Tipler `pac
 |---|---|---|
 | `order.created` | satış, e-ticaret (pazaryeri çekme) | ödeme, kontrol paneli |
 | `order.confirmed` | ödeme / satış | stok (rezervasyon), fatura, sadakat |
-| `order.cancelled` | satış | stok (rezervasyon iadesi), ödeme (iade), fatura (iptal) |
+| `order.cancelled` | satış | stok (rezervasyon iadesi), sadakat (puan geri alma); ödeme iadesi ve fatura iptali otomatik değil — siparişte onay bekleyen işlem olarak tek tıkla onaylanır |
 | `payment.captured` | ödeme | satış (siparişi onayla) |
 | `payment.failed` | ödeme | satış, sadakat (abonelik PAST_DUE) |
 | `stock.reserved` | stok | depo (toplama dalgası), kargo |
 | `stock.below_min` | stok | satın alma (MRP), üretim (MRP), kontrol paneli |
-| `stock.changed` | stok | e-ticaret (kanallara stok it) |
+| `stock.changed` | stok | satış (bekleyen siparişlerin eksik rezervasyonunu tamamla), e-ticaret (kanallara stok it) |
 | `lot.received` | satın alma (mal kabul) | kalite (muayene aç) |
 | `lot.released` | kalite | stok (kullanılabilir), üretim |
 | `lot.quarantined` | kalite | stok (çıkışları kilitle), satın alma (tedarikçi puanı) |
@@ -121,7 +121,7 @@ Modüller arası tüm tetiklemeler bu tablodaki olaylarla yapılır. Tipler `pac
 | `invoice.issued` | fatura | satış, muhasebe aktarımı, e-posta |
 | `invoice.failed` | fatura | kontrol paneli (hata kuyruğu) |
 | `invoice.purchase_received` | fatura (gelen e-Fatura) | satın alma (3'lü eşleştirme) |
-| `shipment.created` | kargo | satış, e-ticaret (takip no'yu kanala bildir) |
+| `shipment.created` | kargo | stok (rezervasyonu SALE ile tüket), satış (sipariş SHIPPED), e-ticaret (takip no'yu kanala bildir) |
 | `shipment.status_changed` | kargo | satış, müşteri bildirimi, sadakat (teslimde puan) |
 | `shipment.delayed` | kargo | müşteri bildirimi, kontrol paneli |
 | `return.requested` | satış / e-ticaret | kargo (iade etiketi), kalite (hasar kontrolü) |

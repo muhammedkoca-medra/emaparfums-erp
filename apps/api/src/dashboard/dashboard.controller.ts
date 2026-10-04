@@ -53,12 +53,13 @@ export class DashboardController {
   async summary(@CurrentUser() auth: AuthContext) {
     const perms = await this.permissions.forUser(auth.userId);
     const can = (m: PermissionModule) => perms.has(`${m}:VIEW`);
-    const [stock, formulasInReview, pendingTaxRules, pendingApprovals, outbox] = await Promise.all([
+    const [stock, formulasInReview, pendingTaxRules, pendingApprovals, outbox, sales] = await Promise.all([
       can("stock") ? stockSummary(this.prisma) : null,
       can("production") ? this.prisma.formula.count({ where: { status: "IN_REVIEW" } }) : null,
       can("tax") ? this.prisma.taxRule.count({ where: { approvedAt: null } }) : null,
       can("admin") ? this.prisma.approvalRequest.count({ where: { status: "PENDING" } }) : null,
       can("admin") ? this.prisma.outboxEvent.groupBy({ by: ["status"], _count: { _all: true } }) : null,
+      can("sales") ? this.salesSummary() : null,
     ]);
     return {
       stock: stock && {
@@ -68,6 +69,7 @@ export class DashboardController {
         stockValue: stock.stockValue,
       },
       production: formulasInReview === null ? null : { formulasInReview },
+      sales,
       tax: pendingTaxRules === null ? null : { pendingRules: pendingTaxRules },
       admin:
         pendingApprovals === null
@@ -77,6 +79,32 @@ export class DashboardController {
               outbox: Object.fromEntries((outbox ?? []).map((o) => [o.status, o._count._all])),
             },
     };
+  }
+
+  /**
+   * Satış operasyon sayaçları: açık sipariş, stok bekleyen (satırı tam ayrılmamış) sipariş ve iptal/iade
+   * sonrası onay bekleyen para işlemi olan sipariş (tahsil edilmiş ödeme ya da iptal edilmemiş fatura).
+   */
+  private async salesSummary() {
+    const open = ["CONFIRMED", "IN_PRODUCTION", "PICKING"];
+    const [openOrders, waiting, cancellationsPending] = await Promise.all([
+      this.prisma.salesOrder.count({ where: { status: { in: open as never[] } } }),
+      this.prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT COUNT(DISTINCT o.id) AS n
+        FROM "SalesOrder" o
+        JOIN "SalesOrderLine" l ON l."orderId" = o.id
+        LEFT JOIN (
+          SELECT "orderLineId", SUM(qty) AS s FROM "StockReservation" WHERE "releasedAt" IS NULL GROUP BY 1
+        ) r ON r."orderLineId" = l.id
+        WHERE o.status::text IN ('CONFIRMED', 'IN_PRODUCTION', 'PICKING') AND l.qty > COALESCE(r.s, 0)`,
+      this.prisma.salesOrder.count({
+        where: {
+          status: { in: ["CANCELLED", "RETURNED"] },
+          OR: [{ payments: { some: { status: "CAPTURED" } } }, { invoices: { some: { status: { not: "CANCELLED" }, type: { not: "RETURN" } } } }],
+        },
+      }),
+    ]);
+    return { openOrders, awaitingStock: Number(waiting[0]?.n ?? 0), cancellationsPending };
   }
 
   /**
