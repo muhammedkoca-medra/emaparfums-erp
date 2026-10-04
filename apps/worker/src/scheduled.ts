@@ -1,6 +1,6 @@
-import { checkConsistency, type Db, emit, integrationLogSink } from "@atelier/db";
+import { checkConsistency, type Db, emit, getSetting, integrationLogSink } from "@atelier/db";
 import { addMonths, computeSalesLock, periodLabel } from "@atelier/shared";
-import { buildContext, createDefaultRegistry, type FxCapabilities, type IntegrationAdapter, MemoryLogSink, resolveCredentials } from "@atelier/integrations";
+import { buildContext, createDefaultRegistry, type FxCapabilities, type IntegrationAdapter, MemoryLogSink, resolveCredentials, type SocialCapabilities } from "@atelier/integrations";
 import { type ConnectionOptions, Queue, Worker } from "bullmq";
 import { type Logger } from "pino";
 
@@ -21,6 +21,10 @@ export const SCHEDULES = [
   { id: "compliance-expiry", pattern: "30 3 * * *" },
   // ODM-08 · SDK-05: her gece 04:00 abonelik tahsilatı ve kutu oluşturma
   { id: "subscription-billing", pattern: "0 4 * * *" },
+  // KRG: her saat başı gecikmiş kargo tespiti (shipment.delayed)
+  { id: "shipment-delay", pattern: "5 * * * *" },
+  // SOS: 15 dakikada bir zamanı gelmiş sosyal medya gönderilerini yayınla (post.published)
+  { id: "social-publish", pattern: "*/15 * * * *" },
 ] as const;
 
 export type ScheduledJobName = (typeof SCHEDULES)[number]["id"];
@@ -131,6 +135,10 @@ export async function startScheduler(input: {
           return runComplianceExpiry(input.prisma, input.log);
         case "subscription-billing":
           return runSubscriptionBilling(input.prisma, input.log);
+        case "shipment-delay":
+          return runShipmentDelay(input.prisma, input.log);
+        case "social-publish":
+          return runSocialPublish(input.prisma, input.log);
         default:
           input.log.warn({ job: job.name }, "bilinmeyen zamanlanmış iş");
       }
@@ -141,4 +149,58 @@ export async function startScheduler(input: {
     input.log.error({ job: job?.name, err: err.message }, "zamanlanmış iş başarısız"),
   );
   return { queue, worker };
+}
+
+/** Teslimatı süren (yoldaki) kargo durumları. */
+const IN_FLIGHT = ["LABEL_PRINTED", "HANDED_OVER", "IN_TRANSIT", "OUT_FOR_DELIVERY"] as const;
+
+/**
+ * Gecikmiş kargo: etiketten `shipping.delayAfterDays` gün geçmiş ve teslim edilmemiş gönderi DELAYED olur;
+ * shipment.delayed + shipment.status_changed (müşteriye bildirim) yayınlanır. Idempotent: DELAYED olan atlanır.
+ */
+export async function runShipmentDelay(prisma: Db, log: Logger, now = new Date()) {
+  const days = await getSetting(prisma, "shipping.delayAfterDays");
+  const cutoff = new Date(now.getTime() - days * 86_400_000);
+  const late = await prisma.shipment.findMany({ where: { status: { in: [...IN_FLIGHT] }, createdAt: { lt: cutoff } }, select: { id: true } });
+  for (const s of late) {
+    await prisma.$transaction(async (tx) => {
+      await tx.shipment.update({ where: { id: s.id }, data: { status: "DELAYED" } });
+      await tx.shipmentEvent.create({ data: { shipmentId: s.id, status: "DELAYED", message: `${days} günde teslim edilmedi`, occurredAt: now } });
+      await emit(tx, { type: "shipment.delayed", shipmentId: s.id });
+      await emit(tx, { type: "shipment.status_changed", shipmentId: s.id, status: "DELAYED" });
+    });
+  }
+  if (late.length) log.warn({ job: "shipment-delay", count: late.length, days }, "gecikmiş kargo işaretlendi");
+  return { delayed: late.length };
+}
+
+/**
+ * Zamanlanmış sosyal medya gönderileri: SCHEDULED ve zamanı gelmiş (ya da zamanı boş) gönderiler adaptörle
+ * yayınlanır, PUBLISHED + post.published. Platform adaptörü tanımsızsa gönderi atlanır (SCHEDULED kalır).
+ */
+export async function runSocialPublish(prisma: Db, log: Logger, now = new Date()) {
+  const due = await prisma.socialPost.findMany({
+    where: { status: "SCHEDULED", OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] },
+    include: { account: { select: { platform: true } } },
+  });
+  let published = 0;
+  for (const post of due) {
+    const code = post.account.platform;
+    if (!registry.has(code)) {
+      log.warn({ job: "social-publish", postId: post.id, platform: code }, "sosyal platform adaptörü tanımsız; atlandı");
+      continue;
+    }
+    const integration = await prisma.integration.findUnique({ where: { code } });
+    const credentials = resolveCredentials(integration?.credentialsRef);
+    const { adapter } = registry.resolve<IntegrationAdapter & SocialCapabilities>(code, { credentials }, "mock");
+    const ctx = buildContext({ integrationId: integration?.id ?? code, credentials, sink: integration ? integrationLogSink(prisma) : new MemoryLogSink(), direction: "OUT" });
+    const res = await adapter.publish(ctx, { caption: post.caption });
+    await prisma.$transaction(async (tx) => {
+      await tx.socialPost.update({ where: { id: post.id }, data: { status: "PUBLISHED", publishedAt: now, externalId: res.externalId } });
+      await emit(tx, { type: "post.published", postId: post.id });
+    });
+    published++;
+  }
+  if (published) log.info({ job: "social-publish", published }, "zamanlanmış gönderiler yayınlandı");
+  return { published };
 }

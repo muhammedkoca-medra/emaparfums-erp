@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { Prisma, writeAudit } from "@atelier/db";
+import { emit, Prisma, writeAudit } from "@atelier/db";
 import { checkContentCompliance, type SocialPostRequest, socialPostSchema } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";
@@ -86,6 +86,7 @@ export class SocialController {
       const res = await adapter.publish(ctx, { caption: post.caption });
       await this.prisma.$transaction(async (tx) => {
         await tx.socialPost.update({ where: { id }, data: { status: "PUBLISHED", publishedAt: new Date(), externalId: res.externalId } });
+        await emit(tx, { type: "post.published", postId: id });
         await writeAudit(tx, { userId: auth.userId, action: "social.publish", entity: "SocialPost", entityId: id, after: { externalId: res.externalId, platform: post.account.platform }, ...clientInfo(req) });
       });
       return { id, status: "PUBLISHED", externalId: res.externalId };

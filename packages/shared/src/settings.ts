@@ -10,6 +10,8 @@ export const SETTINGS = {
   "stock.expiryWarningDays": { schema: z.number().int().min(1).max(3650), default: 90 },
   /** STK-07: kanallara `kullanılabilir − tampon` gönderilir (adet). */
   "stock.channelBuffer": { schema: z.number().int().min(0).max(10_000), default: 2 },
+  /** Kargo gecikme eşiği (gün): etiketten bu kadar gün sonra teslim edilmemiş gönderi DELAYED sayılır. Kargo firmasına göre ayarlanır. */
+  "shipping.delayAfterDays": { schema: z.number().int().min(1).max(60), default: 4 },
   /** STK-09: sayım farkının değeri bu tutarı (TRY) aşarsa yönetici onayı gerekir. */
   "stock.countApprovalThreshold": {
     schema: z.string().regex(/^\d+(\.\d{1,2})?$/, "Tutar (ör. 5000.00)"),

@@ -112,14 +112,6 @@ export const NAV: { group: NavGroupKey; items: NavItem[] }[] = [
     group: "finance",
     items: [
       { key: "payments", href: "/odeme", permission: "payments", icon: "card", phase: 2, spec: "odeme.md" },
-      {
-        key: "invoicing",
-        href: "/fatura",
-        permission: "invoicing",
-        icon: "doc",
-        phase: 2,
-        spec: "fatura.md",
-      },
       { key: "tax", href: "/vergi", permission: "tax", icon: "pct", phase: 1, spec: "vergi.md" },
       { key: "costing", href: "/maliyet", permission: "costing", icon: "coin", phase: 4, spec: "maliyet.md" },
       { key: "shipping", href: "/kargo", permission: "shipping", icon: "truck", phase: 2, spec: "kargo.md" },
