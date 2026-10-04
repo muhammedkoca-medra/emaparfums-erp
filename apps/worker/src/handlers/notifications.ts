@@ -42,3 +42,19 @@ export const notifyShipmentStatus: EventHandler<"shipment.status_changed"> = asy
     refId: event.shipmentId,
   });
 };
+
+/** payment.failed → müşteriye "ödeme alınamadı, tekrar deneyin" bildirimi (sipariş PAYMENT_PENDING kalır). */
+export const notifyPaymentFailed: EventHandler<"payment.failed"> = async (event, { prisma }) => {
+  if (!event.orderId) return;
+  const order = await prisma.salesOrder.findUnique({ where: { id: event.orderId }, select: { customerId: true, number: true, status: true } });
+  if (!order?.customerId || order.status !== "PAYMENT_PENDING") return;
+  await notifyCustomer(prisma, {
+    customerId: order.customerId,
+    channel: "SMS",
+    purpose: "TRANSACTIONAL",
+    template: "payment.failed",
+    body: `Siparişiniz ${order.number} için ödeme alınamadı. Lütfen tekrar deneyin. EMA Parfums`,
+    refType: "Payment",
+    refId: event.paymentId,
+  });
+};

@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { emit, Prisma, resolveTaxRule, writeAudit } from "@atelier/db";
+import { channelStockQty, emit, resolveTaxRule, type Tx, writeAudit } from "@atelier/db";
 import { CHANNEL_PREFIX, lineFromGrossUnit, type ListingUpsertRequest, listingUpsertSchema, type SyncOrderRequest, syncOrderSchema } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { IntegrationsService } from "../common/integrations.service.js";
@@ -124,19 +124,16 @@ export class EcommerceController {
     return { created: true, orderId };
   }
 
-  /** Stok itme: kullanılabilir − tampon (STK-07). Listelenen ürünler için. */
+  /** Stok itme: serbest stok − kanal tamponu (STK-07, channelStockQty). Satışta olmayan ürün 0 gider. */
   @Post("channels/:code/push-stock")
   @RequirePermission("ecommerce", "EDIT")
   async pushStock(@Param("code") code: string) {
     const channel = await this.prisma.salesChannel.findUnique({ where: { code } });
     if (!channel || channel.type !== "MARKETPLACE") throw new NotFoundException({ message: "Pazaryeri kanalı bulunamadı" });
-    const listings = await this.prisma.channelListing.findMany({ where: { channelId: channel.id, status: "ACTIVE" }, include: { product: { select: { id: true, sku: true, itemId: true } } } });
-    const buffer = 2;
+    const listings = await this.prisma.channelListing.findMany({ where: { channelId: channel.id, status: "ACTIVE" }, include: { product: { select: { id: true, sku: true, itemId: true, status: true } } } });
     const items: { sku: string; qty: number }[] = [];
     for (const l of listings) {
-      const bal = await this.prisma.stockBalance.aggregate({ where: { itemId: l.product.itemId }, _sum: { qtyOnHand: true, qtyReserved: true } });
-      const available = (bal._sum.qtyOnHand ?? new Prisma.Decimal(0)).minus(bal._sum.qtyReserved ?? new Prisma.Decimal(0));
-      items.push({ sku: l.product.sku, qty: Math.max(0, available.toNumber() - buffer) });
+      items.push({ sku: l.product.sku, qty: await channelStockQty(this.prisma as unknown as Tx, l.product.itemId, l.product.status === "ACTIVE") });
     }
     const { adapter, ctx } = await this.integrations.marketplace(channel.code);
     await adapter.pushStock(ctx, items);

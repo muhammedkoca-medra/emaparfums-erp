@@ -1,9 +1,11 @@
 import { type Db } from "@atelier/db";
 import { type DomainEvent, type DomainEventType } from "@atelier/shared";
 import { type Logger } from "pino";
-import { notifyOrderConfirmed, notifyShipmentStatus } from "./notifications.js";
+import { notifyOrderConfirmed, notifyPaymentFailed, notifyShipmentStatus } from "./notifications.js";
 import { earnLoyaltyOnOrderConfirmed, reverseLoyaltyOnOrderCancelled } from "./loyalty.js";
 import { backfillOnStockChanged, releaseOnOrderCancelled, reserveOnOrderConfirmed, shipOnShipmentCreated } from "./order-stock.js";
+import { requisitionOnBelowMin } from "./mrp.js";
+import { pushPriceOnPriceChanged, pushStockOnStockChanged, restockOnComplianceRestored, syncListingOnProductUpdated } from "./marketplace-sync.js";
 import { orderConfirmed } from "./order-confirmed.js";
 import { paymentCaptured } from "./payment-captured.js";
 import { deactivateOnComplianceChanged, inspectOnBatchCompleted, inspectOnLotReceived, releaseBatchOnLotReleased } from "./quality.js";
@@ -28,6 +30,7 @@ export type HandlerMap = { [T in DomainEventType]?: { name: string; handle: Even
 export const handlers: HandlerMap = {
   "system.ping": [{ name: "system.log-ping", handle: systemPing }],
   "payment.captured": [{ name: "order.confirm-on-payment", handle: paymentCaptured }],
+  "payment.failed": [{ name: "notify.payment-failed", handle: notifyPaymentFailed }],
   "order.confirmed": [
     { name: "stock.reserve-on-confirm", handle: reserveOnOrderConfirmed },
     { name: "invoice.issue-on-confirm", handle: orderConfirmed },
@@ -38,11 +41,20 @@ export const handlers: HandlerMap = {
     { name: "stock.release-on-cancel", handle: releaseOnOrderCancelled },
     { name: "loyalty.reverse-on-cancel", handle: reverseLoyaltyOnOrderCancelled },
   ],
-  "stock.changed": [{ name: "stock.backfill-waiting-orders", handle: backfillOnStockChanged }],
+  "stock.changed": [
+    { name: "stock.backfill-waiting-orders", handle: backfillOnStockChanged },
+    { name: "marketplace.push-stock", handle: pushStockOnStockChanged },
+  ],
+  "stock.below_min": [{ name: "purchasing.requisition-on-below-min", handle: requisitionOnBelowMin }],
+  "price.changed": [{ name: "marketplace.push-price", handle: pushPriceOnPriceChanged }],
+  "product.updated": [{ name: "marketplace.sync-listing", handle: syncListingOnProductUpdated }],
   "shipment.created": [{ name: "stock.consume-on-shipment", handle: shipOnShipmentCreated }],
   "shipment.status_changed": [{ name: "notify.shipment-status", handle: notifyShipmentStatus }],
   "lot.received": [{ name: "quality.inspect-on-receipt", handle: inspectOnLotReceived }],
   "batch.completed": [{ name: "quality.inspect-on-batch", handle: inspectOnBatchCompleted }],
   "lot.released": [{ name: "production.release-batch-on-lot", handle: releaseBatchOnLotReleased }],
-  "compliance.changed": [{ name: "marketplace.deactivate-on-lock", handle: deactivateOnComplianceChanged }],
+  "compliance.changed": [
+    { name: "marketplace.deactivate-on-lock", handle: deactivateOnComplianceChanged },
+    { name: "marketplace.restock-on-active", handle: restockOnComplianceRestored },
+  ],
 };

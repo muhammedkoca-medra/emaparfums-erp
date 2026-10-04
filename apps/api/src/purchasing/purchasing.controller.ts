@@ -14,6 +14,7 @@ import {
   receiptCreateSchema,
   type SupplierCreateRequest,
   supplierCreateSchema,
+  supplierScore,
 } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";
@@ -46,14 +47,44 @@ export class PurchasingController {
     return { id: s.id };
   }
 
-  /** SAT-07: tedarikçi karnesi (mock skorlar; gerçek hesap Faz 4). */
+  /** SAT-07: tedarikçi karnesi — mal kabul ve lot kalite sonuçlarından (supplierScore; veri yoksa null). */
   @Get("suppliers/:id/scorecard")
   @RequirePermission("purchasing", "VIEW")
   async scorecard(@Param("id") id: string) {
     const s = await this.prisma.supplier.findUnique({ where: { id }, select: { id: true, name: true } });
     if (!s) throw new NotFoundException({ message: "Tedarikçi bulunamadı" });
     const orders = await this.prisma.purchaseOrder.count({ where: { supplierId: id } });
-    return { ...s, orders, onTimePct: 90, qualityRejectPct: 2, avgLeadDays: 12, score: 86 };
+    const lines = await this.prisma.goodsReceiptLine.findMany({
+      where: { receipt: { order: { supplierId: id } } },
+      select: {
+        qty: true,
+        damagedQty: true,
+        lotId: true,
+        receipt: { select: { createdAt: true, order: { select: { id: true, createdAt: true, expectedAt: true } } } },
+      },
+    });
+    const rejectedLots = new Set(
+      (await this.prisma.lot.findMany({ where: { id: { in: lines.map((l) => l.lotId) }, qcStatus: "REJECTED" }, select: { id: true } })).map((l) => l.id),
+    );
+    const score = supplierScore(
+      lines.map((l) => ({
+        poId: l.receipt.order.id,
+        poCreatedAt: l.receipt.order.createdAt,
+        expectedAt: l.receipt.order.expectedAt,
+        receivedAt: l.receipt.createdAt,
+        qty: l.qty.plus(l.damagedQty).toString(),
+        rejectedQty: (rejectedLots.has(l.lotId) ? l.qty.plus(l.damagedQty) : l.damagedQty).toString(),
+      })),
+    );
+    return { ...s, orders, ...score };
+  }
+
+  /** Satın alma satırında seçilebilecek KDV oranları: TaxRule tablosundaki oranlar (kural 4 — koda gömülmez). */
+  @Get("kdv-rates")
+  @RequirePermission("purchasing", "VIEW")
+  async kdvRates() {
+    const rows = await this.prisma.taxRule.findMany({ select: { kdvRate: true }, distinct: ["kdvRate"], orderBy: { kdvRate: "desc" } });
+    return rows.map((r) => r.kdvRate.toString());
   }
 
   /** SAT-01: MRP önerileri — kullanılabilir stok min. seviyenin altındaki kalemler. */
@@ -64,6 +95,14 @@ export class PurchasingController {
       where: { minStock: { not: null }, type: { in: ["RAW_MATERIAL", "PACKAGING", "SEMI_FINISHED"] } },
       select: { id: true, code: true, name: true, uom: true, minStock: true, reorderQty: true, supplierItems: { where: { isPreferred: true }, include: { supplier: { select: { id: true, name: true } } }, take: 1 } },
     });
+    // MRP'nin açtığı, henüz siparişe bağlanmamış talepler (kalem başına en yenisi).
+    const openReqs = await this.prisma.purchaseRequisition.findMany({
+      where: { itemId: { in: items.map((i) => i.id) }, purchaseOrderId: null },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, itemId: true, qty: true, neededBy: true },
+    });
+    const reqBy = new Map<string, (typeof openReqs)[number]>();
+    for (const r of openReqs) if (!reqBy.has(r.itemId)) reqBy.set(r.itemId, r);
     const sums = await this.prisma.stockBalance.groupBy({ by: ["itemId"], where: { itemId: { in: items.map((i) => i.id) } }, _sum: { qtyOnHand: true, qtyReserved: true } });
     const by = new Map(sums.map((s) => [s.itemId, s._sum]));
     const out = [];
@@ -71,8 +110,9 @@ export class PurchasingController {
       const st = by.get(it.id);
       const available = (st?.qtyOnHand ?? new Prisma.Decimal(0)).minus(st?.qtyReserved ?? new Prisma.Decimal(0));
       const min = it.minStock!;
-      if (available.greaterThanOrEqualTo(min)) continue;
-      const suggested = it.reorderQty ?? min.minus(available);
+      // Açık talebi olan kalem, stoğu toparlansa da listede kalır (talep siparişe aktarılmayı bekliyor).
+      if (available.greaterThanOrEqualTo(min) && !reqBy.has(it.id)) continue;
+      const suggested = Prisma.Decimal.max(it.reorderQty ?? min.minus(available), 0);
       const pref = it.supplierItems[0];
       out.push({
         itemId: it.id,
@@ -82,7 +122,10 @@ export class PurchasingController {
         available: available.toString(),
         minStock: min.toString(),
         suggestedQty: suggested.toString(),
-        supplier: pref ? { id: pref.supplier.id, name: pref.supplier.name, leadTimeDays: pref.leadTimeDays } : null,
+        supplier: pref ? { id: pref.supplier.id, name: pref.supplier.name, leadTimeDays: pref.leadTimeDays, price: pref.price.toString(), currency: pref.currency } : null,
+        requisition: reqBy.has(it.id)
+          ? { id: reqBy.get(it.id)!.id, qty: reqBy.get(it.id)!.qty.toString(), neededBy: reqBy.get(it.id)!.neededBy.toISOString() }
+          : null,
       });
     }
     return out;
@@ -140,7 +183,11 @@ export class PurchasingController {
           lines: { create: body.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, unitPrice: l.unitPrice, kdvRate: l.kdvRate })) },
         },
       });
-      await writeAudit(tx, { userId: auth.userId, action: "po.create", entity: "PurchaseOrder", entityId: po.id, after: { number, total: total.toFixed(2), lines: body.lines.length }, ...clientInfo(req) });
+      // MRP talepleri bu siparişe bağlanır (yalnızca henüz bağlanmamış olanlar).
+      const linked = body.requisitionIds?.length
+        ? (await tx.purchaseRequisition.updateMany({ where: { id: { in: body.requisitionIds }, purchaseOrderId: null }, data: { purchaseOrderId: po.id } })).count
+        : 0;
+      await writeAudit(tx, { userId: auth.userId, action: "po.create", entity: "PurchaseOrder", entityId: po.id, after: { number, total: total.toFixed(2), lines: body.lines.length, requisitions: linked }, ...clientInfo(req) });
       return po.id;
     });
     return { id };

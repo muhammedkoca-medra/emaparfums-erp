@@ -4,7 +4,7 @@ import { Topbar } from "@/components/Topbar";
 import { apiGet, getMe } from "@/lib/api-server";
 import { fmtDate, fmtMoney, fmtQty } from "@/lib/format";
 import { canView } from "@/lib/modules";
-import { NewPoForm } from "./NewPoForm";
+import { NewPoForm, type PoPrefill } from "./NewPoForm";
 import { NewSupplierForm } from "./NewSupplierForm";
 import { PoStatusPill } from "./PoStatusPill";
 
@@ -16,7 +16,8 @@ interface Sug {
   available: string;
   minStock: string;
   suggestedQty: string;
-  supplier: { id: string; name: string } | null;
+  supplier: { id: string; name: string; price?: string } | null;
+  requisition: { id: string; qty: string; neededBy: string } | null;
 }
 interface Order {
   id: string;
@@ -29,7 +30,8 @@ interface Order {
   createdAt: string;
 }
 
-export default async function PurchasingPage() {
+export default async function PurchasingPage({ searchParams }: { searchParams: Promise<{ aktar?: string }> }) {
+  const { aktar } = await searchParams;
   const t = await getTranslations("purchasing");
   const tn = await getTranslations();
   const me = await getMe();
@@ -44,12 +46,24 @@ export default async function PurchasingPage() {
     );
   }
   const canCreate = me.permissions.includes("purchasing:CREATE");
-  const [suggestions, orders, suppliers, items] = await Promise.all([
+  const [suggestions, orders, suppliers, items, kdvRates] = await Promise.all([
     apiGet<Sug[]>("/purchasing/suggestions"),
     apiGet<Order[]>("/purchasing/orders"),
     canCreate ? apiGet<{ id: string; name: string }[]>("/purchasing/suppliers") : Promise.resolve([]),
     canCreate ? apiGet<{ id: string; code: string; name: string; type: string }[]>("/catalog/items") : Promise.resolve([]),
+    canCreate ? apiGet<string[]>("/purchasing/kdv-rates").catch(() => []) : Promise.resolve([]),
   ]);
+  // "Siparişe aktar": öneri/talep satırından sipariş formunu doldurur (talep varsa onun miktarı).
+  const picked = aktar ? suggestions.find((s) => s.itemId === aktar) : undefined;
+  const prefill: PoPrefill | null = picked
+    ? {
+        supplierId: picked.supplier?.id ?? null,
+        itemId: picked.itemId,
+        qty: picked.requisition?.qty ?? picked.suggestedQty,
+        unitPrice: picked.supplier?.price ?? null,
+        requisitionId: picked.requisition?.id ?? null,
+      }
+    : null;
   const supplierRefs = suppliers.map((s) => ({ id: s.id, label: s.name }));
   const itemRefs = items.filter((i) => ["RAW_MATERIAL", "PACKAGING", "SEMI_FINISHED"].includes(i.type)).map((i) => ({ id: i.id, label: `${i.code} · ${i.name}` }));
   const th = "px-2 py-2 text-left text-[11px] font-bold tracking-[0.08em] text-muted uppercase";
@@ -72,6 +86,7 @@ export default async function PurchasingPage() {
                   <th className={`${th} text-right`}>{t("supCol.min")}</th>
                   <th className={`${th} text-right`}>{t("supCol.suggested")}</th>
                   <th className={th}>{t("supCol.supplier")}</th>
+                  {canCreate && <th className={th} />}
                 </tr>
               </thead>
               <tbody>
@@ -83,7 +98,21 @@ export default async function PurchasingPage() {
                     <td className={`${td} num text-right text-bad`}>{fmtQty(s.available)}</td>
                     <td className={`${td} num text-right text-text-2`}>{fmtQty(s.minStock)}</td>
                     <td className={`${td} num text-right font-semibold`}>{fmtQty(s.suggestedQty)}</td>
-                    <td className={td}>{s.supplier?.name ?? "—"}</td>
+                    <td className={td}>
+                      {s.supplier?.name ?? "—"}
+                      {s.requisition && (
+                        <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-[10.5px] font-semibold text-warn">
+                          {t("requisitionOpen", { qty: fmtQty(s.requisition.qty) })}
+                        </span>
+                      )}
+                    </td>
+                    {canCreate && (
+                      <td className={`${td} text-right`}>
+                        <Link href={`/satin-alma?aktar=${s.itemId}#yeni-siparis`} className="text-[12.5px] font-semibold whitespace-nowrap text-gold-text">
+                          {t("toOrder")} →
+                        </Link>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -130,7 +159,7 @@ export default async function PurchasingPage() {
           </section>
           {canCreate && (
             <div className="flex flex-col gap-3">
-              <NewPoForm suppliers={supplierRefs} items={itemRefs} />
+              <NewPoForm key={prefill?.itemId ?? "new"} suppliers={supplierRefs} items={itemRefs} kdvRates={kdvRates} prefill={prefill} />
               <NewSupplierForm />
             </div>
           )}

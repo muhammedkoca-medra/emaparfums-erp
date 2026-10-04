@@ -11,6 +11,7 @@ interface Summary {
   stock: { criticalItems: number; expiringLots: number; expiryWarningDays: number } | null;
   production: { formulasInReview: number } | null;
   sales?: { openOrders: number; awaitingStock: number; cancellationsPending: number } | null;
+  purchasing?: { openRequisitions: number; mismatchedInvoices: number } | null;
   tax: { pendingRules: number } | null;
   admin: { pendingApprovals: number } | null;
 }
@@ -41,6 +42,12 @@ export default async function DashboardPage() {
     canDash ? apiTry<Summary>("/dashboard/summary") : Promise.resolve(null),
   ]);
   const kpis: { key: string; value: number; note: string; href: string; alert: boolean }[] = [];
+  if (summary?.purchasing) {
+    kpis.push(
+      { key: "requisitions", value: summary.purchasing.openRequisitions, note: t("dashboard.kpi.requisitionsNote"), href: "/satin-alma", alert: summary.purchasing.openRequisitions > 0 },
+      { key: "mismatch", value: summary.purchasing.mismatchedInvoices, note: t("dashboard.kpi.mismatchNote"), href: "/faturalar", alert: summary.purchasing.mismatchedInvoices > 0 },
+    );
+  }
   if (summary?.sales) {
     kpis.push(
       { key: "openOrders", value: summary.sales.openOrders, note: t("dashboard.kpi.openOrdersNote"), href: "/siparisler", alert: false },

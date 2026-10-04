@@ -1,3 +1,4 @@
+import { Decimal } from "decimal.js";
 import { z } from "zod";
 
 /** Satın alma (F2-14/15 · docs/03-moduller/satin-alma.md). */
@@ -41,9 +42,12 @@ export const poCreateSchema = z.object({
   currency: z.string().trim().length(3).toUpperCase().default("TRY"),
   expectedAt: z.coerce.date().nullable().optional(),
   lines: z
-    .array(z.object({ itemId: z.string().min(1), qty, unitPrice: price, kdvRate: rate.default("0.20") }))
+    // KDV oranı koda yazılmaz (kural 4): istemci TaxRule'daki oranlardan seçip satıra kopyalar.
+    .array(z.object({ itemId: z.string().min(1), qty, unitPrice: price, kdvRate: rate }))
     .min(1, "En az bir satır")
     .max(200),
+  /** MRP'den aktarılan satın alma talepleri; sipariş oluşunca bu siparişe bağlanır. */
+  requisitionIds: z.array(z.string().min(1)).max(200).optional(),
 });
 export type PoCreateRequest = z.infer<typeof poCreateSchema>;
 
@@ -75,3 +79,44 @@ export const incomingInvoiceSchema = z.object({
     .optional(),
 });
 export type IncomingInvoiceRequest = z.infer<typeof incomingInvoiceSchema>;
+
+/**
+ * SAT-07 tedarikçi karnesi — gerçek veriden, şeffaf formülle:
+ *  - Zamanında teslim %: mal kabul tarihi siparişin beklenen tarihinden sonra değilse (beklenen tarih yoksa) zamanında.
+ *  - Kalite reddi %: (reddedilen lotların miktarı + hasarlı kabul) ÷ toplam kabul.
+ *  - Ortalama teslim süresi: sipariş tarihinden ilk mal kabule gün (sipariş başına bir kez).
+ *  - Puan: zamanında teslim % ile kalite % (100 − ret %) ortalaması, tam sayı.
+ * Kabul verisi yoksa tüm göstergeler null (uydurma puan yok).
+ */
+export interface SupplierReceiptFact {
+  poId: string;
+  poCreatedAt: Date;
+  expectedAt: Date | null;
+  receivedAt: Date;
+  qty: string;
+  rejectedQty: string;
+}
+
+export function supplierScore(facts: SupplierReceiptFact[]): {
+  receipts: number;
+  onTimePct: number | null;
+  qualityRejectPct: number | null;
+  avgLeadDays: number | null;
+  score: number | null;
+} {
+  if (facts.length === 0) return { receipts: 0, onTimePct: null, qualityRejectPct: null, avgLeadDays: null, score: null };
+  const onTime = facts.filter((f) => !f.expectedAt || f.receivedAt.getTime() <= f.expectedAt.getTime() + 86_400_000 - 1).length;
+  const total = facts.reduce((a, f) => a.plus(f.qty), new Decimal(0));
+  const rejected = facts.reduce((a, f) => a.plus(f.rejectedQty), new Decimal(0));
+  const firstByPo = new Map<string, SupplierReceiptFact>();
+  for (const f of facts) {
+    const cur = firstByPo.get(f.poId);
+    if (!cur || f.receivedAt < cur.receivedAt) firstByPo.set(f.poId, f);
+  }
+  const leads = [...firstByPo.values()].map((f) => (f.receivedAt.getTime() - f.poCreatedAt.getTime()) / 86_400_000);
+  const onTimePct = Math.round((onTime / facts.length) * 100);
+  const qualityRejectPct = total.greaterThan(0) ? rejected.dividedBy(total).times(100).toDecimalPlaces(1).toNumber() : 0;
+  const avgLeadDays = Math.round((leads.reduce((a, d) => a + d, 0) / leads.length) * 10) / 10;
+  const score = Math.round((onTimePct + (100 - qualityRejectPct)) / 2);
+  return { receipts: facts.length, onTimePct, qualityRejectPct, avgLeadDays, score };
+}

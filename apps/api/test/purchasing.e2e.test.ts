@@ -50,6 +50,34 @@ describe("satın alma (F2-14/15, SAT)", () => {
     expect(Number(bal._sum.qtyOnHand)).toBe(100);
   });
 
+  it("KDV oranı istemciden zorunlu (kural 4: koda gömülü varsayılan yok)", async () => {
+    const p = await loginAgent(ctx, await createUser(ctx, ["PURCHASING"]));
+    await p.post("/purchasing/orders").send({ supplierId, lines: [{ itemId, qty: "1", unitPrice: "10" }] }).expect(400);
+  });
+
+  it("MRP talebi öneride görünür ve sipariş oluşunca ona bağlanır", async () => {
+    const p = await loginAgent(ctx, await createUser(ctx, ["PURCHASING"]));
+    const req = await ctx.prisma.purchaseRequisition.create({ data: { itemId, qty: "40", neededBy: new Date(), source: "MRP" } });
+    const sug = await p.get("/purchasing/suggestions").expect(200);
+    const row = (sug.body as { itemId: string; requisition: { id: string } | null }[]).find((r) => r.itemId === itemId);
+    expect(row?.requisition?.id).toBe(req.id);
+    const po = await p.post("/purchasing/orders").send({ supplierId, requisitionIds: [req.id], lines: [{ itemId, qty: "40", unitPrice: "90", kdvRate: "0.20" }] }).expect(201);
+    expect((await ctx.prisma.purchaseRequisition.findUniqueOrThrow({ where: { id: req.id } })).purchaseOrderId).toBe(po.body.id);
+    const after = await p.get("/purchasing/suggestions").expect(200);
+    expect((after.body as { itemId: string; requisition: unknown }[]).find((r) => r.itemId === itemId)?.requisition ?? null).toBeNull();
+  });
+
+  it("tedarikçi karnesi gerçek kabullerden hesaplanır; kabulü olmayan tedarikçide uydurma puan yok (SAT-07)", async () => {
+    const p = await loginAgent(ctx, await createUser(ctx, ["PURCHASING"]));
+    const empty = (await ctx.prisma.supplier.create({ data: { name: "Yeni Tedarikçi" } })).id;
+    const none = await p.get(`/purchasing/suppliers/${empty}/scorecard`).expect(200);
+    expect(none.body).toMatchObject({ receipts: 0, score: null, onTimePct: null });
+    const card = await p.get(`/purchasing/suppliers/${supplierId}/scorecard`).expect(200);
+    expect(card.body.receipts).toBeGreaterThan(0); // önceki testteki mal kabul
+    expect(card.body.onTimePct).toBe(100); // beklenen tarih yok → zamanında
+    expect(typeof card.body.score).toBe("number");
+  });
+
   it("kabul %10'dan fazla aşarsa engellenir (SAT-05)", async () => {
     const p = await loginAgent(ctx, await createUser(ctx, ["PURCHASING"]));
     const po = await p.post("/purchasing/orders").send({ supplierId, lines: [{ itemId, qty: "100", unitPrice: "80", kdvRate: "0.20" }] }).expect(201);

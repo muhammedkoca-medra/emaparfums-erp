@@ -53,13 +53,19 @@ export class DashboardController {
   async summary(@CurrentUser() auth: AuthContext) {
     const perms = await this.permissions.forUser(auth.userId);
     const can = (m: PermissionModule) => perms.has(`${m}:VIEW`);
-    const [stock, formulasInReview, pendingTaxRules, pendingApprovals, outbox, sales] = await Promise.all([
+    const [stock, formulasInReview, pendingTaxRules, pendingApprovals, outbox, sales, purchasing] = await Promise.all([
       can("stock") ? stockSummary(this.prisma) : null,
       can("production") ? this.prisma.formula.count({ where: { status: "IN_REVIEW" } }) : null,
       can("tax") ? this.prisma.taxRule.count({ where: { approvedAt: null } }) : null,
       can("admin") ? this.prisma.approvalRequest.count({ where: { status: "PENDING" } }) : null,
       can("admin") ? this.prisma.outboxEvent.groupBy({ by: ["status"], _count: { _all: true } }) : null,
       can("sales") ? this.salesSummary() : null,
+      can("purchasing")
+        ? Promise.all([
+            this.prisma.purchaseRequisition.count({ where: { purchaseOrderId: null } }),
+            this.prisma.invoice.count({ where: { direction: "PURCHASE", matchStatus: "MISMATCH", status: { not: "CANCELLED" } } }),
+          ]).then(([openRequisitions, mismatchedInvoices]) => ({ openRequisitions, mismatchedInvoices }))
+        : null,
     ]);
     return {
       stock: stock && {
@@ -70,6 +76,7 @@ export class DashboardController {
       },
       production: formulasInReview === null ? null : { formulasInReview },
       sales,
+      purchasing,
       tax: pendingTaxRules === null ? null : { pendingRules: pendingTaxRules },
       admin:
         pendingApprovals === null

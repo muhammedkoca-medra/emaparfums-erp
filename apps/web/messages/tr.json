@@ -120,7 +120,11 @@
       "awaitingStock": "Stok bekleyen",
       "awaitingStockNote": "Satırı tam ayrılamayan sipariş",
       "cancellations": "İptal onayı",
-      "cancellationsNote": "İade / fatura iptali bekliyor"
+      "cancellationsNote": "İade / fatura iptali bekliyor",
+      "requisitions": "Satın alma talebi",
+      "requisitionsNote": "Min. stok altı; siparişe aktarılmayı bekliyor",
+      "mismatch": "Eşleşmeyen alış faturası",
+      "mismatchNote": "Sipariş / kabul ile tutmuyor (3'lü eşleştirme)"
     },
     "feedTitle": "Canlı olay akışı",
     "feedSubtitle": "Her olay ilgili modülleri tetikler · tek kayıt, zincirleme güncelleme",
@@ -1535,11 +1539,17 @@
       "remove": "Kaldır",
       "create": "Sipariş oluştur",
       "saved": "Kaydedildi.",
-      "noItems": "Kalem yok."
+      "noItems": "Kalem yok.",
+      "kdvOption": "KDV {pct}",
+      "noKdvRates": "KDV oranı seçebilmek için önce Vergi Merkezi'nde vergi kuralı tanımlanmalı.",
+      "fromRequisition": "MRP talebinden aktarıldı: kalem, miktar ve tercihli fiyat hazır. KDV'yi kontrol edip kaydedin; talep bu siparişe bağlanır.",
+      "fromSuggestion": "Öneriden aktarıldı: kalem ve miktar hazır. Tedarikçi, fiyat ve KDV'yi kontrol edin."
     },
     "suppliersTitle": "Tedarikçiler",
     "incomingInvoice": "Alış faturası (simüle)",
-    "invoiced": "Alış faturası oluşturuldu."
+    "invoiced": "Alış faturası oluşturuldu.",
+    "requisitionOpen": "Talep açık · {qty}",
+    "toOrder": "Siparişe aktar"
   },
   "ecommerce": {
     "title": "E-Ticaret",

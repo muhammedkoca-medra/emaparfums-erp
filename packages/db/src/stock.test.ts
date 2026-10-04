@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPrismaClient, type Db, Prisma } from "./index.js";
+import { channelStockQty } from "./channel.js";
 import { getSetting, setSetting } from "./settings.js";
 import {
   availableForItem,
@@ -230,6 +231,17 @@ describe("STK-01 · recordMovement", () => {
     // Stok kalmadı: 0 döner, hata yok
     const none = await tx((t) => reserveAvailableFefo(t, { itemId: item.id, qty: "3", refType: "Test", refId: ref }));
     expect(none.toString()).toBe("0");
+  });
+
+  it("pazaryeri adedi: serbest stok − kanal tamponu; karantina sayılmaz; satış dışı ürün 0", async () => {
+    const item = await newItem();
+    await lotWith(item.id, 10, { status: "RELEASED" });
+    await lotWith(item.id, 40, { status: "QUARANTINE" });
+    const buffer = await tx((t) => getSetting(t, "stock.channelBuffer"));
+    expect(await tx((t) => channelStockQty(t, item.id))).toBe(Math.max(0, 10 - buffer));
+    expect(await tx((t) => channelStockQty(t, item.id, false))).toBe(0);
+    const empty = await newItem();
+    expect(await tx((t) => channelStockQty(t, empty.id))).toBe(0); // eksiye inmez
   });
 
   it("düzeltme artış ve azalış", async () => {
