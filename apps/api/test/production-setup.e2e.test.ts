@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import { createUser, loginAgent, resetRateLimit, setupTestApp, type TestContext } from "./helpers.js";
 
 let ctx: TestContext;
@@ -262,5 +262,34 @@ describe("kütlesel reçete kurulumu (formül + reçete)", () => {
 
     const sales = await loginAgent(ctx, await createUser(ctx, ["SALES"]));
     await sales.post(`/production/setup/${productId}`).send(recipe(it.choices)).expect(403);
+  });
+
+  it("varsayılan reçete şablonu ekrandan değiştirilir; yeni kurulumlara gelir; denetime yazılır", async () => {
+    const admin = await loginAgent(ctx, await createUser(ctx, ["ADMIN"]));
+    const sales = await loginAgent(ctx, await createUser(ctx, ["SALES"]));
+    const before = (await admin.get("/production/recipe-template").expect(200)).body;
+    expect(before.densityGPerMl).toBe("0.854");
+    onTestFinished(async () => {
+      await ctx.prisma.systemSetting.deleteMany({ where: { key: "production.recipeTemplate" } });
+    });
+
+    const next = {
+      densityGPerMl: "0.86",
+      lines: [
+        { role: "ESSENCE", pct: "20" },
+        { role: "ALCOHOL", pct: "75.5" },
+        { role: "WATER", pct: "4" },
+        { role: "GLYCERIN", pct: "0.5" },
+      ],
+    };
+    await admin.put("/production/recipe-template").send({ ...next, lines: next.lines.slice(0, 3) }).expect(400); // toplam %99,5
+    await sales.put("/production/recipe-template").send(next).expect(403);
+    await admin.put("/production/recipe-template").send(next).expect(200);
+
+    const productId = await makeProduct("SETT01");
+    const setup = (await admin.get(`/production/setup/${productId}`).expect(200)).body;
+    expect(setup.template.densityGPerMl).toBe("0.86");
+    expect(setup.template.lines[0]).toEqual({ role: "ESSENCE", pct: "20" });
+    expect(await ctx.prisma.auditLog.count({ where: { entityId: "production.recipeTemplate", action: "setting.change" } })).toBeGreaterThanOrEqual(1);
   });
 });

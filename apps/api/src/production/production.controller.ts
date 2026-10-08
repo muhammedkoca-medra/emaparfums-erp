@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import {
   applicableTests,
@@ -10,6 +10,7 @@ import {
   Prisma,
   recordMovement,
   releaseReservation,
+  setSetting,
   reservableForItem,
   reserveFefo,
   setLotQcStatus,
@@ -28,6 +29,8 @@ import {
   batchOutputSchema,
   type BatchStage,
   type RecipeRole,
+  type RecipeTemplate,
+  recipeTemplateSchema,
   type BatchStageRequest,
   batchStageSchema,
   type BatchUpdateRequest,
@@ -309,6 +312,29 @@ export class ProductionController {
       });
     }
     return { batchSize: bom?.batchSize ?? 0, hasBom: true, hasShortage, lines };
+  }
+
+  /** Varsayılan kütlesel reçete şablonu (yeni ürün kurulumuna gelen oranlar + yoğunluk). */
+  @Get("recipe-template")
+  @RequirePermission("production", "VIEW")
+  async recipeTemplate() {
+    const [value, row] = await Promise.all([
+      getSetting(this.prisma, "production.recipeTemplate"),
+      this.prisma.systemSetting.findUnique({ where: { key: "production.recipeTemplate" }, select: { updatedAt: true } }),
+    ]);
+    return { ...value, updatedAt: row?.updatedAt.toISOString() ?? null };
+  }
+
+  /**
+   * Şablonu değiştirir (production:APPROVE). Yalnızca bundan sonra kurulan/güncellenen ürünleri etkiler;
+   * kurulu formüller ve açık partiler değişmez. Değişiklik AuditLog'a yazılır (setting.change).
+   */
+  @Put("recipe-template")
+  @RequirePermission("production", "APPROVE")
+  @ApiZodBody(recipeTemplateSchema)
+  async setRecipeTemplate(@Body(new ZodPipe(recipeTemplateSchema)) body: RecipeTemplate, @CurrentUser() auth: AuthContext) {
+    await this.prisma.$transaction((tx) => setSetting(tx, "production.recipeTemplate", body, auth.userId));
+    return body;
   }
 
   /**

@@ -1248,7 +1248,24 @@
       "lotNo": "Lot no",
       "bottle": "şişe {vol} ml",
       "cardTitle": "Tartım kartı",
-      "editLockHint": "Reçete gramları, tartım için malzeme ayrılana kadar düzeltilebilir."
+      "editLockHint": "Reçete gramları, tartım için malzeme ayrılana kadar düzeltilebilir.",
+      "templateLink": "Varsayılan oranları değiştir"
+    },
+    "template": {
+      "title": "Standart reçete",
+      "subtitle": "Yeni ürünlere gelen varsayılan kütlesel oranlar",
+      "back": "Üretime dön",
+      "cardTitle": "Standart reçete (varsayılan oranlar)",
+      "edit": "Oranları düzenle",
+      "editorTitle": "Varsayılan kütlesel reçete",
+      "editorHint": "Oranlar sabit değildir: yüzdeyi değiştirince gram, gramı değiştirince yüzde güncellenir. Gramlar deneme hacmi içindir; kaydedilen yüzdeler ve yoğunluktur.",
+      "save": "Oranları kaydet",
+      "saving": "Kaydediliyor…",
+      "saved": "Standart reçete kaydedildi. Bundan sonraki ürün kurulumları bu oranlarla başlar.",
+      "reset": "İlk değerlere dön",
+      "readOnly": "Oranları değiştirmek için üretim onay yetkisi gerekir.",
+      "scope": "Bu değişiklik kurulu ürün formüllerini ve açık partileri değiştirmez. Bir ürünün oranını değiştirmek için ürün sayfasında \"Üretim kurulumu\"nu yeni sürümle kaydedin; tek bir partide değiştirmek için parti açarken ya da partiyi düzenlerken yüzde/gram girin.",
+      "updatedAt": "Son değişiklik: {at}"
     }
   },
   "orders": {

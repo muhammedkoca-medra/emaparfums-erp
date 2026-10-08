@@ -50,10 +50,11 @@ export default async function ProductionPage() {
     );
   }
   const canCreate = me.permissions.includes("production:CREATE");
-  const [batches, products, formulas] = await Promise.all([
+  const [batches, products, formulas, template] = await Promise.all([
     apiGet<BatchRow[]>("/production/batches"),
     canCreate ? apiGet<ProductRow[]>("/catalog/products") : Promise.resolve([]),
     canCreate ? apiGet<FormulaRow[]>("/formulas") : Promise.resolve([]),
+    apiGet<{ densityGPerMl: string; lines: { role: string; pct: string }[] }>("/production/recipe-template").catch(() => null),
   ]);
   // Konsantrasyon üretim yetkisiyle görülen formül listesinden gelir (satış ucuna açılmaz).
   const concByFormula = new Map(formulas.filter((f) => f.status === "APPROVED").map((f) => [f.id, f.concentrationPct]));
@@ -72,6 +73,29 @@ export default async function ProductionPage() {
     <>
       <Topbar heading={t("title")} sub={t("subtitle")} />
       <div className="flex flex-col gap-4 px-4 py-5 sm:px-8">
+        {template && (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-5 py-4">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-[11px] font-bold tracking-[0.1em] text-muted uppercase">{t("template.cardTitle")}</span>
+              <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                {template.lines.map((l, i) => (
+                  <li
+                    key={i}
+                    className={`num rounded-full px-3 py-1 text-[12.5px] font-semibold ${l.role === "ESSENCE" ? "bg-ink text-on-ink" : "bg-surface-soft text-text"}`}
+                  >
+                    {t(`recipe.role.${l.role}`)} %{Number(l.pct).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 4 })}
+                  </li>
+                ))}
+                <li className="num rounded-full border border-line px-3 py-1 text-[12.5px] text-muted">
+                  {t("recipe.densityShort", { d: Number(template.densityGPerMl).toLocaleString("tr-TR", { maximumFractionDigits: 4 }) })}
+                </li>
+              </ul>
+            </div>
+            <Link href="/uretim/recete" className="inline-flex min-h-10 items-center rounded-[9px] border border-line px-4 text-[13px] font-semibold text-text no-underline hover:border-gold-2">
+              {t("template.edit")} →
+            </Link>
+          </section>
+        )}
         {canCreate && pending.length > 0 && (
           <section className="flex flex-col gap-3 rounded-[16px] border border-gold-2/60 bg-surface p-5">
             <div className="flex flex-wrap items-end justify-between gap-2">

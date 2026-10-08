@@ -253,7 +253,12 @@ export function ProductionSetupPanel({
       {canCreate && (
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <h3 className="m-0 text-[13px] font-bold">{formula ? t("updateTitle") : t("createTitle")}</h3>
-          <p className="m-0 text-[12px] text-muted">{tr("setupHint")}</p>
+          <p className="m-0 text-[12px] text-muted">
+            {tr("setupHint")}{" "}
+            <Link href="/uretim/recete" className="font-semibold text-gold-text">
+              {tr("templateLink")} →
+            </Link>
+          </p>
 
           <MassRecipeEditor
             value={recipe}
