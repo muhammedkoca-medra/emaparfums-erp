@@ -1,14 +1,15 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Post, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { emit, getSetting, type Prisma, type Tx, writeAudit } from "@atelier/db";
+import { emit, getSetting, Prisma, type Tx, writeAudit } from "@atelier/db";
 import {
   checkIfraLimits,
   computeSalesLock,
   formulaCodeForSku,
   type ProductionSetupRequest,
   productionSetupSchema,
+  type RecipeRole,
+  recipeBomQty,
   SETUP_BATCH_SIZE,
-  setupLiquidQty,
 } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";
@@ -16,14 +17,18 @@ import { RequirePermission } from "../permissions/decorators.js";
 import { PermissionService } from "../permissions/permission.service.js";
 import { PrismaService } from "../prisma.service.js";
 
-type ItemChoice = ProductionSetupRequest["essence"];
-const VOLUME_UOMS = ["L", "ML"] as const;
+type ItemChoice = ProductionSetupRequest["components"][number]["item"];
+const MASS_UOMS: readonly string[] = ["KG", "G"];
+const ROLE_LABEL: Record<RecipeRole, string> = { ESSENCE: "Esans", ALCOHOL: "Etil alkol", WATER: "Saf su", GLYCERIN: "Gliserin", OTHER: "Bileşen" };
 
 /**
- * Hızlı üretim kurulumu (hazır esans + parfüm bazı). Ürün sayfasından tek adımda:
- *  - Formül: tek satır (ürünün esansı %100) + konsantrasyon. Yetki varsa onaylanır (URT-09 IFRA kontrolü
+ * Hızlı üretim kurulumu — kütlesel reçete (esans, alkol, su, gliserin… kütle yüzdesiyle + yoğunluk).
+ * Ürün sayfasından tek adımda:
+ *  - Formül: FormulaComponent satırları + yoğunluk; konsantre (FormulaLine) esans kalemleri,
+ *    konsantrasyon = esans payları toplamı. Yetki varsa onaylanır (URT-09 IFRA kontrolü
  *    onaydan önce), yoksa onaya gönderilir. Aynı koddaki önceki onaylı sürüm ARCHIVED olur.
- *  - Reçete (BOM, 1.000 adet): esans + baz hacmi (kalemin hacim biriminde) + seçilen ambalaj (adet).
+ *  - Reçete (BOM, 1.000 adet): her bileşen kütle biriminde (KG/G) + seçilen ambalaj (adet).
+ *  - Bileşen kalemleri kütleyle tutulur; hacim birimli (L/ML) kalem hiç stok hareketi görmediyse KG'a çevrilir.
  *  - Ürün yeni onaylı formüle bağlanır (URT-01 için parti açılabilir hale gelir).
  * Formül değişikliği AuditLog yazar (kural 7); formül değişince geçerli etiket onayı düşer (KAL-07).
  */
@@ -54,7 +59,12 @@ export class ProductionSetupController {
             status: true,
             concentrationPct: true,
             ifraCategory: true,
+            densityGPerMl: true,
             lines: { select: { percentage: true, item: { select: { id: true, code: true, name: true, uom: true } } } },
+            components: {
+              orderBy: { sortOrder: "asc" },
+              select: { role: true, massPct: true, item: { select: { id: true, code: true, name: true, uom: true } } },
+            },
           },
         },
       },
@@ -70,11 +80,11 @@ export class ProductionSetupController {
           },
         })
       : null;
-    const [liquids, packaging, perms] = await Promise.all([
+    const [raw, packaging, perms, template] = await Promise.all([
       this.prisma.item.findMany({
-        where: { type: "RAW_MATERIAL", uom: { in: [...VOLUME_UOMS] } },
+        where: { type: "RAW_MATERIAL" },
         orderBy: { code: "asc" },
-        select: { id: true, code: true, name: true, uom: true },
+        select: { id: true, code: true, name: true, uom: true, _count: { select: { movements: true } } },
       }),
       this.prisma.item.findMany({
         where: { type: "PACKAGING", uom: "PCS" },
@@ -82,7 +92,12 @@ export class ProductionSetupController {
         select: { id: true, code: true, name: true },
       }),
       this.permissions.forUser(auth.userId),
+      getSetting(this.prisma, "production.recipeTemplate"),
     ]);
+    // Kütle birimli kalemler seçilebilir; hacim birimli ama hiç hareketi olmayan kalem KG'a çevrilerek kullanılabilir.
+    const materials = raw
+      .filter((i) => MASS_UOMS.includes(i.uom) || (i.uom !== "PCS" && i._count.movements === 0))
+      .map((i) => ({ id: i.id, code: i.code, name: i.name, uom: i.uom, convertsToKg: !MASS_UOMS.includes(i.uom) }));
     return {
       product: { id: product.id, sku: product.sku, name: product.name, volumeMl: product.volumeMl },
       formula: product.formula
@@ -93,7 +108,9 @@ export class ProductionSetupController {
             status: product.formula.status,
             concentrationPct: product.formula.concentrationPct.toString(),
             ifraCategory: product.formula.ifraCategory,
+            densityGPerMl: product.formula.densityGPerMl?.toString() ?? null,
             lines: product.formula.lines.map((l) => ({ percentage: l.percentage.toString(), item: l.item })),
+            components: product.formula.components.map((c) => ({ role: c.role, pct: c.massPct.toString(), item: c.item })),
           }
         : null,
       bom: bom
@@ -103,7 +120,8 @@ export class ProductionSetupController {
             lines: bom.lines.map((l) => ({ qty: l.qty.toString(), uom: l.uom, item: l.item })),
           }
         : null,
-      options: { liquids, packaging },
+      options: { materials, packaging },
+      template,
       suggestedFormulaCode: formulaCodeForSku(product.sku),
       canApprove: perms.has("production:APPROVE"),
       canCreateItems: perms.has("stock:CREATE"),
@@ -122,7 +140,7 @@ export class ProductionSetupController {
   ) {
     const perms = await this.permissions.forUser(auth.userId);
     const canApprove = perms.has("production:APPROVE");
-    const wantsNewItem = "newItem" in body.essence || "newItem" in body.base;
+    const wantsNewItem = body.components.some((c) => "newItem" in c.item);
     if (wantsNewItem && !perms.has("stock:CREATE"))
       throw new ForbiddenException({ message: "Yeni hammadde kartı açmak için stok oluşturma yetkisi gerekir" });
 
@@ -133,9 +151,21 @@ export class ProductionSetupController {
       });
       if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
 
-      const essence = await this.resolveLiquid(tx, body.essence, "Esans", auth, req);
-      const base = await this.resolveLiquid(tx, body.base, "Parfüm bazı", auth, req);
-      if (essence.id === base.id) throw new BadRequestException({ message: "Esans ve baz aynı kalem olamaz" });
+      const resolved: { id: string; code: string; uom: "KG" | "G"; role: RecipeRole; pct: string }[] = [];
+      for (const c of body.components) {
+        const item = await this.resolveMaterial(tx, c.item, ROLE_LABEL[c.role], auth, req);
+        if (resolved.some((r) => r.id === item.id))
+          throw new BadRequestException({ message: `${item.code}: aynı kalem reçetede iki kez kullanılamaz` });
+        resolved.push({ ...item, role: c.role, pct: c.pct });
+      }
+      // Konsantrasyon = esans payları toplamı; konsantre (FormulaLine) esansların kendi içindeki payı.
+      const essences = resolved.filter((r) => r.role === "ESSENCE");
+      const concentration = essences.reduce((sum, e) => sum.plus(e.pct), new Prisma.Decimal(0));
+      const concentrateLines = essences.map((e) => ({
+        itemId: e.id,
+        code: e.code,
+        percentage: new Prisma.Decimal(e.pct).times(100).dividedBy(concentration).toDecimalPlaces(4).toString(),
+      }));
 
       const packIds = [...new Set(body.packagingItemIds)];
       const packaging = packIds.length
@@ -160,8 +190,8 @@ export class ProductionSetupController {
         // URT-09: IFRA madde limiti onaydan önce (limitler parametrik).
         const limits = await getSetting(tx, "ifra.limits");
         const violations = checkIfraLimits(
-          [{ itemId: essence.id, code: essence.code, percentage: "100" }],
-          body.concentrationPct,
+          concentrateLines.map((l) => ({ itemId: l.itemId, code: l.code, percentage: l.percentage })),
+          concentration.toString(),
           ifraCategory,
           limits,
         );
@@ -176,11 +206,13 @@ export class ProductionSetupController {
           code,
           version,
           name: product.name,
-          concentrationPct: body.concentrationPct,
+          concentrationPct: concentration.toString(),
+          densityGPerMl: body.densityGPerMl,
           ifraCategory,
           status: canApprove ? "APPROVED" : "IN_REVIEW",
           ...(canApprove ? { approvedById: auth.userId, approvedAt: new Date() } : {}),
-          lines: { create: [{ itemId: essence.id, percentage: "100" }] },
+          lines: { create: concentrateLines.map((l) => ({ itemId: l.itemId, percentage: l.percentage })) },
+          components: { create: resolved.map((r, i) => ({ itemId: r.id, role: r.role, massPct: r.pct, sortOrder: i })) },
         },
         select: { id: true },
       });
@@ -189,7 +221,15 @@ export class ProductionSetupController {
         action: version === 1 ? "formula.create" : "formula.version",
         entity: "Formula",
         entityId: formula.id,
-        after: { code, version, concentrationPct: body.concentrationPct, ifraCategory, lines: [{ item: essence.code, percentage: "100" }], via: "production.setup" },
+        after: {
+          code,
+          version,
+          concentrationPct: concentration.toString(),
+          densityGPerMl: body.densityGPerMl,
+          ifraCategory,
+          components: resolved.map((r) => ({ role: r.role, item: r.code, massPct: r.pct })),
+          via: "production.setup",
+        },
         ...clientInfo(req),
       });
 
@@ -242,21 +282,15 @@ export class ProductionSetupController {
         }
       }
 
-      // --- Reçete (1.000 adet): esans + baz hacmi, ambalaj adedi ---
+      // --- Reçete (1.000 adet): bileşenler kütle biriminde, ambalaj adedi ---
       await tx.billOfMaterials.updateMany({ where: { productId: product.id, isActive: true }, data: { isActive: false } });
       const lines: Prisma.BomLineCreateWithoutBomInput[] = [
-        {
-          item: { connect: { id: essence.id } },
-          qty: setupLiquidQty(product.volumeMl, body.concentrationPct, "essence", essence.uom, SETUP_BATCH_SIZE),
-          uom: essence.uom,
+        ...resolved.map((r) => ({
+          item: { connect: { id: r.id } },
+          qty: recipeBomQty(product.volumeMl, body.densityGPerMl, r.pct, r.uom, SETUP_BATCH_SIZE),
+          uom: r.uom,
           scrapPct: "0",
-        },
-        {
-          item: { connect: { id: base.id } },
-          qty: setupLiquidQty(product.volumeMl, body.concentrationPct, "base", base.uom, SETUP_BATCH_SIZE),
-          uom: base.uom,
-          scrapPct: "0",
-        },
+        })),
         ...packaging.map((p) => ({ item: { connect: { id: p.id } }, qty: String(SETUP_BATCH_SIZE), uom: "PCS" as const, scrapPct: "0" })),
       ];
       const bom = await tx.billOfMaterials.create({
@@ -282,22 +316,38 @@ export class ProductionSetupController {
     });
   }
 
-  /** Sıvı kalemi: var olanı doğrula (hammadde · L/ML) ya da yenisini aç (hammadde · L). */
-  private async resolveLiquid(tx: Tx, choice: ItemChoice, label: string, auth: AuthContext, req: AuthedRequest) {
+  /**
+   * Reçete bileşeni kalemi: var olanı doğrula (hammadde · KG/G) ya da yenisini aç (hammadde · KG).
+   * Hacim birimli (L/ML) kalem hiç stok hareketi görmediyse KG'a çevrilir (denetime yazılır);
+   * hareketi varsa çevrilemez (stok miktarı bozulur).
+   */
+  private async resolveMaterial(tx: Tx, choice: ItemChoice, label: string, auth: AuthContext, req: AuthedRequest) {
     if ("itemId" in choice) {
       const item = await tx.item.findUnique({ where: { id: choice.itemId }, select: { id: true, code: true, type: true, uom: true } });
       if (!item) throw new BadRequestException({ message: `${label} kalemi bulunamadı` });
       if (item.type !== "RAW_MATERIAL") throw new BadRequestException({ message: `${item.code}: ${label} bir hammadde olmalı` });
-      if (item.uom !== "L" && item.uom !== "ML")
+      if (item.uom === "KG" || item.uom === "G") return { id: item.id, code: item.code, uom: item.uom };
+      const moved = await tx.stockMovement.count({ where: { itemId: item.id } });
+      if (moved > 0 || item.uom === "PCS")
         throw new BadRequestException({
-          message: `${item.code}: ${label} hacim birimiyle (L ya da ML) tutulmalı. Ağırlıkla (${item.uom}) reçete hesaplanamaz.`,
+          message: `${item.code}: reçete gramla çalışır; kalem kütle birimiyle (KG ya da G) tutulmalı. Bu kalemin ${item.uom} birimli stok hareketi olduğu için çevrilemez — yeni bir KG kalemi açın.`,
         });
-      return { id: item.id, code: item.code, uom: item.uom as "L" | "ML" };
+      await tx.item.update({ where: { id: item.id }, data: { uom: "KG" } });
+      await writeAudit(tx, {
+        userId: auth.userId,
+        action: "item.uom_convert",
+        entity: "Item",
+        entityId: item.id,
+        before: { uom: item.uom },
+        after: { uom: "KG", via: "production.setup" },
+        ...clientInfo(req),
+      });
+      return { id: item.id, code: item.code, uom: "KG" as const };
     }
     const taken = await tx.item.findUnique({ where: { code: choice.newItem.code }, select: { id: true } });
     if (taken) throw new BadRequestException({ message: `Kalem kodu zaten kullanılıyor: ${choice.newItem.code}. Listeden seçin.` });
     const item = await tx.item.create({
-      data: { code: choice.newItem.code, name: choice.newItem.name, type: "RAW_MATERIAL", uom: "L" },
+      data: { code: choice.newItem.code, name: choice.newItem.name, type: "RAW_MATERIAL", uom: "KG" },
       select: { id: true, code: true },
     });
     await writeAudit(tx, {
@@ -305,9 +355,9 @@ export class ProductionSetupController {
       action: "item.create",
       entity: "Item",
       entityId: item.id,
-      after: { code: item.code, name: choice.newItem.name, type: "RAW_MATERIAL", uom: "L", via: "production.setup" },
+      after: { code: item.code, name: choice.newItem.name, type: "RAW_MATERIAL", uom: "KG", via: "production.setup" },
       ...clientInfo(req),
     });
-    return { id: item.id, code: item.code, uom: "L" as const };
+    return { id: item.id, code: item.code, uom: "KG" as const };
   }
 }

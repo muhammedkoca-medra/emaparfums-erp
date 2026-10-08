@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_RECIPE_TEMPLATE, recipeTemplateSchema } from "./recipe.js";
 
 /**
  * Ayarlanabilir iş kuralı parametreleri (SystemSetting tablosu). Burada yalnızca VARSAYILANLAR
@@ -31,6 +32,11 @@ export const SETTINGS = {
    * teyidine tabi (docs/04#dogrulanacaklar). Varsayılan %0.001 (= 10 ppm).
    */
   "allergen.labelThresholdPct": { schema: z.number().nonnegative().max(100), default: 0.001 },
+  /**
+   * Üretim kurulumunda yeni ürüne gelen varsayılan kütlesel reçete: karışım yoğunluğu (g/mL) ve
+   * bileşen yüzdeleri. Ürün bazında kurulumda değiştirilebilir.
+   */
+  "production.recipeTemplate": { schema: recipeTemplateSchema, default: DEFAULT_RECIPE_TEMPLATE },
   /** MLY-02: direkt işçilik saatlik ücreti (TRY/saat). Parametrik. */
   "costing.laborRatePerHour": { schema: z.string().regex(/^\d+(\.\d{1,2})?$/), default: "120.00" },
   /** MLY-02: genel üretim gideri saatlik dağıtım oranı (TRY/saat). Parametrik. */

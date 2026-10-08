@@ -27,6 +27,7 @@ import {
   type BatchOutputRequest,
   batchOutputSchema,
   type BatchStage,
+  type RecipeRole,
   type BatchStageRequest,
   batchStageSchema,
   type BatchUpdateRequest,
@@ -35,9 +36,13 @@ import {
   effectiveUnits,
   expectedUnits,
   fillingBalance,
+  gramsForPercents,
+  gramsToUom,
   hourlyCost,
   intervalsOverlap,
   liquidCostPerMl,
+  mlForGrams,
+  percentsForGrams,
   productionHours,
   scaleRequirement,
   splitByConcentration,
@@ -46,6 +51,7 @@ import {
   type ScheduleUpdateRequest,
   scheduleUpdateSchema,
   STAGE_FLOW,
+  totalGramsFor,
 } from "@atelier/shared";
 import { type AuthContext, type AuthedRequest, clientInfo, CurrentUser } from "../auth/auth-context.js";
 import { ApiZodBody, ZodPipe } from "../common/zod.js";
@@ -99,14 +105,29 @@ export class ProductionController {
     macerationDays: number | null;
     macerationPlace: string | null;
     bottleType: string | null;
+    lotNo: string | null;
+    densityGPerMl: { toString(): string } | null;
+    totalGr: { toString(): string } | null;
+    components: {
+      itemId: string;
+      role: string;
+      massPct: { toString(): string };
+      grams: { toString(): string };
+      item: { code: string; name: string; uom: string };
+    }[];
     createdAt: Date;
     product: { id: string; name: string; sku: string; volumeMl: number; item: { code: string } };
     formula: { id: string; code: string; version: number; concentrationPct: { toString(): string } };
   }) {
-    // Yeni partiler hacimle (ml); eski partiler gramajla. Görselleştirme hangisi varsa onu kullanır.
-    const byVolume = b.essenceMl != null && b.baseMl != null;
-    const essenceSrc = byVolume ? b.essenceMl : b.essenceGr;
-    const baseSrc = byVolume ? b.baseMl : b.baseGr;
+    // Kütlesel reçeteli parti gram (bileşenlerle); eski partiler hacimle (ml) ya da gramajla.
+    const byMass = b.components.length > 0;
+    const byVolume = !byMass && b.essenceMl != null && b.baseMl != null;
+    const massEssence = b.components
+      .filter((c) => c.role === "ESSENCE")
+      .reduce((sum, c) => sum.plus(c.grams.toString()), new Prisma.Decimal(0));
+    const massTotal = b.components.reduce((sum, c) => sum.plus(c.grams.toString()), new Prisma.Decimal(0));
+    const essenceSrc = byMass ? massEssence : byVolume ? b.essenceMl : b.essenceGr;
+    const baseSrc = byMass ? massTotal.minus(massEssence) : byVolume ? b.baseMl : b.baseGr;
     const essence = essenceSrc ? Number(essenceSrc.toString()) : 0;
     const base = baseSrc ? Number(baseSrc.toString()) : 0;
     const total = essence + base;
@@ -136,13 +157,25 @@ export class ProductionController {
       baseMl: b.baseMl?.toString() ?? null,
       testerMl: b.testerMl.toString(),
       scrapMl: b.scrapMl.toString(),
-      /** Karışım birimi: "ml" (hacimle parti) ya da "gr" (eski gramajlı parti). */
-      mixUnit: byVolume ? "ml" : "gr",
+      /** Karışım birimi: "g" (kütlesel reçete), "ml" (hacimle parti) ya da "gr" (eski gramajlı parti). */
+      mixUnit: byMass ? "g" : byVolume ? "ml" : "gr",
       mixEssence: essenceSrc?.toString() ?? null,
       mixBase: baseSrc?.toString() ?? null,
       essencePct: total > 0 ? Number(((essence / total) * 100).toFixed(2)) : null,
       basePct: total > 0 ? Number(((base / total) * 100).toFixed(2)) : null,
-      totalGr: total || null,
+      totalGr: byMass ? (b.totalGr?.toString() ?? massTotal.toFixed(2)) : total || null,
+      lotNo: b.lotNo,
+      densityGPerMl: b.densityGPerMl?.toString() ?? null,
+      /** Kütlesel reçete: tartılacak bileşenler (rol, yüzde, gram). Eski partilerde boş. */
+      components: b.components.map((c) => ({
+        itemId: c.itemId,
+        code: c.item.code,
+        name: c.item.name,
+        uom: c.item.uom,
+        role: c.role,
+        pct: c.massPct.toString(),
+        grams: c.grams.toString(),
+      })),
       concentrationPct: b.formula.concentrationPct.toString(),
       macerationDays: b.macerationDays,
       macerationPlace: b.macerationPlace,
@@ -155,6 +188,7 @@ export class ProductionController {
   }
 
   private static readonly INCLUDE = {
+    components: { orderBy: { sortOrder: "asc" as const }, include: { item: { select: { code: true, name: true, uom: true } } } },
     product: { select: { id: true, name: true, sku: true, volumeMl: true, item: { select: { code: true } } } },
     formula: { select: { id: true, code: true, version: true, concentrationPct: true } },
   };
@@ -224,21 +258,39 @@ export class ProductionController {
     db: Tx | PrismaService,
     batch: { id: string; plannedQty: number; plannedMl?: { toString(): string } | null; productId: string; formulaId: string },
   ) {
-    const bom = await db.billOfMaterials.findFirst({
-      where: { productId: batch.productId, formulaId: batch.formulaId, isActive: true },
-      include: { lines: { include: { item: { select: { id: true, code: true, name: true, type: true } } } } },
-    });
-    if (!bom) return { batchSize: 0, hasBom: false, hasShortage: false, lines: [] as RequirementLine[] };
+    const [bom, components] = await Promise.all([
+      db.billOfMaterials.findFirst({
+        where: { productId: batch.productId, formulaId: batch.formulaId, isActive: true },
+        include: { lines: { include: { item: { select: { id: true, code: true, name: true, type: true } } } } },
+      }),
+      db.batchComponent.findMany({
+        where: { batchId: batch.id },
+        orderBy: { sortOrder: "asc" },
+        include: { item: { select: { id: true, code: true, name: true, type: true, uom: true } } },
+      }),
+    ]);
+    if (!bom && components.length === 0) return { batchSize: 0, hasBom: false, hasShortage: false, lines: [] as RequirementLine[] };
     let units: number | string = batch.plannedQty;
     if (batch.plannedMl != null) {
       const product = await db.product.findUnique({ where: { id: batch.productId }, select: { volumeMl: true } });
       if (product) units = effectiveUnits(batch.plannedMl.toString(), product.volumeMl);
     }
+    // Kütlesel reçeteli parti: sıvı bileşenler partinin tartılacak gramından (kalemin KG/G biriminde);
+    // BOM'dan yalnızca ambalaj (adet) satırları ölçeklenir.
+    const needs: { itemId: string; code: string; name: string; type: string; uom: string; requiredQty: string }[] = [];
+    for (const c of components) {
+      if (c.item.uom !== "KG" && c.item.uom !== "G") continue;
+      needs.push({ itemId: c.itemId, code: c.item.code, name: c.item.name, type: c.item.type, uom: c.item.uom, requiredQty: gramsToUom(c.grams.toString(), c.item.uom) });
+    }
+    for (const l of bom?.lines ?? []) {
+      if (components.length > 0 && l.uom !== "PCS") continue;
+      const scaled = scaleRequirement(l.qty.toString(), l.scrapPct.toString(), units, bom!.batchSize);
+      needs.push({ itemId: l.itemId, code: l.item.code, name: l.item.name, type: l.item.type, uom: l.uom, requiredQty: l.uom === "PCS" ? new Prisma.Decimal(scaled).ceil().toString() : scaled });
+    }
     const lines: RequirementLine[] = [];
     let hasShortage = false;
-    for (const l of bom.lines) {
-      const scaled = scaleRequirement(l.qty.toString(), l.scrapPct.toString(), units, bom.batchSize);
-      const requiredQty = l.uom === "PCS" ? new Prisma.Decimal(scaled).ceil().toString() : scaled;
+    for (const l of needs) {
+      const requiredQty = l.requiredQty;
       // Kural 3: yalnızca serbest ve süresi geçmemiş lotlar (rezervasyonla aynı koşul).
       const { reservable: available, quarantine } = await reservableForItem(db as Tx, l.itemId);
       const shortage = new Prisma.Decimal(requiredQty).minus(available);
@@ -246,9 +298,9 @@ export class ProductionController {
       if (shortageQty !== "0") hasShortage = true;
       lines.push({
         itemId: l.itemId,
-        code: l.item.code,
-        name: l.item.name,
-        type: l.item.type,
+        code: l.code,
+        name: l.name,
+        type: l.type,
         uom: l.uom,
         requiredQty,
         availableQty: available.toDecimalPlaces(4).toString(),
@@ -256,7 +308,48 @@ export class ProductionController {
         shortageQty,
       });
     }
-    return { batchSize: bom.batchSize, hasBom: true, hasShortage, lines };
+    return { batchSize: bom?.batchSize ?? 0, hasBom: true, hasShortage, lines };
+  }
+
+  /**
+   * Parti açma formu için ürünün reçetesi: kütlesel bileşenler (yüzde) + yoğunluk ve atanacak lot no.
+   * Formül kütlesel değilse (eski) `mass: false` döner; form konsantrasyonla hacim bölmesine düşer.
+   */
+  @Get("recipe/:productId")
+  @RequirePermission("production", "VIEW")
+  async recipe(@Param("productId") productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        itemId: true,
+        volumeMl: true,
+        formula: {
+          select: {
+            id: true,
+            status: true,
+            concentrationPct: true,
+            densityGPerMl: true,
+            components: { orderBy: { sortOrder: "asc" }, include: { item: { select: { code: true, name: true, uom: true } } } },
+          },
+        },
+      },
+    });
+    if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
+    const f = product.formula;
+    const mass = !!f && f.densityGPerMl != null && f.components.length > 0;
+    return {
+      productId: product.id,
+      volumeMl: product.volumeMl,
+      formulaStatus: f?.status ?? null,
+      concentrationPct: f?.concentrationPct.toString() ?? null,
+      mass,
+      densityGPerMl: mass ? f!.densityGPerMl!.toString() : null,
+      components: mass
+        ? f!.components.map((c) => ({ itemId: c.itemId, code: c.item.code, name: c.item.name, uom: c.item.uom, role: c.role, pct: c.massPct.toString() }))
+        : [],
+      lotNoPreview: await this.nextLotNo(this.prisma as unknown as Tx, product.itemId, product.id, new Date()),
+    };
   }
 
   @Post("batches")
@@ -265,7 +358,17 @@ export class ProductionController {
   async create(@Body(new ZodPipe(batchCreateSchema)) body: BatchCreateRequest, @CurrentUser() auth: AuthContext, @Req() req: AuthedRequest) {
     const product = await this.prisma.product.findUnique({
       where: { id: body.productId },
-      include: { formula: { select: { id: true, status: true, concentrationPct: true } } },
+      include: {
+        formula: {
+          select: {
+            id: true,
+            status: true,
+            concentrationPct: true,
+            densityGPerMl: true,
+            components: { orderBy: { sortOrder: "asc" }, select: { itemId: true, role: true, massPct: true } },
+          },
+        },
+      },
     });
     if (!product) throw new NotFoundException({ message: "Ürün bulunamadı" });
     if (!product.formula)
@@ -276,7 +379,17 @@ export class ProductionController {
     const plannedQty = expectedUnits(body.plannedMl, product.volumeMl);
     if (plannedQty < 1)
       throw new BadRequestException({ message: `Hacim en az bir şişe (${product.volumeMl} ml) kadar olmalı` });
-    const split = splitByConcentration(body.plannedMl, product.formula.concentrationPct.toString());
+    // Kütlesel reçete: toplam gram = mL × yoğunluk, bileşen gramları yüzdeden (ya da elle girilen gramdan).
+    const massRecipe = product.formula.densityGPerMl != null && product.formula.components.length > 0;
+    const mass = massRecipe
+      ? this.batchComponents(
+          product.formula.components.map((c) => ({ itemId: c.itemId, role: c.role, pct: c.massPct.toString() })),
+          body.plannedMl,
+          body.densityGPerMl ?? product.formula.densityGPerMl!.toString(),
+          body.components,
+        )
+      : null;
+    const split = massRecipe ? null : splitByConcentration(body.plannedMl, product.formula.concentrationPct.toString());
     // URT-14: devam eden üretim doğrudan bir aşamada, geçmiş tarihle kaydedilebilir.
     const stage = body.startStage ?? "FORMULA_APPROVAL";
     const stageIdx = STAGE_FLOW.indexOf(stage);
@@ -291,15 +404,25 @@ export class ProductionController {
       const year = new Date().getFullYear() % 100;
       const count = await tx.productionBatch.count();
       const number = `P-${year}${String(count + 1).padStart(3, "0")}`;
+      // Lot numarası parti açılırken atanır (L-YYAA-harf); dolum çıktısı bu numarayı taşır.
+      const lotNo = await this.nextLotNo(tx, product.itemId, product.id, new Date());
       const batch = await tx.productionBatch.create({
         data: {
           number,
+          lotNo,
           productId: product.id,
           formulaId: product.formula!.id,
           plannedQty,
           plannedMl: body.plannedMl,
-          essenceMl: split.essenceMl,
-          baseMl: split.baseMl,
+          essenceMl: split?.essenceMl ?? null,
+          baseMl: split?.baseMl ?? null,
+          ...(mass
+            ? {
+                densityGPerMl: mass.densityGPerMl,
+                totalGr: mass.totalGr,
+                components: { create: mass.lines.map((l, i) => ({ itemId: l.itemId, role: l.role, massPct: l.pct, grams: l.grams, sortOrder: i })) },
+              }
+            : {}),
           macerationDays: body.macerationDays,
           macerationPlace: body.macerationPlace ?? null,
           bottleType: body.bottleType,
@@ -321,9 +444,13 @@ export class ProductionController {
           product: product.sku,
           plannedMl: body.plannedMl,
           plannedQty,
+          lotNo,
           concentrationPct: product.formula!.concentrationPct.toString(),
-          essenceMl: split.essenceMl,
-          baseMl: split.baseMl,
+          essenceMl: split?.essenceMl ?? null,
+          baseMl: split?.baseMl ?? null,
+          densityGPerMl: mass?.densityGPerMl ?? null,
+          totalGr: mass?.totalGr ?? null,
+          components: mass?.lines.map((l) => ({ itemId: l.itemId, role: l.role, pct: l.pct, grams: l.grams })) ?? null,
           bottleType: body.bottleType,
           startStage: stage,
           startedAt: startedAt.toISOString(),
@@ -350,15 +477,46 @@ export class ProductionController {
     await this.prisma.$transaction(async (tx) => {
       const b = await tx.productionBatch.findUnique({
         where: { id },
-        include: { product: { select: { volumeMl: true } }, formula: { select: { concentrationPct: true } } },
+        include: {
+          product: { select: { volumeMl: true } },
+          formula: { select: { concentrationPct: true } },
+          components: { orderBy: { sortOrder: "asc" } },
+        },
       });
       if (!b) throw new NotFoundException({ message: "Parti bulunamadı" });
       const data: Record<string, unknown> = {};
+      const byMass = b.components.length > 0;
+      if (!byMass && (body.components !== undefined || body.densityGPerMl !== undefined))
+        throw new BadRequestException({ message: "Bu parti kütlesel reçeteyle açılmadı; bileşen gramı düzeltilemez" });
+      // Kütlesel reçete: hacim/yoğunluk/gram düzeltmesi bileşenleri yeniden hesaplar (tartımdan önce).
+      let massChange: ReturnType<ProductionController["batchComponents"]> | null = null;
+      if (byMass && (body.components !== undefined || body.densityGPerMl !== undefined || body.plannedMl !== undefined)) {
+        const [reserved, consumed] = await Promise.all([
+          tx.stockReservation.count({ where: { refType: "ProductionBatch", refId: id } }),
+          tx.batchConsumption.count({ where: { batchId: id } }),
+        ]);
+        if (reserved + consumed > 0)
+          throw new BadRequestException({ message: "Tartım için malzeme ayrıldı/tüketildi; reçete gramları artık değiştirilemez" });
+        const density = body.densityGPerMl ?? b.densityGPerMl!.toString();
+        const ml = body.plannedMl ?? (body.components ? null : b.plannedMl!.toString());
+        massChange = this.batchComponents(
+          b.components.map((c) => ({ itemId: c.itemId, role: c.role, pct: c.massPct.toString() })),
+          ml,
+          density,
+          body.components,
+        );
+        const units = expectedUnits(massChange.plannedMl, b.product.volumeMl);
+        if (units < 1) throw new BadRequestException({ message: `Hacim en az bir şişe (${b.product.volumeMl} ml) kadar olmalı` });
+        data.plannedMl = massChange.plannedMl;
+        data.plannedQty = units;
+        data.densityGPerMl = massChange.densityGPerMl;
+        data.totalGr = massChange.totalGr;
+      }
       for (const k of ["plannedQty", "producedQty", "essenceGr", "baseGr", "macerationDays", "bottleType"] as const) {
         if (body[k] !== undefined) data[k] = body[k];
       }
       // Hacim düzeltmesi: adet ve esans/baz bölünmesi yeniden hesaplanır (açıkça verilen esans/baz önceliklidir).
-      if (body.plannedMl !== undefined) {
+      if (body.plannedMl !== undefined && !byMass) {
         const units = expectedUnits(body.plannedMl, b.product.volumeMl);
         if (units < 1) throw new BadRequestException({ message: `Hacim en az bir şişe (${b.product.volumeMl} ml) kadar olmalı` });
         const split = splitByConcentration(body.plannedMl, b.formula.concentrationPct.toString());
@@ -373,6 +531,11 @@ export class ProductionController {
       if (body.macerationStart !== undefined) data.macerationStart = body.macerationStart;
       if (Object.keys(data).length === 0) return;
       await tx.productionBatch.update({ where: { id }, data });
+      if (massChange) {
+        for (const l of massChange.lines) {
+          await tx.batchComponent.updateMany({ where: { batchId: id, itemId: l.itemId }, data: { massPct: l.pct, grams: l.grams } });
+        }
+      }
       await writeAudit(tx, {
         userId: auth.userId,
         action: "batch.update",
@@ -388,8 +551,12 @@ export class ProductionController {
           macerationPlace: b.macerationPlace,
           bottleType: b.bottleType,
           plannedQty: b.plannedQty,
+          ...(massChange ? { components: b.components.map((c) => ({ itemId: c.itemId, pct: c.massPct.toString(), grams: c.grams.toString() })) } : {}),
         },
-        after: { fields: Object.keys(data) },
+        after: {
+          fields: Object.keys(data),
+          ...(massChange ? { totalGr: massChange.totalGr, components: massChange.lines.map((l) => ({ itemId: l.itemId, pct: l.pct, grams: l.grams })) } : {}),
+        },
         ...clientInfo(req),
       });
     });
@@ -463,6 +630,7 @@ export class ProductionController {
       await tx.productionStageLog.deleteMany({ where: { batchId: id } });
       await tx.scheduleSlot.deleteMany({ where: { batchId: id } });
       await tx.batchCost.deleteMany({ where: { batchId: id } });
+      await tx.batchComponent.deleteMany({ where: { batchId: id } });
       await tx.productionBatch.delete({ where: { id } });
       await writeAudit(tx, {
         userId: auth.userId,
@@ -649,7 +817,7 @@ export class ProductionController {
       // 1) Satılabilir stok: mamul lotu
       let stockLot: { id: string; lotNo: string } | null = null;
       if (body.producedQty > 0) {
-        const lotNo = await this.nextOutputLotNo(tx, b.product.itemId, now);
+        const lotNo = await this.outputLotNo(tx, b.lotNo, b.product.itemId, b.product.id, now);
         const lot = await createLot(tx, { itemId: b.product.itemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
         await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
         await recordMovement(tx, {
@@ -676,7 +844,7 @@ export class ProductionController {
           .filter((c) => c.component === "ESSENCE" || c.component === "ALCOHOL_WATER")
           .reduce((s, c) => s.plus(c.actual), new Prisma.Decimal(0));
         const perMl = liquidCostPerMl(liquidPerUnit.times(b.plannedQty).toString(), b.plannedMl?.toString() ?? null);
-        const lotNo = await this.nextOutputLotNo(tx, testerItemId, now);
+        const lotNo = await this.outputLotNo(tx, b.lotNo, testerItemId, null, now);
         const lot = await createLot(tx, { itemId: testerItemId, lotNo, mfgDate: now, qcStatus: "QUARANTINE" });
         await tx.lot.update({ where: { id: lot.id }, data: { batchId: b.id } });
         await recordMovement(tx, {
@@ -981,13 +1149,76 @@ export class ProductionController {
     return any;
   }
 
-  /** L-<YYAA>-<harf>: ay içinde bu kalem için sıradaki harf (A, B, …). */
-  private async nextOutputLotNo(tx: Tx, itemId: string, now: Date) {
+  /**
+   * Sıradaki lot no: L-<YYAA>-<harf> (A…Z, AA, AB…). Ay içinde bu kalemin lotları ve ürünün açık
+   * partilerine atanmış numaralar dolu sayılır (iki parti aynı lotu almaz).
+   */
+  private async nextLotNo(tx: Tx, itemId: string, productId: string | null, now: Date) {
     const yy = String(now.getUTCFullYear() % 100).padStart(2, "0");
     const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
     const prefix = `L-${yy}${mm}-`;
-    const count = await tx.lot.count({ where: { itemId, lotNo: { startsWith: prefix } } });
-    const letter = String.fromCharCode(65 + (count % 26));
-    return `${prefix}${letter}`;
+    const [lots, batches] = await Promise.all([
+      tx.lot.findMany({ where: { itemId, lotNo: { startsWith: prefix } }, select: { lotNo: true } }),
+      productId ? tx.productionBatch.findMany({ where: { productId, lotNo: { startsWith: prefix } }, select: { lotNo: true } }) : Promise.resolve([]),
+    ]);
+    const used = new Set([...lots.map((l) => l.lotNo), ...batches.map((b) => b.lotNo)]);
+    for (let n = 0; ; n++) {
+      const candidate = prefix + lotLetters(n);
+      if (!used.has(candidate)) return candidate;
+    }
   }
+
+  /** Dolum çıktısı lotu: partinin atanmış lot numarası (kalemde zaten varsa sıradaki). */
+  private async outputLotNo(tx: Tx, batchLotNo: string | null, itemId: string, productId: string | null, now: Date) {
+    if (batchLotNo) {
+      const taken = await tx.lot.findUnique({ where: { itemId_lotNo: { itemId, lotNo: batchLotNo } }, select: { id: true } });
+      if (!taken) return batchLotNo;
+    }
+    return this.nextLotNo(tx, itemId, productId, now);
+  }
+
+  /**
+   * Parti reçetesi: formül yüzdelerinden (toplam = mL × yoğunluk) ya da elle girilen gramlardan
+   * (toplam = gramların toplamı, yüzde = gram ÷ toplam; hacim = toplam ÷ yoğunluk) bileşen satırları.
+   */
+  private batchComponents(
+    recipe: { itemId: string; role: RecipeRole; pct: string }[],
+    plannedMl: string | null,
+    densityGPerMl: string,
+    grams?: { itemId: string; grams: string }[],
+  ) {
+    if (grams) {
+      const byItem = new Map(grams.map((g) => [g.itemId, g.grams]));
+      if (byItem.size !== grams.length || recipe.length !== grams.length || recipe.some((r) => !byItem.has(r.itemId)))
+        throw new BadRequestException({ message: "Gram listesi reçete bileşenleriyle uyuşmuyor (her bileşen bir kez)" });
+      const ordered = recipe.map((r) => byItem.get(r.itemId)!);
+      const { totalGr, pcts } = percentsForGrams(ordered);
+      return {
+        densityGPerMl,
+        totalGr,
+        plannedMl: plannedMl ?? mlForGrams(totalGr, densityGPerMl),
+        lines: recipe.map((r, i) => ({ itemId: r.itemId, role: r.role, pct: pcts[i]!, grams: new Prisma.Decimal(ordered[i]!).toFixed(2) })),
+      };
+    }
+    if (plannedMl == null) throw new BadRequestException({ message: "Hacim (ml) gerekli" });
+    const totalGr = totalGramsFor(plannedMl, densityGPerMl);
+    const g = gramsForPercents(totalGr, recipe.map((r) => r.pct));
+    return {
+      densityGPerMl,
+      totalGr,
+      plannedMl,
+      lines: recipe.map((r, i) => ({ itemId: r.itemId, role: r.role, pct: r.pct, grams: g[i]! })),
+    };
+  }
+}
+
+/** 0 → A, 25 → Z, 26 → AA, 27 → AB … */
+function lotLetters(n: number): string {
+  let out = "";
+  let x = n;
+  do {
+    out = String.fromCharCode(65 + (x % 26)) + out;
+    x = Math.floor(x / 26) - 1;
+  } while (x >= 0);
+  return out;
 }

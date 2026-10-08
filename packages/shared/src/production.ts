@@ -1,6 +1,7 @@
 import { Decimal } from "decimal.js";
 import { z } from "zod";
 import { itemCodeSchema } from "./catalog.js";
+import { densityStr, gramsStr, isFullRecipe, RECIPE_ROLES, recipePctStr } from "./recipe.js";
 
 /** Üretim partisi (F3-01 · docs/03-moduller/uretim.md). EMA karışım kartı: esans + parfüm bazı. */
 
@@ -63,6 +64,13 @@ export const batchCreateSchema = z.object({
   macerationDays: z.number().int().min(0).max(120),
   macerationPlace: z.string().trim().max(80).nullable().optional(),
   bottleType: z.enum(BOTTLE_TYPES),
+  /** Kütlesel reçeteli formülde yoğunluk düzeltmesi (varsayılan: formüldeki). */
+  densityGPerMl: densityStr.optional(),
+  /**
+   * Kütlesel reçeteli formülde bileşen gramları (elle düzeltilmiş). Verilmezse formül yüzdelerinden
+   * hesaplanır. Verilirse yüzdeler gramlardan yeniden hesaplanır (toplam = gramların toplamı).
+   */
+  components: z.array(z.object({ itemId: z.string().min(1), grams: gramsStr })).min(1).max(8).optional(),
   /**
    * Devam eden üretimi kaydetme (URT-14): parti doğrudan bu aşamada açılır. Önceki aşamaların stok
    * rezervasyonu/tüketimi yapılmaz (malzeme geçmişte kullanıldı). Varsayılan: Formül onayı.
@@ -118,6 +126,10 @@ export const batchUpdateSchema = z.object({
   bottleType: z.enum(BOTTLE_TYPES).optional(),
   /** Demlenme başlangıcını elle düzeltme (ISO tarih) ya da null ile sıfırlama. */
   macerationStart: z.coerce.date().nullable().optional(),
+  /** Kütlesel reçete: yoğunluk düzeltmesi (plannedMl ile birlikte toplam gramı yeniden hesaplar). */
+  densityGPerMl: densityStr.optional(),
+  /** Kütlesel reçete: bileşen gramları (tartımdan önce düzeltilir; yüzdeler gramlardan hesaplanır). */
+  components: z.array(z.object({ itemId: z.string().min(1), grams: gramsStr })).min(1).max(8).optional(),
 });
 export type BatchUpdateRequest = z.infer<typeof batchUpdateSchema>;
 
@@ -272,23 +284,24 @@ export function costComponentForItem(item: { code: string; type: string; name: s
 /** Kurulum reçetesinin referans parti büyüklüğü (adet). */
 export const SETUP_BATCH_SIZE = 1000;
 
-const setupPct = z
-  .string()
-  .trim()
-  .regex(/^\d{1,2}(\.\d{1,2})?$/, "Konsantrasyon en fazla 2 ondalıklı sayı olmalı (ör. 20 ya da 22.5)")
-  .refine((v) => new Decimal(v).greaterThan(0) && new Decimal(v).lessThan(100), "Konsantrasyon 0 ile 100 arasında olmalı");
-
 /** Var olan bir kalemi seç ya da yenisini aç (hammadde · hacim birimi L). */
 const setupItemChoice = z.union([
   z.object({ itemId: z.string().min(1) }),
   z.object({ newItem: z.object({ code: itemCodeSchema, name: z.string().trim().min(2).max(120) }) }),
 ]);
 
+/**
+ * Kütlesel reçete kurulumu: bileşenler (esans, alkol, su, gliserin…) son üründeki kütle yüzdesiyle,
+ * karışım yoğunluğu (g/mL) ile. Yüzdelerin toplamı %100; en az bir esans. Konsantrasyon = esans payı.
+ */
 export const productionSetupSchema = z.object({
-  /** Son üründeki esans oranı (%). */
-  concentrationPct: setupPct,
-  essence: setupItemChoice,
-  base: setupItemChoice,
+  densityGPerMl: densityStr,
+  components: z
+    .array(z.object({ role: z.enum(RECIPE_ROLES), item: setupItemChoice, pct: recipePctStr }))
+    .min(2, "En az iki bileşen gerekir")
+    .max(8)
+    .refine((cs) => cs.some((c) => c.role === "ESSENCE"), "Reçetede en az bir esans olmalı")
+    .refine((cs) => isFullRecipe(cs.map((c) => c.pct)), "Bileşen yüzdelerinin toplamı %100 olmalı"),
   /** Her şişe için 1 adet tüketilecek ambalaj kalemleri (şişe, kapak/sprey, etiket, kutu). */
   packagingItemIds: z.array(z.string().min(1)).max(8).default([]),
   ifraCategory: z.string().trim().max(10).nullable().optional(),

@@ -1,11 +1,12 @@
 "use client";
 
-import { expectedUnits, splitByConcentration, START_STAGES } from "@atelier/shared";
+import { expectedUnits, isFullRecipe, type RecipeRole, splitByConcentration, START_STAGES } from "@atelier/shared";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
+import { MassRecipeEditor, type RecipeState, recipeFromPercents } from "@/components/MassRecipeEditor";
 import { alertErr, inputCls, labelCls, primaryBtn } from "@/components/ui";
-import { apiPost, errorText } from "@/lib/api-client";
+import { apiGetClient, apiPost, errorText } from "@/lib/api-client";
 import { fmtQty } from "@/lib/format";
 
 export interface BatchProductOption {
@@ -15,8 +16,18 @@ export interface BatchProductOption {
   concentrationPct: string;
 }
 
+interface Recipe {
+  mass: boolean;
+  densityGPerMl: string | null;
+  components: { itemId: string; code: string; name: string; role: RecipeRole; pct: string }[];
+  lotNoPreview: string;
+}
+
 /**
- * Yeni üretim partisi hacimle (ml) açılır. Esans/baz ürünün onaylı formül konsantrasyonundan
+ * Yeni üretim partisi. Kütlesel reçeteli üründe hacim (mL) × yoğunluk = toplam gram; bileşen gramları
+ * reçete yüzdesinden gelir, gram ya da yüzde elle düzeltilebilir (biri değişince diğeri güncellenir).
+ * Lot numarası parti açılırken otomatik atanır (önizlemede gösterilir).
+ * Eski (kütlesel olmayan) formüllerde parti hacimle (ml) açılır. Esans/baz ürünün onaylı formül konsantrasyonundan
  * bölünür, beklenen şişe adedi = ⌊ml ÷ şişe ml⌋. Önizleme sunucudaki hesapla aynı fonksiyonu kullanır.
  */
 export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
@@ -24,6 +35,25 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
   const router = useRouter();
   const [productId, setProductId] = useState("");
   const [ml, setMl] = useState("");
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [mass, setMass] = useState<RecipeState | null>(null);
+
+  async function chooseProduct(id: string) {
+    setProductId(id);
+    setRecipe(null);
+    setMass(null);
+    if (!id) return;
+    try {
+      const r = await apiGetClient<Recipe>(`/production/recipe/${encodeURIComponent(id)}`);
+      setRecipe(r);
+      if (r.mass && r.densityGPerMl) {
+        const rows = r.components.map((c) => ({ key: c.itemId, role: c.role, label: c.name, pct: String(Number(c.pct)), grams: "" }));
+        setMass(recipeFromPercents(ml || "", String(Number(r.densityGPerMl)), rows));
+      }
+    } catch (err) {
+      setError(errorText(err, t("form.saved")));
+    }
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Devam eden (mevcut) üretimi kaydetme: aşama + geçmiş tarih (URT-14)
@@ -40,12 +70,15 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
 
   const product = products.find((p) => p.id === productId) ?? null;
   // type="number" değeri her zaman "." ondalıklı standart biçimdedir (yerel binlik ayırıcı karışmaz).
-  const mlClean = ml.trim();
+  const mlClean = (mass ? mass.ml : ml).trim();
   const validMl = /^\d{1,9}(\.\d{1,2})?$/.test(mlClean) && Number(mlClean) > 0;
   const preview =
     product && validMl
       ? { ...splitByConcentration(mlClean, product.concentrationPct), units: expectedUnits(mlClean, product.volumeMl) }
       : null;
+  const massValid = !mass || (isFullRecipe(mass.rows.map((r) => r.pct || "0")) && mass.rows.every((r) => Number(r.grams) > 0));
+  // Gramlar elle değiştiyse (yüzdeler reçeteden saptıysa) sunucuya gramlar gönderilir; yoksa reçete yüzdesi geçerli.
+  const gramsEdited = !!(mass && recipe && mass.rows.some((r, i) => Number(r.pct) !== Number(recipe.components[i]?.pct)));
 
   async function onSubmit(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
@@ -55,7 +88,13 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
     try {
       const res = await apiPost<{ id: string }>("/production/batches", {
         productId,
-        plannedMl: mlClean,
+        plannedMl: Number(mlClean).toFixed(2),
+        ...(mass
+          ? {
+              densityGPerMl: mass.density,
+              ...(gramsEdited ? { components: mass.rows.map((r) => ({ itemId: r.key, grams: Number(r.grams).toFixed(2) })) } : {}),
+            }
+          : {}),
         macerationDays: Number(d.get("macerationDays")),
         macerationPlace: String(d.get("macerationPlace") ?? "").trim() || undefined,
         bottleType: d.get("bottleType"),
@@ -88,7 +127,7 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
       <h2 className="m-0 font-display text-[19px] font-semibold">{t("new")}</h2>
       <label className={labelCls}>
         {t("form.product")}
-        <select name="productId" required className={inputCls} value={productId} onChange={(e) => setProductId(e.target.value)}>
+        <select name="productId" required className={inputCls} value={productId} onChange={(e) => void chooseProduct(e.target.value)}>
           <option value="" disabled>
             {t("form.choose")}
           </option>
@@ -99,6 +138,24 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
           ))}
         </select>
       </label>
+      {recipe && (
+        <p className="m-0 flex items-center justify-between gap-2 rounded-[10px] border border-gold-2/60 bg-surface-soft px-3 py-2 text-[13px]">
+          <span className="text-muted">{t("recipe.lotAuto")}</span>
+          <span className="num font-bold text-gold-text">{recipe.lotNoPreview}</span>
+        </p>
+      )}
+      {mass && (
+        <>
+          <MassRecipeEditor value={mass} onChange={setMass} caption={t("recipe.caption", { ml: mass.ml || "—" })} />
+          {product && validMl && (
+            <p className="m-0 text-[12.5px]">
+              {t("form.expectedUnits")}: <strong className={`num ${expectedUnits(mlClean, product.volumeMl) < 1 ? "text-bad" : ""}`}>{expectedUnits(mlClean, product.volumeMl)}</strong>
+              <span className="text-muted"> · {t("recipe.bottle", { vol: product.volumeMl })}</span>
+            </p>
+          )}
+        </>
+      )}
+      {!mass && (
       <label className={labelCls}>
         {t("form.plannedMl")}
         <input
@@ -113,8 +170,9 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
           className={`${inputCls} num`}
         />
       </label>
+      )}
 
-      {product && (
+      {product && !mass && recipe && (
         <div className="flex flex-col gap-2 rounded-[12px] bg-surface-soft p-3 text-[12.5px]">
           <span className="text-[11px] font-bold tracking-[0.08em] text-muted uppercase">
             {t("form.splitTitle", { pct: fmtQty(product.concentrationPct), vol: product.volumeMl })}
@@ -196,7 +254,7 @@ export function NewBatchForm({ products }: { products: BatchProductOption[] }) {
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy || !preview || preview.units < 1} className={`${primaryBtn} self-start`}>
+      <button type="submit" disabled={busy || !preview || preview.units < 1 || !massValid} className={`${primaryBtn} self-start`}>
         {existing ? t("existing.create") : t("form.create")}
       </button>
     </form>

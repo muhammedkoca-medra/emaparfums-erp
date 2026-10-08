@@ -1,9 +1,10 @@
 "use client";
 
-import { BATCH_STAGES, essencePct } from "@atelier/shared";
+import { BATCH_STAGES, essencePct, type RecipeRole } from "@atelier/shared";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
+import { MassRecipeEditor, type RecipeState } from "@/components/MassRecipeEditor";
 import { alertErr, alertOk, inputCls, labelCls, primaryBtn, secondaryBtn } from "@/components/ui";
 import { apiPatch, errorText } from "@/lib/api-client";
 
@@ -20,6 +21,9 @@ interface Batch {
   macerationPlace: string | null;
   bottleType: string | null;
   maceration: { start: string } | null;
+  densityGPerMl: string | null;
+  totalGr: string | number | null;
+  components: { itemId: string; name: string; role: string; pct: string; grams: string }[];
 }
 
 /** Parti değerlerini elle düzenleme + aşamayı manuel ayarlama (süreç düzeltme). */
@@ -33,6 +37,24 @@ export function BatchEditor({ batch }: { batch: Batch }) {
   const [essence, setEssence] = useState(initEssence ? String(Number(initEssence)) : "");
   const [base, setBase] = useState(initBase ? String(Number(initBase)) : "");
   const [plannedMl, setPlannedMl] = useState(batch.plannedMl ? String(Number(batch.plannedMl)) : "");
+  // Kütlesel reçeteli parti: gram/yüzde/hacim birlikte düzeltilir (tartım için malzeme ayrılmadan önce).
+  const byMass = batch.components.length > 0;
+  const initMass = (): RecipeState | null =>
+    byMass
+      ? {
+          ml: batch.plannedMl ? String(Number(batch.plannedMl)) : "",
+          density: batch.densityGPerMl ? String(Number(batch.densityGPerMl)) : "",
+          totalGr: batch.totalGr != null ? Number(batch.totalGr).toFixed(2) : "",
+          rows: batch.components.map((c) => ({
+            key: c.itemId,
+            role: c.role as RecipeRole,
+            label: c.name,
+            pct: String(Number(c.pct)),
+            grams: Number(c.grams).toFixed(2),
+          })),
+        }
+      : null;
+  const [mass, setMass] = useState<RecipeState | null>(initMass);
   const [stage, setStage] = useState(batch.stage);
   const [stageAt, setStageAt] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,8 +73,24 @@ export function BatchEditor({ batch }: { batch: Batch }) {
     try {
       const volumeChanged = byVolume && plannedMl !== String(Number(batch.plannedMl));
       const mixChanged = essence !== (initEssence ? String(Number(initEssence)) : "") || base !== (initBase ? String(Number(initBase)) : "");
+      const massPayload = (() => {
+        if (!mass) return {};
+        const gramsChanged = mass.rows.some((r, i) => Number(r.grams) !== Number(batch.components[i]?.grams));
+        const pctChanged = mass.rows.some((r, i) => Number(r.pct) !== Number(batch.components[i]?.pct));
+        const mlChanged = Number(mass.ml) !== Number(batch.plannedMl);
+        const densityChanged = Number(mass.density) !== Number(batch.densityGPerMl);
+        if (!gramsChanged && !mlChanged && !densityChanged) return {};
+        return {
+          plannedMl: Number(mass.ml).toFixed(2),
+          densityGPerMl: mass.density,
+          // Yüzde değiştiyse (ya da gram elle düzeltildiyse) gramlar gönderilir; yalnızca hacim/yoğunlukta sunucu yeniden hesaplar.
+          ...(pctChanged || (gramsChanged && !mlChanged && !densityChanged)
+            ? { components: mass.rows.map((r) => ({ itemId: r.key, grams: Number(r.grams).toFixed(2) })) }
+            : {}),
+        };
+      })();
       await apiPatch(`/production/batches/${batch.id}`, {
-        ...(byVolume
+        ...(byMass ? massPayload : byVolume
           ? {
               // Hacim değişirse sunucu adet ve esans/baz bölünmesini yeniden hesaplar; yoksa ölçülen değerler gönderilir.
               ...(volumeChanged ? { plannedMl } : {}),
@@ -102,7 +140,12 @@ export function BatchEditor({ batch }: { batch: Batch }) {
         {/* Değerler */}
         <form onSubmit={saveValues} aria-label={t("edit.values")} className="flex flex-col gap-3">
           <h3 className="m-0 text-[14px] font-bold text-muted uppercase">{t("edit.values")}</h3>
-          {byVolume ? (
+          {mass ? (
+            <>
+              <MassRecipeEditor value={mass} onChange={setMass} />
+              <p className="m-0 text-[11.5px] text-muted">{t("recipe.editLockHint")}</p>
+            </>
+          ) : byVolume ? (
             <>
               <label className={labelCls}>
                 {t("form.plannedMl")}
@@ -138,7 +181,7 @@ export function BatchEditor({ batch }: { batch: Batch }) {
               </div>
             </>
           )}
-          <p className="m-0 text-[12px] font-semibold text-gold-text">{t("form.concentrationHint", { pct })}</p>
+          {!mass && <p className="m-0 text-[12px] font-semibold text-gold-text">{t("form.concentrationHint", { pct })}</p>}
           <div className="grid grid-cols-2 gap-3">
             <label className={labelCls}>
               {t("form.macerationDays")}

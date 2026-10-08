@@ -13,6 +13,7 @@ import { MacerationClock } from "../MacerationClock";
 import { type Materials, MaterialsPanel } from "../MaterialsPanel";
 import { MixBeaker } from "../MixBeaker";
 import { OutputForm } from "../OutputForm";
+import { type BatchComponentView, RecipeCard } from "../RecipeCard";
 import { type QualityLot, QualityReleasePanel } from "../QualityReleasePanel";
 import { StageBadge } from "../StageBadge";
 import { StageStepper } from "../StageStepper";
@@ -30,13 +31,16 @@ interface Batch {
   baseMl: string | null;
   testerMl: string;
   scrapMl: string;
-  mixUnit: "ml" | "gr";
+  mixUnit: "g" | "ml" | "gr";
+  lotNo: string | null;
+  densityGPerMl: string | null;
+  components: BatchComponentView[];
   mixEssence: string | null;
   mixBase: string | null;
   concentrationPct: string;
   essencePct: number | null;
   basePct: number | null;
-  totalGr: number | null;
+  totalGr: string | number | null;
   macerationDays: number | null;
   macerationPlace: string | null;
   bottleType: string | null;
@@ -75,7 +79,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
     <>
       <Topbar
         heading={`${b.number} · ${b.product.name}`}
-        sub={`${b.product.sku} · ${b.formula.code} v${b.formula.version}`}
+        sub={`${b.product.sku} · ${b.formula.code} v${b.formula.version}${b.lotNo ? ` · Lot ${b.lotNo}` : ""}`}
         action={
           <span className="flex items-center gap-3">
             {canEdit && (
@@ -94,6 +98,10 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         </Link>
 
         <StageStepper stage={b.stage} />
+
+        {b.components.length > 0 && (
+          <RecipeCard lotNo={b.lotNo} plannedMl={b.plannedMl} densityGPerMl={b.densityGPerMl} totalGr={b.totalGr} components={b.components} />
+        )}
 
         {/* Görsel süreç: karışım + demlenme + şişe */}
         <div className="grid items-start gap-4 lg:grid-cols-3">

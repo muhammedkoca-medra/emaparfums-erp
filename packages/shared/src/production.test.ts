@@ -124,10 +124,12 @@ describe("hızlı üretim kurulumu", () => {
     expect(costComponentForItem({ code: "ES-EMAK025", type: "RAW_MATERIAL", name: "Esans · Bombshell" })).toBe("ESSENCE");
   });
 
-  it("konsantrasyon 0 ile 100 arasında olmalı", () => {
-    const base = { essence: { itemId: "a" }, base: { itemId: "b" } };
-    expect(productionSetupSchema.safeParse({ ...base, concentrationPct: "20" }).success).toBe(true);
-    expect(productionSetupSchema.safeParse({ ...base, concentrationPct: "0" }).success).toBe(false);
-    expect(productionSetupSchema.safeParse({ ...base, concentrationPct: "100" }).success).toBe(false);
+  it("kütlesel kurulum: yüzdeler %100, en az bir esans, yoğunluk 0,5–1,5", () => {
+    const comp = (role: string, pct: string, id: string) => ({ role, pct, item: { itemId: id } });
+    const ok = { densityGPerMl: "0.854", components: [comp("ESSENCE", "23", "a"), comp("ALCOHOL", "72.5", "b"), comp("WATER", "4", "c"), comp("GLYCERIN", "0.5", "d")] };
+    expect(productionSetupSchema.safeParse(ok).success).toBe(true);
+    expect(productionSetupSchema.safeParse({ ...ok, components: ok.components.slice(0, 3) }).success).toBe(false);
+    expect(productionSetupSchema.safeParse({ ...ok, components: [comp("ALCOHOL", "96", "b"), comp("WATER", "4", "c")] }).success).toBe(false);
+    expect(productionSetupSchema.safeParse({ ...ok, densityGPerMl: "2" }).success).toBe(false);
   });
 });

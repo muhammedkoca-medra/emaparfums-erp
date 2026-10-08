@@ -1,13 +1,21 @@
 "use client";
 
-import { SETUP_BATCH_SIZE, setupLiquidQty } from "@atelier/shared";
+import { isFullRecipe, type RecipeRole } from "@atelier/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
-import { alertErr, alertOk, inputCls, labelCls, primaryBtn } from "@/components/ui";
+import { MassRecipeEditor, type RecipeRow, type RecipeState, recipeFromPercents } from "@/components/MassRecipeEditor";
+import { alertErr, alertOk, inputCls, primaryBtn, secondaryBtn } from "@/components/ui";
 import { apiPost, errorText } from "@/lib/api-client";
 import { fmtQty } from "@/lib/format";
+
+interface ItemRef {
+  id: string;
+  code: string;
+  name: string;
+  uom: string;
+}
 
 export interface SetupData {
   product: { id: string; sku: string; name: string; volumeMl: number };
@@ -17,26 +25,53 @@ export interface SetupData {
     version: number;
     status: string;
     concentrationPct: string;
-    lines: { percentage: string; item: { id: string; code: string; name: string; uom: string } }[];
+    densityGPerMl: string | null;
+    lines: { percentage: string; item: ItemRef }[];
+    components: { role: RecipeRole; pct: string; item: ItemRef }[];
   } | null;
   bom: { batchSize: number; lines: { qty: string; uom: string; item: { id: string; code: string; name: string; type: string } }[] } | null;
   options: {
-    liquids: { id: string; code: string; name: string; uom: string }[];
+    materials: (ItemRef & { convertsToKg: boolean })[];
     packaging: { id: string; code: string; name: string }[];
   };
+  template: { densityGPerMl: string; lines: { role: RecipeRole; pct: string }[] };
   canApprove: boolean;
   canCreateItems: boolean;
 }
 
 const NEW = "__new__";
+const ROLES: RecipeRole[] = ["ESSENCE", "ALCOHOL", "WATER", "GLYCERIN", "OTHER"];
 const skuTail = (sku: string) => {
   const s = sku.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
   return s.length >= 2 ? s : `${s}00`;
 };
 
+interface Choice {
+  sel: string;
+  code: string;
+  name: string;
+}
+
+/** Rol için önerilen yeni kart (kod/ad) ve mevcut kalemlerden eşleşen. */
+function defaultChoice(role: RecipeRole, product: SetupData["product"], materials: SetupData["options"]["materials"], canCreate: boolean): Choice {
+  const essenceCode = `ES-${skuTail(product.sku)}`;
+  const suggest: Record<RecipeRole, { code: string; name: string; match: (i: ItemRef) => boolean }> = {
+    ESSENCE: { code: essenceCode, name: `Esans · ${product.name}`.slice(0, 120), match: (i) => i.code === essenceCode },
+    ALCOHOL: { code: "HM-ALKOL966", name: "Etil Alkol (%96,6)", match: (i) => /alkol|alcohol|etanol/i.test(i.name) },
+    WATER: { code: "HM-SAFSU", name: "Saf Su", match: (i) => /saf su|distile|\bsu\b|water/i.test(i.name) },
+    GLYCERIN: { code: "HM-GLISERIN", name: "Gliserin", match: (i) => /gliserin|glycerin/i.test(i.name) },
+    OTHER: { code: "", name: "", match: () => false },
+  };
+  const s = suggest[role];
+  const found = materials.find(s.match);
+  return { sel: found?.id ?? (canCreate && s.code ? NEW : ""), code: s.code, name: s.name };
+}
+
 /**
- * Hızlı üretim kurulumu (hazır esans + parfüm bazı): formül + reçete tek adımda, ürüne bağlanır.
- * Varsayılanlar: ürünün esans kartı yoksa yenisi (ES-<SKU>); daha önce açılmış bir baz varsa o seçilir.
+ * Üretim kurulumu — kütlesel reçete. Bileşenler (esans, etil alkol, saf su, gliserin…) son üründeki
+ * kütle yüzdesiyle ve karışım yoğunluğuyla tanımlanır. Yüzde değişince gram, gram değişince yüzde güncellenir.
+ * Varsayılan oranlar "Otomatik kurallar" ekranındaki reçete şablonundan gelir. Formül + reçete tek adımda
+ * kurulur ve ürüne bağlanır.
  */
 export function ProductionSetupPanel({
   data,
@@ -48,43 +83,70 @@ export function ProductionSetupPanel({
   nextProduct?: { id: string; name: string } | null;
 }) {
   const t = useTranslations("production.setup");
+  const tr = useTranslations("production.recipe");
   const router = useRouter();
   const { product, formula, bom, options } = data;
-  const essenceCode = `ES-${skuTail(product.sku)}`;
-  const currentEssence = formula?.lines[0]?.item.id;
-  const existingEssence = options.liquids.find((l) => l.code === essenceCode)?.id;
-  const currentBase = bom?.lines.find((l) => l.item.type === "RAW_MATERIAL" && l.item.id !== currentEssence)?.item.id;
-  const existingBase = options.liquids.find((l) => /baz|alkol|alcohol/i.test(l.name) && l.code !== essenceCode)?.id;
 
-  const [conc, setConc] = useState(formula ? String(Number(formula.concentrationPct)) : "");
-  const [essenceSel, setEssenceSel] = useState(currentEssence ?? existingEssence ?? (data.canCreateItems ? NEW : ""));
-  const [essenceNew, setEssenceNew] = useState({ code: essenceCode, name: `Esans · ${product.name}`.slice(0, 120) });
-  const [baseSel, setBaseSel] = useState(currentBase ?? existingBase ?? (data.canCreateItems ? NEW : ""));
-  const [baseNew, setBaseNew] = useState({ code: "BZ-PARFUM", name: "Parfüm bazı (alkol)" });
-  const [pack, setPack] = useState<Set<string>>(
-    new Set(bom?.lines.filter((l) => l.item.type === "PACKAGING").map((l) => l.item.id) ?? []),
-  );
+  const initial = (): { recipe: RecipeState; choices: Choice[] } => {
+    const fromFormula = formula && formula.components.length > 0 && formula.densityGPerMl;
+    const lines = fromFormula ? formula!.components.map((c) => ({ role: c.role, pct: String(Number(c.pct)) })) : data.template.lines;
+    const choices = fromFormula
+      ? formula!.components.map((c) => ({ sel: c.item.id, code: c.item.code, name: c.item.name }))
+      : lines.map((l) => defaultChoice(l.role, product, options.materials, data.canCreateItems));
+    const rows: RecipeRow[] = lines.map((l, i) => ({ key: `r${i}`, role: l.role, label: "", pct: l.pct, grams: "" }));
+    const density = fromFormula ? String(Number(formula!.densityGPerMl)) : data.template.densityGPerMl;
+    return { recipe: recipeFromPercents(String(product.volumeMl), density, rows), choices };
+  };
+  const [state, setState] = useState(initial);
+  const [pack, setPack] = useState<Set<string>>(new Set(bom?.lines.filter((l) => l.item.type === "PACKAGING").map((l) => l.item.id) ?? []));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [nextKey, setNextKey] = useState(100);
 
-  const concValid = /^\d{1,2}(\.\d{1,2})?$/.test(conc.trim()) && Number(conc) > 0 && Number(conc) < 100;
-  const uomOf = (sel: string) => (sel === NEW ? "L" : (options.liquids.find((l) => l.id === sel)?.uom as "L" | "ML" | undefined) ?? "L");
-  const perBottleEssence = concValid ? (product.volumeMl * Number(conc)) / 100 : null;
+  const { recipe, choices } = state;
+  const setRecipe = (r: RecipeState) => setState((s) => ({ ...s, recipe: r }));
+  const setChoice = (i: number, patch: Partial<Choice>) =>
+    setState((s) => ({ ...s, choices: s.choices.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
+  const setRole = (i: number, role: RecipeRole) =>
+    setState((s) => ({ ...s, recipe: { ...s.recipe, rows: s.recipe.rows.map((r, j) => (j === i ? { ...r, role } : r)) } }));
+  const addRow = () => {
+    setState((s) => ({
+      recipe: { ...s.recipe, rows: [...s.recipe.rows, { key: `r${nextKey}`, role: "OTHER", label: "", pct: "0", grams: "0.00" }] },
+      choices: [...s.choices, { sel: data.canCreateItems ? NEW : "", code: "", name: "" }],
+    }));
+    setNextKey((k) => k + 1);
+  };
+  const removeRow = (i: number) =>
+    setState((s) => ({
+      recipe: recipeFromPercents(s.recipe.ml, s.recipe.density, s.recipe.rows.filter((_, j) => j !== i)),
+      choices: s.choices.filter((_, j) => j !== i),
+    }));
+
+  const pctOk = (v: string) => /^\d{1,3}(\.\d{1,4})?$/.test(v) && Number(v) > 0;
+  const valid =
+    isFullRecipe(recipe.rows.map((r) => r.pct)) &&
+    recipe.rows.every((r) => pctOk(r.pct)) &&
+    recipe.rows.some((r) => r.role === "ESSENCE") &&
+    /^\d(\.\d{1,4})?$/.test(recipe.density) &&
+    choices.every((c) => c.sel && (c.sel !== NEW || (c.code.trim() && c.name.trim().length >= 2)));
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
     try {
-      const res = await apiPost<{ formula: { code: string; version: number; status: string }; linked: boolean }>(
-        `/production/setup/${product.id}`,
-        {
-          concentrationPct: conc.trim(),
-          essence: essenceSel === NEW ? { newItem: { code: essenceNew.code.trim().toUpperCase(), name: essenceNew.name.trim() } } : { itemId: essenceSel },
-          base: baseSel === NEW ? { newItem: { code: baseNew.code.trim().toUpperCase(), name: baseNew.name.trim() } } : { itemId: baseSel },
-          packagingItemIds: [...pack],
-        },
-      );
+      const res = await apiPost<{ formula: { code: string; version: number; status: string }; linked: boolean }>(`/production/setup/${product.id}`, {
+        densityGPerMl: recipe.density,
+        components: recipe.rows.map((r, i) => {
+          const c = choices[i]!;
+          return {
+            role: r.role,
+            pct: r.pct,
+            item: c.sel === NEW ? { newItem: { code: c.code.trim().toUpperCase(), name: c.name.trim() } } : { itemId: c.sel },
+          };
+        }),
+        packagingItemIds: [...pack],
+      });
       setMsg({
         ok: true,
         text:
@@ -100,35 +162,41 @@ export function ProductionSetupPanel({
     }
   }
 
-  const liquidSelect = (value: string, onChange: (v: string) => void, label: string) => (
-    <label className={labelCls}>
-      {label}
-      <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} required>
-        <option value="" disabled>
-          {t("choose")}
-        </option>
-        {data.canCreateItems && <option value={NEW}>+ {t("newItem")}</option>}
-        {options.liquids.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.code} · {l.name} ({l.uom})
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-
-  const newItemFields = (v: { code: string; name: string }, set: (v: { code: string; name: string }) => void) => (
-    <div className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-2 rounded-[10px] bg-surface-soft p-2.5">
-      <label className={labelCls}>
-        <span className="text-[11.5px]">{t("itemCode")}</span>
-        <input className={`${inputCls} num`} value={v.code} onChange={(e) => set({ ...v, code: e.target.value.toUpperCase() })} required />
-      </label>
-      <label className={labelCls}>
-        <span className="text-[11.5px]">{t("itemName")}</span>
-        <input className={inputCls} value={v.name} onChange={(e) => set({ ...v, name: e.target.value })} required minLength={2} />
-      </label>
-    </div>
-  );
+  const itemCell = (row: RecipeRow, i: number) => {
+    const c = choices[i]!;
+    const chosen = options.materials.find((m) => m.id === c.sel);
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] gap-1.5">
+          <select aria-label={tr("roleLabel")} className={`${inputCls} min-h-9 text-[12.5px]`} value={row.role} onChange={(e) => setRole(i, e.target.value as RecipeRole)}>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {tr(`role.${r}`)}
+              </option>
+            ))}
+          </select>
+          <select aria-label={tr("item")} className={`${inputCls} min-h-9 text-[12.5px]`} value={c.sel} onChange={(e) => setChoice(i, { sel: e.target.value })} required>
+            <option value="" disabled>
+              {t("choose")}
+            </option>
+            {data.canCreateItems && <option value={NEW}>+ {t("newItem")}</option>}
+            {options.materials.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.code} · {m.name} ({m.uom})
+              </option>
+            ))}
+          </select>
+        </div>
+        {c.sel === NEW && (
+          <div className="grid grid-cols-[minmax(0,130px)_minmax(0,1fr)] gap-1.5">
+            <input aria-label={t("itemCode")} placeholder="HM-0000" className={`${inputCls} num min-h-9 text-[12.5px]`} value={c.code} onChange={(e) => setChoice(i, { code: e.target.value.toUpperCase() })} />
+            <input aria-label={t("itemName")} placeholder={t("itemName")} className={`${inputCls} min-h-9 text-[12.5px]`} value={c.name} onChange={(e) => setChoice(i, { name: e.target.value })} />
+          </div>
+        )}
+        {chosen?.convertsToKg && <span className="text-[11px] text-warn">{tr("convertsToKg", { uom: chosen.uom })}</span>}
+      </div>
+    );
+  };
 
   return (
     <section id="uretim-kurulumu" className="flex scroll-mt-20 flex-col gap-4 rounded-[18px] border border-line bg-surface p-5" aria-label={t("title")}>
@@ -138,11 +206,7 @@ export function ProductionSetupPanel({
           <p className="m-0 text-[12px] text-muted">{t("intro")}</p>
         </div>
         {formula ? (
-          <span
-            className={`rounded-full px-3 py-1 text-[11.5px] font-semibold ${
-              formula.status === "APPROVED" ? "bg-ok-bg text-ok" : "bg-warn-bg text-warn"
-            }`}
-          >
+          <span className={`rounded-full px-3 py-1 text-[11.5px] font-semibold ${formula.status === "APPROVED" ? "bg-ok-bg text-ok" : "bg-warn-bg text-warn"}`}>
             {formula.code} v{formula.version} · {t(`status.${formula.status}`)}
           </span>
         ) : (
@@ -189,28 +253,18 @@ export function ProductionSetupPanel({
       {canCreate && (
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <h3 className="m-0 text-[13px] font-bold">{formula ? t("updateTitle") : t("createTitle")}</h3>
+          <p className="m-0 text-[12px] text-muted">{tr("setupHint")}</p>
 
-          <label className={labelCls}>
-            {t("concentration")}
-            <input
-              className={`${inputCls} num`}
-              inputMode="decimal"
-              placeholder={t("concentrationPlaceholder")}
-              value={conc}
-              onChange={(e) => setConc(e.target.value.replace(",", "."))}
-              required
-            />
-            <span className="text-[11px] font-normal text-muted">{t("concentrationHint")}</span>
-          </label>
-
-          <div className="flex flex-col gap-2">
-            {liquidSelect(essenceSel, setEssenceSel, t("essence"))}
-            {essenceSel === NEW && newItemFields(essenceNew, setEssenceNew)}
-          </div>
-          <div className="flex flex-col gap-2">
-            {liquidSelect(baseSel, setBaseSel, t("base"))}
-            {baseSel === NEW && newItemFields(baseNew, setBaseNew)}
-          </div>
+          <MassRecipeEditor
+            value={recipe}
+            onChange={setRecipe}
+            itemCell={itemCell}
+            onRemove={recipe.rows.length > 2 ? removeRow : undefined}
+            caption={tr("caption", { ml: recipe.ml || "—" })}
+          />
+          <button type="button" onClick={addRow} className={`${secondaryBtn} self-start`} disabled={recipe.rows.length >= 8}>
+            + {tr("addRow")}
+          </button>
 
           <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
             <legend className="mb-1 text-[13px] font-semibold">{t("packaging")}</legend>
@@ -238,31 +292,8 @@ export function ProductionSetupPanel({
             )}
           </fieldset>
 
-          {/* Canlı önizleme */}
-          {concValid && (
-            <div className="grid gap-2 rounded-[12px] border border-gold-2/50 bg-surface-soft p-3 text-[12.5px] sm:grid-cols-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[11px] font-bold tracking-[0.08em] text-muted uppercase">{t("perBottle", { vol: product.volumeMl })}</span>
-                <span className="num">
-                  {t("essence")}: <strong className="text-gold-text">{fmtQty(String(perBottleEssence))} ml</strong> · {t("base")}:{" "}
-                  <strong>{fmtQty(String(product.volumeMl - (perBottleEssence ?? 0)))} ml</strong>
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[11px] font-bold tracking-[0.08em] text-muted uppercase">{t("perBatch", { size: SETUP_BATCH_SIZE })}</span>
-                <span className="num">
-                  {t("essence")}:{" "}
-                  <strong className="text-gold-text">
-                    {fmtQty(setupLiquidQty(product.volumeMl, conc, "essence", uomOf(essenceSel)))} {uomOf(essenceSel)}
-                  </strong>{" "}
-                  · {t("base")}: <strong>{fmtQty(setupLiquidQty(product.volumeMl, conc, "base", uomOf(baseSel)))} {uomOf(baseSel)}</strong>
-                </span>
-              </div>
-            </div>
-          )}
-
           {!data.canApprove && <p className="m-0 text-[12px] text-warn">{t("needsApproval")}</p>}
-          <button type="submit" disabled={busy || !concValid || !essenceSel || !baseSel} className={`${primaryBtn} self-start`}>
+          <button type="submit" disabled={busy || !valid} className={`${primaryBtn} self-start`}>
             {busy ? t("saving") : formula ? t("update") : t("save")}
           </button>
         </form>

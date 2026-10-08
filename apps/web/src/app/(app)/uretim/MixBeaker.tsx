@@ -13,7 +13,7 @@ export function MixBeaker({
 }: {
   essence: string | null;
   base: string | null;
-  unit: "ml" | "gr";
+  unit: "g" | "ml" | "gr";
   essencePct: number | null;
   basePct: number | null;
 }) {

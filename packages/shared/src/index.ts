@@ -12,6 +12,7 @@ export * from "./tax-rules.js";
 export * from "./scent-notes.js";
 export * from "./customer.js";
 export * from "./production.js";
+export * from "./recipe.js";
 export * from "./order.js";
 export * from "./payment.js";
 export * from "./bottles.js";

@@ -209,6 +209,8 @@ model Item {
   reservations       StockReservation[]
   supplierItems      SupplierItem[]
   formulaLines       FormulaLine[]
+  formulaComponents  FormulaComponent[]
+  batchComponents    BatchComponent[]
   bomLines           BomLine[]
   poLines            PurchaseOrderLine[]
   standardCosts      StandardCost[]
@@ -321,14 +323,17 @@ enum FormulaStatus {
 }
 
 model Formula {
-  id               String            @id @default(cuid())
+  id               String             @id @default(cuid())
   code             String // F-NA-03
-  version          Int               @default(1)
+  version          Int                @default(1)
   name             String
-  concentrationPct Decimal           @db.Decimal(7, 4) // %20
+  concentrationPct Decimal            @db.Decimal(7, 4) // %20
+  // Kütlesel reçete: karışım yoğunluğu (g/mL). Doluysa formül FormulaComponent ile tanımlıdır.
+  densityGPerMl    Decimal?           @db.Decimal(6, 4)
+  components       FormulaComponent[]
   ifraAmendment    Int? // 51
   ifraCategory     String? // "4"
-  status           FormulaStatus     @default(DRAFT)
+  status           FormulaStatus      @default(DRAFT)
   lines            FormulaLine[]
   allergens        FormulaAllergen[]
   products         Product[]
@@ -336,7 +341,7 @@ model Formula {
   batches          ProductionBatch[]
   approvedById     String?
   approvedAt       DateTime?
-  createdAt        DateTime          @default(now())
+  createdAt        DateTime           @default(now())
 
   @@unique([code, version])
 }
@@ -348,6 +353,33 @@ model FormulaLine {
   itemId     String
   item       Item    @relation(fields: [itemId], references: [id])
   percentage Decimal @db.Decimal(7, 4) // konsantre içindeki pay
+}
+
+enum RecipeRole {
+  ESSENCE
+  ALCOHOL
+  WATER
+  GLYCERIN
+  OTHER
+}
+
+/**
+ * Kütlesel reçete bileşeni: son üründeki kütle yüzdesi (toplam %100).
+ */
+model FormulaComponent {
+  id        String     @id @default(cuid())
+  formulaId String
+  formula   Formula    @relation(fields: [formulaId], references: [id])
+  itemId    String
+  item      Item       @relation(fields: [itemId], references: [id])
+  role      RecipeRole
+  massPct   Decimal    @db.Decimal(7, 4)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([formulaId])
+  @@index([itemId])
 }
 
 model FormulaAllergen {
@@ -805,6 +837,11 @@ model ProductionBatch {
   macerationDays  Int?
   macerationPlace String? // demlenme yeri (ör. "Soğuk oda R2", "Tank T3")
   bottleType      BottleType? // metal / amber şişe
+  // Kütlesel reçete: parti açılırken otomatik lot no (L-YYAA-harf), yoğunluk ve toplam gram.
+  lotNo           String?
+  densityGPerMl   Decimal?             @db.Decimal(6, 4)
+  totalGr         Decimal?             @db.Decimal(18, 4)
+  components      BatchComponent[]
   dueAt           DateTime?
   ownerId         String?
   stageLogs       ProductionStageLog[]
@@ -814,6 +851,28 @@ model ProductionBatch {
   costs           BatchCost[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+
+  @@unique([productId, lotNo])
+}
+
+/**
+ * Partinin reçete anlık görüntüsü: bileşen başına kütle yüzdesi ve tartılacak gram.
+ */
+model BatchComponent {
+  id        String          @id @default(cuid())
+  batchId   String
+  batch     ProductionBatch @relation(fields: [batchId], references: [id])
+  itemId    String
+  item      Item            @relation(fields: [itemId], references: [id])
+  role      RecipeRole
+  massPct   Decimal         @db.Decimal(7, 4)
+  grams     Decimal         @db.Decimal(18, 4)
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([batchId])
+  @@index([itemId])
 }
 
 model ProductionStageLog {

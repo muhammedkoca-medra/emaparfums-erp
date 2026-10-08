@@ -1146,7 +1146,7 @@
     },
     "setup": {
       "title": "Üretim kurulumu",
-      "intro": "Bu ürünün formülü (esans + konsantrasyon) ve reçetesi. Kurulum tamamlanınca bu ürün için parti açılabilir.",
+      "intro": "Bu ürünün kütlesel reçetesi (esans, etil alkol, saf su, gliserin) ve ambalajı. Kurulum tamamlanınca bu ürün için parti açılabilir.",
       "status": {
         "APPROVED": "Onaylı",
         "IN_REVIEW": "Onay bekliyor",
@@ -1218,6 +1218,37 @@
       "deleting": "Siliniyor…",
       "confirm": "{number} partisi kalıcı olarak silinecek. Emin misiniz?",
       "failed": "Parti silinemedi."
+    },
+    "recipe": {
+      "ml": "Hacim (mL)",
+      "density": "Yoğunluk (g/mL)",
+      "totalGr": "Toplam (g)",
+      "component": "Bileşen",
+      "pct": "Kütlesel oran (%)",
+      "grams": "Miktar (gram)",
+      "total": "Toplam",
+      "role": {
+        "ESSENCE": "Esans",
+        "ALCOHOL": "Etil alkol",
+        "WATER": "Saf su",
+        "GLYCERIN": "Gliserin",
+        "OTHER": "Diğer bileşen"
+      },
+      "roleLabel": "Bileşen türü",
+      "item": "Hammadde kartı",
+      "remove": "Bileşeni kaldır",
+      "addRow": "Bileşen ekle",
+      "notFull": "Yüzdelerin toplamı %{sum}; reçetenin kaydedilmesi için toplam %100 olmalı.",
+      "hint": "Yüzdeyi değiştirince gram, gramı değiştirince yüzde ve toplam güncellenir. Toplam gram = hacim × yoğunluk.",
+      "convertsToKg": "Bu kart {uom} biriminde; henüz stok hareketi olmadığı için kayıtta kilograma (KG) çevrilecek.",
+      "setupHint": "Reçete son üründeki kütle yüzdeleriyle kaydedilir. Aşağıdaki hacmi değiştirerek gram karşılığını deneyebilirsiniz (ör. 470 mL).",
+      "caption": "{ml} mL için kütlesel reçete",
+      "densityShort": "yoğunluk {d} g/mL",
+      "lotAuto": "Lot numarası (otomatik)",
+      "lotNo": "Lot no",
+      "bottle": "şişe {vol} ml",
+      "cardTitle": "Tartım kartı",
+      "editLockHint": "Reçete gramları, tartım için malzeme ayrılana kadar düzeltilebilir."
     }
   },
   "orders": {
